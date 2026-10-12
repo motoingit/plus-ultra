@@ -1,0 +1,41 @@
+#my
+.my/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+
+# Tooling and test output
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local application data and generated backups
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+backups/
+data/
+logs/
+
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+
+# IDE and OS files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+.DS_Store
