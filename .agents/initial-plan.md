@@ -13,7 +13,7 @@ The user (Moto) is vibecoding under supervision. Work in **phases**. Each phase 
 2. Reply with: the files you will create or modify, any new dependency (none unless the phase lists it), your assumptions, and any questions. **Wait for "go".**
 
 ## **After writing code for any phase**
-1. Update the `.docs/what-ihave-done-already.md` for Changes as it is saving progress with (Phase-no, phase todolist, phase issues and its status, and Important points)
+1. Update the `.docs/progress-log.md` for Changes as it is saving progress with (Phase-no, phase todolist, phase issues and its status, and Important points)
 2. Suggest git add and commit command to run in response
 
 ## **While implementing:**
@@ -189,7 +189,7 @@ Not verified which works on Moto's machine. Do not pick one without asking.
 2. Run the app yourself. Agent-reported success is not verification, especially for Wayland, tray and notifications.
 3. Run `uv run ruff check . && uv run pytest`.
 4. `git commit -m "phase-N: <what>"`.
-5. Paste the agent's draft into `.my/what-ihave-done-already.md`.
+5. Paste the agent's draft into `.my/progress-log.md`.
 6. Start the next phase in a **fresh chat** so context stays small. The log file carries the memory.
 
 # Definition of Done

@@ -34,4 +34,8 @@
 
 # Documentation
 
-After every phase, update the relevant `docs/*.md` files, especially `README.md`, to reflect implemented changes, test results, and remaining issues. Keep documentation concise and accurate.
+After every phase, update the relevant `docs/*.md` files as follows:
+- Especially `README.md`, to reflect implemented changes on top apis, database schema and 3 layer achitecture  details
+- Keep updating `api.md` with new API's and modification.
+- Keep updating `progress-log.md` with what is going to implemented next, what was implemented in this phase, what were the issues and its status, and Important points.
+Note: Keep documentation concise, uniform and accurate.
