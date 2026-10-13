@@ -8,6 +8,7 @@
 # Project Rules & Guidelines
 
 - **Privacy Constraint**: Never read, search, list, or modify any files or directories inside `.my/`. This folder is strictly reserved for the user.
+- **Secrets**: Never read, print, create, or edit `.env`. Add new variable NAMES to `.env.sample` with placeholders. Never hardcode credentials or log secrets.
 - **Initialization and Techstack**: Load [init-and-techstack.md](./rules/init-and-techstack.md) before the first implementation task and never scan this file after that.
 - **Decision Making**: Always consult [ask-before-assuming.md](./rules/ask-before-assuming.md) when multiple technical approaches or designs are viable.
 - **Coding Conventions**: Follow [coding-style.md](./rules/coding-style.md) for naming conventions, type hints, and PEP 8 compliance.
@@ -24,9 +25,12 @@
   integration behind small, testable adapters.
 - Keep long-running work off the UI thread and make shutdown/cancellation explicit.
 
-# Validation
+# Validation & Testing
 
 - Run targeted tests first, then the project test suite when practical.
+- Every phase ships tests for the happy path, edge cases (empty, missing, very long, unicode) and failure paths (corrupt file, permission denied, constraint violation, interrupted write). Run them with `uv run pytest`.
+- For what pytest cannot reach (real Wayland window, tray, notify-send), provide a smoke script or `--smoke-test` under xvfb plus a manual checklist.
+- The gate report lists the cases tested, the commands run with their output, and what was NOT verified. "All cases" means every acceptance criterion of the phase plus its error paths.
 - Before considering a change complete, run the configured formatter, linter, and
   type checker if they exist.
 - Document manual Linux desktop checks for startup behavior, display placement,

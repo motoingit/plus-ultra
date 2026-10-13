@@ -31,19 +31,27 @@ The codebase strictly enforces loose coupling and layer isolation:
   plus-ultra
   ```
   Runs `plus_ultra.main:main()`.
+- **Core Config API (`plus_ultra.config`)**:
+  - `get_data_dir() -> Path`: Resolves `$XDG_DATA_HOME/plus-ultra` (fallback `~/.local/share/plus-ultra`, mode `0o700`).
+  - `get_state_dir() -> Path`: Resolves `$XDG_STATE_HOME/plus-ultra` (fallback `~/.local/state/plus-ultra`, mode `0o700`).
+  - `get_db_path() -> Path`: Path to `plus-ultra.sqlite3` in data dir.
+  - `get_log_path() -> Path`: Path to `launcher.log` in state dir.
 - **Planned Flags**:
   - `--smoke-test`: Headless/transient UI integration test (Phase 4).
   - `--install-autostart` / `--uninstall-autostart`: XDG autostart generator (Phase 6).
 
 ---
 
-## Database Schema (SQLite 3NF)
+## Database Schema (SQLite 3NF, Local-First)
 
-Versioned via `PRAGMA user_version` with WAL journal mode:
-- `categories`: `id`, `name`
-- `tasks`: `id`, `title`, `notes`, `category_id`, `status` (`todo`, `doing`, `done`), `created_at`, `updated_at`, `synced_at`, `is_deleted`
-- `reminders`: `id`, `task_id`, `remind_at`, `fired_at` (Partial index `idx_reminders_due`)
-- `settings`: `key`, `value`
+Versioned via `PRAGMA user_version` with WAL journal mode and foreign keys enabled:
+- `categories`: `id` (UUID), `name`, `created_at`, `updated_at`, `synced_at`, `is_deleted`
+  - Partial unique index `idx_categories_name_active` on `name` WHERE `is_deleted = 0`.
+- `tasks`: `id` (UUID), `title`, `notes`, `category_id`, `status` (`todo`, `doing`, `done`), `created_at`, `updated_at`, `synced_at`, `is_deleted`
+- `reminders`: `id` (UUID), `task_id`, `remind_at`, `created_at`, `updated_at`, `synced_at`, `is_deleted`
+  - Partial index `idx_reminders_due` on `remind_at` WHERE `is_deleted = 0`.
+- `reminder_fires`: `reminder_id` (UUID PK), `fired_at` (Device-local firing state).
+- `settings`: `key` (PK), `value` (Local machine-written state: `widget_x`, `widget_y`, `last_synced_at`).
 
 ---
 

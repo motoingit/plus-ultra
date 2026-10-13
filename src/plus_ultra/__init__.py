@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from PLUS ULTRA !")
+"""PLUS-ULTRA: Floating desktop assistant for Ubuntu."""

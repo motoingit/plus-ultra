@@ -1,6 +1,6 @@
 [project]
 name = "plus-ultra"
-version = "0.1.0"
+version = "0"
 description = "Floating desktop assistant for TECHPERSON"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -23,3 +23,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]

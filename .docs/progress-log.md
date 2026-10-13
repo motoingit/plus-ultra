@@ -28,16 +28,34 @@
 
 ## Phase 1: Foundation (Paths, Secure Permissions, Logging)
 
-- **Status**: Ready to Implement (Waiting for Go)
-- **Target**: Foundation and OS XDG paths
+- **Status**: Completed
+- **Date**: 2026-10-13
 
-### Phase 1 Planned To-do List:
-- [ ] Add development tools `ruff` and `pytest` via `uv add --dev ruff pytest`.
-- [ ] Implement `src/plus_ultra/config.py`:
-  - [ ] Implement XDG base directory paths (`$XDG_DATA_HOME`, `$XDG_STATE_HOME`, `$XDG_RUNTIME_DIR`).
-  - [ ] Enforce POSIX permission mode `0o700` (`rwx------`) on directory creation.
-  - [ ] Export application constants (`APP_NAME`, `DB_FILENAME`, `LOG_FILENAME`).
-- [ ] Implement dual logging in `src/plus_ultra/main.py` (`launcher.log` in state dir + console).
-- [ ] Implement unit tests in `tests/test_config.py` verifying fallback and overridden paths with `pytest` `monkeypatch`.
-- [ ] Verify `uv run plus-ultra`, `uv run ruff check .`, and `uv run pytest`.
-- [ ] Update documentation (`README.md`, `.docs/api.md`, `.docs/progress-log.md`).
+### Phase 1 To-do List:
+- [x] Add development tools `ruff` and `pytest` via `uv add --dev ruff pytest`.
+- [x] Implement `src/plus_ultra/config.py`:
+  - [x] Implement XDG base directory paths (`$XDG_DATA_HOME`, `$XDG_STATE_HOME`).
+  - [x] Enforce POSIX permission mode `0o700` (`rwx------`) on directory creation.
+  - [x] Export application constants (`APP_NAME`, `DB_FILENAME`, `LOG_FILENAME`).
+  - [x] Helper functions `get_db_path()` and `get_log_path()`.
+- [x] Implement dual logging in `src/plus_ultra/main.py` (`launcher.log` in state dir + console stdout) with ISO-8601 timestamps.
+- [x] Implement unit tests in `tests/test_config.py` verifying fallback, overridden paths, mode `0o700` permissions, unicode names, empty variables, and startup logging.
+- [x] Verify gate: `uv run plus-ultra` writes startup lines and exits 0; `uv run ruff check .` and `uv run pytest` pass cleanly (9 tests passed).
+- [x] Update documentation (`README.md`, `.docs/api.md`, `.docs/progress-log.md`).
+
+### Issues & Status:
+- **Line length and import sorting**: Resolved by configuring imports and wrapping docstrings to satisfy `ruff` 80-character limit.
+- **Exception handling style**: Replaced `try-except-pass` with `contextlib.suppress(OSError)` in `_ensure_private_directory()` per ruff rule `SIM105`.
+- **Package import structure**: Cleaned `src/plus_ultra/__init__.py` to avoid shadowing `plus_ultra.main:main`.
+
+### Important Points:
+- Verified on disk: `/home/moto/.local/share/plus-ultra` and `/home/moto/.local/state/plus-ultra` created with permissions `drwx------` (`0o700`).
+- Gate passed: `uv run plus-ultra` executed cleanly with exit code 0 and populated `/home/moto/.local/state/plus-ultra/launcher.log`.
+- All 9 unit tests in `tests/test_config.py` passed in 0.02s.
+
+---
+
+## Next: Phase 1b: Secrets, Metadata, Settings
+
+- **Status**: Ready for Planning & Key Approval
+- **Target**: Static metadata JSON, read-only default settings, and atomic user overrides in `$XDG_CONFIG_HOME/plus-ultra/user-settings.json`.
