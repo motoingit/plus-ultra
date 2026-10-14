@@ -151,8 +151,8 @@ CREATE TABLE reminder_fires (
 -- Partial index: the scheduler queries active reminders
 CREATE INDEX idx_reminders_due ON reminders(remind_at) WHERE is_deleted = 0;
 
--- Local-only machine state (widget_x, widget_y, last_synced_at)
-CREATE TABLE settings (
+-- machine-written state only (widget_x, widget_y, last_synced_at); user preferences live only in user-settings.json
+CREATE TABLE app_state (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
@@ -199,7 +199,7 @@ Connection setup: `PRAGMA foreign_keys = ON;` and `PRAGMA journal_mode = WAL;` o
   - Atomic writes: write a temp file in the same folder, then `os.replace`. File mode `0o600`, folder mode `0o700`.
   - Reset: remove one key's override, or delete file to restore factory defaults.
   - Load at startup, plus explicit `reload()` function. No file watching yet.
-  - Split: user preferences live ONLY in this JSON. Machine-written state (`widget_x`, `widget_y`, `last_synced_at`) lives ONLY in SQLite `settings` table (local-only). A value lives in exactly one of them.
+  - Split: user preferences live ONLY in this JSON. Machine-written state (`widget_x`, `widget_y`, `last_synced_at`) lives ONLY in SQLite `app_state` table (local-only). A value lives in exactly one of them.
 
 **Tests:** happy path, edge cases (corrupt JSON, wrong types, missing overrides, atomic write interrupt simulation).
 **Gate:** all tests pass, settings merge and write atomically.
@@ -212,7 +212,7 @@ Connection setup: `PRAGMA foreign_keys = ON;` and `PRAGMA journal_mode = WAL;` o
 **Concepts:** event loop vs threads, window stacking, compositor.
 
 ### Phase 3: Database layer
-**Build:** `db.py`, `models.py`, `repository.py` per Data Model section. Migration runner using `user_version`. A `transaction()` context manager that commits on success and rolls back on error. CRUD for tasks, categories, reminders, settings.
+**Build:** `db.py`, `models.py`, `repository.py` per Data Model section. Migration runner using `user_version`. A `transaction()` context manager that commits on success and rolls back on error. CRUD for tasks, categories, reminders, app_state.
 - Implement UUID text PK/FKs.
 - Synced tables include `created_at`, `updated_at`, `synced_at`, `is_deleted`.
 - Implement soft deletes:
@@ -222,7 +222,7 @@ Connection setup: `PRAGMA foreign_keys = ON;` and `PRAGMA journal_mode = WAL;` o
   - Unique active category name index `idx_categories_name_active` allows reusing name of soft-deleted category.
   - Only repository layer sets `updated_at`.
 - Implement `reminder_fires` table for local fired state.
-- Wire widget position save and restore through a small service call or a direct setting read in `main.py` (not from `ui/`).
+- Wire widget position save and restore through a small service call or a direct app_state read in `main.py` (not from `ui/`).
 **Tests (first):** constraints (empty title rejected, bad status rejected), `ON DELETE CASCADE` and `SET NULL`, rollback leaves no partial rows, migrations are idempotent, `EXPLAIN QUERY PLAN` shows `idx_reminders_due` is used; test soft-deleting task cascades soft-delete to its reminders in transaction; test unique active category name allows reusing soft-deleted category name; test soft-deleting category sets tasks.category_id to NULL in transaction; test scheduler query excludes reminders of soft-deleted tasks.
 **Gate:** all tests pass; the widget reopens at its last position.
 **Concepts:** ACID, primary and foreign keys, normalization (3NF), indexes, migrations, soft deletes.
@@ -264,7 +264,7 @@ Not verified which works on Moto's machine. Do not pick one without asking. Moto
 - Supabase client dependency added only after Moto's approval.
 
 **Build:**
-- `sync.py`: Supabase online differential sync worker (runs off the Tk main thread). Compares local changes (`updated_at > last_synced_at`) with remote Supabase, pushes local mutations, pulls remote mutations (last-write-wins by `updated_at`), updates `last_synced_at` in local SQLite `settings` table.
+- `sync.py`: Supabase online differential sync worker (runs off the Tk main thread). Compares local changes (`updated_at > last_synced_at`) with remote Supabase, pushes local mutations, pulls remote mutations (last-write-wins by `updated_at`), updates `last_synced_at` in local SQLite `app_state` table.
 **Tests:** differential sync logic with mock Supabase responses, last-write-wins resolution, offline queue, failure handling.
 **Gate:** sync tests pass, local mutations push and remote mutations pull without blocking the Tk main loop.
 **Concepts:** differential synchronization, conflict resolution (LWW), thread isolation, network resilience.

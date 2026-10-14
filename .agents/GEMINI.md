@@ -42,4 +42,8 @@ After every phase, update the relevant `docs/*.md` files as follows:
 - Especially `README.md`, to reflect implemented changes on top apis, database schema and 3 layer achitecture  details
 - Keep updating `api.md` with new API's and modification.
 - Keep updating `progress-log.md` with what is going to implemented next, what was implemented in this phase, what were the issues and its status, and Important points.
+- Keep updating `architecture.MD` (or `.docs/architecture.MD`) with:
+  - `# Project Folder Structure`
+  - `# Project Tech-Stack`
+  - `# Project Dependencies`
 Note: Keep documentation concise, uniform and accurate.
