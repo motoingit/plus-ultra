@@ -1,0 +1,7 @@
+{
+  "settings_version": 1,
+  "always_on_top": true,
+  "glow_enabled": true,
+  "glow_pulse_period_ms": 3000,
+  "reminders_enabled": true
+}

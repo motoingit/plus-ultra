@@ -14,8 +14,11 @@ from pathlib import Path
 
 from plus_ultra.config import (
     APP_NAME,
+    get_app_version,
+    get_config_dir,
     get_data_dir,
     get_log_path,
+    get_metadata,
     get_state_dir,
 )
 
@@ -54,9 +57,13 @@ def configure_logging() -> Path:
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
+    meta = get_metadata()
     parser = argparse.ArgumentParser(
-        prog=APP_NAME,
-        description="PLUS-ULTRA: Floating desktop assistant for Ubuntu",
+        prog=meta.get("app_name", APP_NAME),
+        description=(
+            f"{meta.get('display_name', APP_NAME)}: "
+            f"{meta.get('description', '')}"
+        ),
     )
     return parser.parse_args(args)
 
@@ -66,9 +73,18 @@ def main(argv: list[str] | None = None) -> None:
     _args = parse_args(argv)
     log_path = configure_logging()
 
+    meta = get_metadata()
+    version = get_app_version()
     logger.info("PLUS-ULTRA initializing...")
+    logger.info(
+        "Application: %s v%s (%s)",
+        meta.get("display_name", APP_NAME),
+        version,
+        meta.get("company", ""),
+    )
     logger.info("Data directory: %s", get_data_dir())
     logger.info("State directory: %s", get_state_dir())
+    logger.info("Config directory: %s", get_config_dir())
     logger.info("Log file: %s", log_path)
     logger.info("PLUS-ULTRA foundation initialized successfully.")
 

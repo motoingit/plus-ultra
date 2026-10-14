@@ -55,7 +55,39 @@
 
 ---
 
-## Next: Phase 1b: Secrets, Metadata, Settings
+## Phase 1b: Secrets, Metadata, Settings
 
-- **Status**: Ready for Planning & Key Approval
-- **Target**: Static metadata JSON, read-only default settings, and atomic user overrides in `$XDG_CONFIG_HOME/plus-ultra/user-settings.json`.
+- **Status**: Completed
+- **Date**: 2026-10-13
+
+### Phase 1b To-do List:
+- [x] Create `.env.sample` with public placeholders (`SUPABASE_URL`, `SUPABASE_ANON_KEY`); verify `.env` is uncommitted and protected in `.gitignore`.
+- [x] Add package metadata resource (`src/plus_ultra/resources/metadata.json`) and dynamic version lookup via `importlib.metadata`.
+- [x] Add locked default settings resource (`src/plus_ultra/resources/default-settings.json`) with keys: `settings_version`, `always_on_top`, `glow_enabled`, `glow_pulse_period_ms`, `reminders_enabled`.
+- [x] Implement `src/plus_ultra/config.py` helpers: `get_config_dir()`, `get_user_settings_path()`, `get_app_version()`, `get_metadata()`.
+- [x] Implement `src/plus_ultra/settings.py` settings manager:
+  - [x] Strict type validation (`type(val) is type(default_val)`).
+  - [x] Ignore unknown keys and ignore type-mismatched values.
+  - [x] Defensive recovery for corrupted JSON by quarantining to `.bad-<timestamp>` without crashing.
+  - [x] Atomic writes using temporary file in same directory + `os.replace` + `fsync` with mode `0o600`.
+  - [x] Reject machine state keys (`widget_x`, `widget_y`).
+  - [x] Exposed APIs: `load_effective_settings()`, `load_default_settings()`, `update_user_setting()`, `reset_setting()`, `reset_all_settings()`, `reload()`.
+- [x] Implement unit tests in `tests/test_settings.py` and expand `tests/test_config.py` (23 total tests passing).
+- [x] Verify formatter, linter, test suite, and CLI execution.
+
+### Issues & Status:
+- **Type safety for booleans**: `isinstance(True, int)` evaluates to `True` in Python. Resolved by enforcing strict identity check `type(user_val) is type(default_val)`.
+- **Linting rule UP017**: Used `datetime.UTC` alias in place of `timezone.utc`.
+- **Ruff line length**: Formatted all docstrings, assertions, and functions to fit strictly within 80 characters.
+
+### Important Points:
+- Atomic replacement guarantees settings file integrity during power-loss or crash.
+- Filesystem permissions: Config directory mode `0o700` (`drwx------`), user settings file mode `0o600` (`-rw-------`).
+- Total test suite now runs 23 tests in 0.04s with 100% pass rate.
+
+---
+
+## Next: Phase 2: Wayland/XWayland Spike + Single Instance Lock
+
+- **Status**: Pending Gate Approval
+- **Target**: Evaluate Tkinter floating behavior under GNOME Wayland/XWayland and implement single-instance process lock using standard-library `fcntl.flock`.

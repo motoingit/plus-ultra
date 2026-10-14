@@ -9,13 +9,18 @@ Applies OS concepts:
 from __future__ import annotations
 
 import contextlib
+import importlib.metadata
+import importlib.resources
+import json
 import os
 from pathlib import Path
+from typing import Any
 
 # Shared application constants
 APP_NAME = "plus-ultra"
 DB_FILENAME = "plus-ultra.sqlite3"
 LOG_FILENAME = "launcher.log"
+USER_SETTINGS_FILENAME = "user-settings.json"
 
 
 def _ensure_private_directory(path: Path) -> Path:
@@ -64,3 +69,38 @@ def get_db_path() -> Path:
 def get_log_path() -> Path:
     """Return path to launcher log file in state directory."""
     return get_state_dir() / LOG_FILENAME
+
+
+def get_config_dir() -> Path:
+    """Resolve and create application configuration directory.
+
+    Conforms to the XDG Base Directory specification:
+    - $XDG_CONFIG_HOME/plus-ultra
+    - Fallback: ~/.config/plus-ultra
+    """
+    raw_env = os.environ.get("XDG_CONFIG_HOME", "").strip()
+    base_dir = Path(raw_env) if raw_env else Path.home() / ".config"
+    target_dir = base_dir / APP_NAME
+    return _ensure_private_directory(target_dir)
+
+
+def get_user_settings_path() -> Path:
+    """Return path to user settings JSON file in configuration directory."""
+    return get_config_dir() / USER_SETTINGS_FILENAME
+
+
+def get_app_version() -> str:
+    """Return installed application package version with fallback."""
+    try:
+        return importlib.metadata.version(APP_NAME)
+    except importlib.metadata.PackageNotFoundError:
+        return "0.1.0"
+
+
+def get_metadata() -> dict[str, Any]:
+    """Load static application metadata from packaged resources."""
+    ref = importlib.resources.files("plus_ultra.resources").joinpath(
+        "metadata.json"
+    )
+    with ref.open("r", encoding="utf-8") as f:
+        return json.load(f)

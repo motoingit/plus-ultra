@@ -34,24 +34,22 @@ The codebase strictly enforces loose coupling and layer isolation:
 - **Core Config API (`plus_ultra.config`)**:
   - `get_data_dir() -> Path`: Resolves `$XDG_DATA_HOME/plus-ultra` (fallback `~/.local/share/plus-ultra`, mode `0o700`).
   - `get_state_dir() -> Path`: Resolves `$XDG_STATE_HOME/plus-ultra` (fallback `~/.local/state/plus-ultra`, mode `0o700`).
+  - `get_config_dir() -> Path`: Resolves `$XDG_CONFIG_HOME/plus-ultra` (fallback `~/.config/plus-ultra`, mode `0o700`).
   - `get_db_path() -> Path`: Path to `plus-ultra.sqlite3` in data dir.
   - `get_log_path() -> Path`: Path to `launcher.log` in state dir.
+  - `get_user_settings_path() -> Path`: Path to `user-settings.json` in config dir.
+  - `get_app_version() -> str`: Returns installed package version.
+  - `get_metadata() -> dict[str, Any]`: Loads application metadata from packaged resources.
+- **Settings API (`plus_ultra.settings`)**:
+  - `load_effective_settings() -> dict[str, Any]`: Defaults merged with user overrides.
+  - `load_default_settings() -> dict[str, Any]`: Read-only package defaults.
+  - `update_user_setting(key: str, value: Any) -> dict[str, Any]`: Validates types, persists atomically (mode `0o600`).
+  - `reset_setting(key: str) -> None`: Restores default for a single setting.
+  - `reset_all_settings() -> None`: Clears all user overrides.
+  - `reload() -> dict[str, Any]`: Refreshes settings cache from disk.
 - **Planned Flags**:
   - `--smoke-test`: Headless/transient UI integration test (Phase 4).
   - `--install-autostart` / `--uninstall-autostart`: XDG autostart generator (Phase 6).
-
----
-
-## Database Schema (SQLite 3NF, Local-First)
-
-Versioned via `PRAGMA user_version` with WAL journal mode and foreign keys enabled:
-- `categories`: `id` (UUID), `name`, `created_at`, `updated_at`, `synced_at`, `is_deleted`
-  - Partial unique index `idx_categories_name_active` on `name` WHERE `is_deleted = 0`.
-- `tasks`: `id` (UUID), `title`, `notes`, `category_id`, `status` (`todo`, `doing`, `done`), `created_at`, `updated_at`, `synced_at`, `is_deleted`
-- `reminders`: `id` (UUID), `task_id`, `remind_at`, `created_at`, `updated_at`, `synced_at`, `is_deleted`
-  - Partial index `idx_reminders_due` on `remind_at` WHERE `is_deleted = 0`.
-- `reminder_fires`: `reminder_id` (UUID PK), `fired_at` (Device-local firing state).
-- `settings`: `key` (PK), `value` (Local machine-written state: `widget_x`, `widget_y`, `last_synced_at`).
 
 ---
 

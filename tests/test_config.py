@@ -133,3 +133,50 @@ def test_main_startup_logging(
     content = log_file.read_text(encoding="utf-8")
     assert "PLUS-ULTRA initializing..." in content
     assert "foundation initialized successfully." in content
+
+
+def test_config_dir_default_and_override(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Config dir resolves to ~/.config/plus-ultra or XDG_CONFIG_HOME."""
+    fake_home = tmp_path / "home"
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+
+    config_dir = config.get_config_dir()
+    expected_default = fake_home / ".config" / config.APP_NAME
+    assert config_dir == expected_default
+    assert config_dir.is_dir()
+    assert stat.S_IMODE(config_dir.stat().st_mode) == 0o700
+
+    custom_cfg = tmp_path / "custom_cfg"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(custom_cfg))
+    override_dir = config.get_config_dir()
+    expected_override = custom_cfg / config.APP_NAME
+    assert override_dir == expected_override
+    assert override_dir.is_dir()
+    assert stat.S_IMODE(override_dir.stat().st_mode) == 0o700
+
+
+def test_user_settings_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Settings file path is resolved inside the configuration directory."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    settings_path = config.get_user_settings_path()
+    expected = tmp_path / "config" / config.APP_NAME / "user-settings.json"
+    assert settings_path == expected
+
+
+def test_metadata_and_app_version() -> None:
+    """Packaged metadata and version are read cleanly."""
+    meta = config.get_metadata()
+    assert isinstance(meta, dict)
+    assert meta["app_name"] == "plus-ultra"
+    assert meta["display_name"] == "PLUS-ULTRA"
+    assert "company" in meta
+    assert "description" in meta
+
+    version = config.get_app_version()
+    assert isinstance(version, str)
+    assert len(version) > 0
