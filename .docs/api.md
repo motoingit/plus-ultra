@@ -72,15 +72,91 @@ This document records public APIs, module interfaces, and command-line entry poi
   - `font_family: "DejaVu Sans"`, `font_size: 9`
 
 ### `plus_ultra.ui.floating`
-- `FloatingWidget(root: tk.Tk | None, geometry: CapsuleGeometry, theme: CapsuleTheme, on_click_callback: Callable | None)`:
-  - Initializes a borderless (`overrideredirect(True)`), `-topmost` floating window placed at the top-center of the primary display.
+- `FloatingWidget(root: tk.Tk | None, geometry: CapsuleGeometry, theme: CapsuleTheme, on_click_callback: Callable | None, initial_x: int | None = None, initial_y: int | None = None, on_position_change: Callable[[int, int], None] | None = None)`:
+  - Initializes a borderless (`overrideredirect(True)`), `-topmost` floating window.
+  - Places widget at `(initial_x, initial_y)` if provided, else defaults to top-center of the primary display.
   - Draws a smooth capsule polygon with hover glow animation.
-  - Implements mouse drag tracking (`<Button-1>`, `<B1-Motion>`) and click detection on mouse release.
+  - Implements mouse drag tracking (`<Button-1>`, `<B1-Motion>`), firing `on_position_change(x, y)` when dragging finishes.
+  - Triggers `on_click_callback()` on mouse release when no dragging occurred.
   - `close() -> None`: Closes window and exits main event loop cleanly.
   - `run() -> None`: Starts Tkinter `mainloop()`.
 
 ### CLI Flags (`plus-ultra`)
-- `--smoke-test`: Automatically initializes the application and closes the floating widget after 500ms, returning exit code 0.
-- `--no-ui`: Initializes configuration, state directories, and logging without starting the GUI event loop.
+- `--smoke-test`: Automatically initializes database and logging, launches floating widget, and closes after 500ms, returning exit code 0.
+- `--no-ui`: Initializes configuration, database schema, state directories, and logging without starting GUI event loop.
+
+---
+
+## 5. Implemented Module Specifications (Phase 3)
+
+### `plus_ultra.db`
+- `CURRENT_SCHEMA_VERSION: int = 1`: Version marker for PRAGMA user_version migrations.
+- `get_connection(db_path: Path | None = None) -> sqlite3.Connection`:
+  - Returns a configured SQLite connection to `db_path` or `$XDG_DATA_HOME/plus-ultra/plus-ultra.sqlite3`.
+  - Enables `PRAGMA foreign_keys = ON;`.
+  - Enables `PRAGMA journal_mode = WAL;` (Write-Ahead Logging for non-blocking concurrent reads).
+  - Sets `PRAGMA busy_timeout = 5000;` (5-second lock timeout).
+  - Sets `row_factory = sqlite3.Row` for dict-accessible column names.
+- `transaction(conn: sqlite3.Connection) -> ContextManager[sqlite3.Cursor]`:
+  - Context manager guaranteeing ACID transaction atomicity.
+  - Commits automatically if the block executes without error.
+  - Rolls back immediately on any unhandled exception.
+- `get_schema_version(conn: sqlite3.Connection) -> int`: Returns current `PRAGMA user_version`.
+- `set_schema_version(conn: sqlite3.Connection, version: int) -> None`: Sets `PRAGMA user_version`.
+- `init_db(db_path: Path | None = None) -> None`:
+  - Runs pending database schema migrations incrementally.
+  - Migration 1 creates tables: `categories`, `tasks`, `reminders`, `reminder_fires`, `app_state`, plus partial indexes `idx_categories_name_active` and `idx_reminders_due`.
+
+### `plus_ultra.models`
+- Strongly typed `@dataclass(slots=True)` models:
+  - `Category`: `id: str`, `name: str`, `color: str = "#4a5568"`, `created_at: str`, `updated_at: str`, `synced_at: str | None`, `is_deleted: int = 0`.
+  - `Task`: `id: str`, `title: str`, `category_id: str | None`, `description: str`, `due_date: str | None`, `status: str = "Pending"`, `task_label: str = "College"`, `critical_level: str = "Medium"`, `pace_level: str = "Short-term"`, `is_google_task: bool = False`, `created_at: str`, `updated_at: str`, `synced_at: str | None`, `is_deleted: int = 0`.
+  - `Reminder`: `id: str`, `task_id: str`, `remind_at: str`, `created_at: str`, `updated_at: str`, `synced_at: str | None`, `is_deleted: int = 0`.
+  - `AppState`: `key: str`, `value: str`.
+
+### `plus_ultra.repository`
+- `CategoryRepository(conn: sqlite3.Connection)`:
+  - `create(name: str, color: str = "#4a5568") -> Category`: Creates new category. Enforces unique name among active categories.
+  - `get_by_id(category_id: str) -> Category | None`: Retrieves category by UUID.
+  - `list_active() -> list[Category]`: Lists active (non-deleted) categories ordered alphabetically NOCASE.
+  - `update(category_id: str, name: str, color: str) -> Category | None`: Updates category name and color.
+  - `soft_delete(category_id: str) -> bool`: Soft-deletes category (`is_deleted = 1`) and cascades `tasks.category_id = NULL` in the same transaction.
+- `TaskRepository(conn: sqlite3.Connection)`:
+  - `create(...) -> Task`: Creates new task. Validates `title` length > 0, `status`, `critical_level`, and `pace_level`.
+  - `get_by_id(task_id: str) -> Task | None`: Retrieves task by UUID.
+  - `list_active(category_id: str | None = None, status: str | None = None) -> list[Task]`: Lists active tasks with optional category and status filtering.
+  - `update(task_id: str, ...) -> Task | None`: Updates task attributes and automatically updates `updated_at`.
+  - `soft_delete(task_id: str) -> bool`: Soft-deletes task and cascades soft-delete to all related reminders (`reminders.is_deleted = 1`) in the same transaction.
+- `ReminderRepository(conn: sqlite3.Connection)`:
+  - `create(task_id: str, remind_at: str) -> Reminder`: Schedules a reminder for an existing task.
+  - `get_by_id(reminder_id: str) -> Reminder | None`: Retrieves reminder by UUID.
+  - `list_due(before_timestamp: str) -> list[Reminder]`: Queries active reminders due at or before timestamp, excluding reminders where the parent task was soft-deleted or the reminder was already dispatched on this device.
+  - `mark_fired(reminder_id: str) -> None`: Records reminder dispatch in `reminder_fires`.
+  - `is_fired(reminder_id: str) -> bool`: Checks if reminder was already dispatched on this device.
+  - `soft_delete(reminder_id: str) -> bool`: Soft-deletes an individual reminder.
+- `AppStateRepository(conn: sqlite3.Connection)`:
+  - `get(key: str, default: str | None = None) -> str | None`: Reads runtime machine state value.
+  - `set(key: str, value: str) -> None`: Sets or updates machine state value via upsert (`ON CONFLICT(key) DO UPDATE`).
+  - `get_widget_position() -> tuple[int, int] | None`: Reads saved `(widget_x, widget_y)`.
+### `plus_ultra.notifications`
+- `CapsuleNotification`: Dataclass containing `id: str`, `title: str`, `message: str`, `icon: str`, `action_label: str`, `dismissable: bool`, `created_at: str`.
+- `CapsuleNotificationQueue(min_width: int = 160, max_width: int = 440, char_width_px: int = 7)`:
+  - `push(title: str, message: str = "", icon: str = "🔔", action_label: str = "View", notification_id: str | None = None) -> CapsuleNotification`: Adds or updates a notification in the queue.
+  - `dismiss(notification_id: str) -> CapsuleNotification | None`: Dismisses notification by ID.
+  - `dismiss_current() -> CapsuleNotification | None`: Dismisses the top active notification.
+  - `peek() -> CapsuleNotification | None`: Returns the top active notification.
+  - `clear() -> None`: Clears all active notifications.
+  - `count: int`: Returns number of unread notifications.
+  - `is_empty: bool`: Returns True if queue is empty.
+  - `compute_target_width() -> int`: Calculates required horizontal width clamped between `min_width` (160) and `max_width` (440).
+  - `format_display_text(available_text_width_px: int) -> str`: Formats title and preview text, truncating with ellipsis when necessary.
+
+### `plus_ultra.desktop` (Platform Adapters)
+- `apply_window_shape_mask(window_id: int, width: int, height: int, radius: int) -> bool`:
+  - Applies a 1-bit capsule bitmap mask via X11 Shape extension (`XShapeCombineMask`).
+  - Physically clips XWayland window bounding box to eliminate square dark corners.
+  - Non-blocking, safe fallback returning False if Xlib or XShape extension is unavailable.
+
+
 
 

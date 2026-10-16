@@ -24,7 +24,9 @@ from plus_ultra.config import (
     get_metadata,
     get_state_dir,
 )
+from plus_ultra.db import get_connection, init_db
 from plus_ultra.desktop import SingleInstanceLock
+from plus_ultra.repository import AppStateRepository
 from plus_ultra.ui.floating import FloatingWidget
 
 logger = logging.getLogger(APP_NAME)
@@ -110,12 +112,25 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
+        init_db()
+        conn = get_connection()
+        app_state_repo = AppStateRepository(conn)
+
         if args.no_ui or (
             "PYTEST_CURRENT_TEST" in os.environ and not args.smoke_test
         ):
+            conn.close()
             return 0
 
-        widget = FloatingWidget()
+        saved_pos = app_state_repo.get_widget_position()
+        init_x = saved_pos[0] if saved_pos else None
+        init_y = saved_pos[1] if saved_pos else None
+
+        widget = FloatingWidget(
+            initial_x=init_x,
+            initial_y=init_y,
+            on_position_change=app_state_repo.set_widget_position,
+        )
 
         def _signal_handler(_sig: int, _frame: object) -> None:
             logger.info("Received termination signal, shutting down.")
@@ -128,7 +143,10 @@ def main(argv: list[str] | None = None) -> int:
             logger.info("Running in smoke-test mode; exiting in 500ms.")
             widget.root.after(500, widget.close)
 
-        widget.run()
+        try:
+            widget.run()
+        finally:
+            conn.close()
         return 0
     finally:
         lock.release()

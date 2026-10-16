@@ -12,7 +12,9 @@ from typing import NamedTuple
 class CapsuleGeometry(NamedTuple):
     """Dimensions for the top-center floating capsule."""
 
-    width: int = 140
+    min_width: int = 160
+    width: int = 160
+    max_width: int = 440
     height: int = 36
     radius: int = 18
     top_offset: int = 12
@@ -28,6 +30,14 @@ class CapsuleTheme(NamedTuple):
     hover_fill: str = "#242c3d"
     hover_border: str = "#00e5ff"  # Electric cyan glow
     hover_text: str = "#ffffff"
+    beam_head: str = "#ffffff"  # Luminous tip of the running beam
+    beam_body: str = "#00e5ff"  # Core electric cyan running beam
+    beam_tail: str = "#0284c7"  # Smooth gradient tail
+    notification_bg: str = "#182030"
+    badge_bg: str = "#00e5ff"
+    badge_fg: str = "#0a0e17"
+    dismiss_fg: str = "#94a3b8"
+    dismiss_hover: str = "#f43f5e"
     font_family: str = "DejaVu Sans"
     font_size: int = 9
 

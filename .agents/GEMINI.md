@@ -27,6 +27,7 @@
 
 # Validation & Testing
 
+Before Phase Documentation Edits and Phase Completion Steps(ReadyToCommit), follow these:
 - Run targeted tests first, then the project test suite when practical.
 - Every phase ships tests for the happy path, edge cases (empty, missing, very long, unicode) and failure paths (corrupt file, permission denied, constraint violation, interrupted write). Run them with `uv run pytest`.
 - For what pytest cannot reach (real Wayland window, tray, notify-send), provide a smoke script or `--smoke-test` under xvfb plus a manual checklist.
@@ -36,7 +37,7 @@
 - Document manual Linux desktop checks for startup behavior, display placement,
   notifications, permissions, and graceful shutdown.
 
-# Documentation
+# Documentation Management
 
 After every phase, update the relevant `docs/*.md` files as follows:
 - Especially `README.md`, to reflect :

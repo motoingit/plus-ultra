@@ -11,10 +11,11 @@ PLUS-ULTRA adheres to a strict 3-layer decoupled architecture (`ui/` -> `service
 ```text
 plus-ultra/
 ├── .agents/                      # Agent rules, workflows, and phase execution plans
-├── .docs/                        # Architecture, API specs, data sources, progress logs
+├── .docs/                        # Architecture, API specs, features, progress logs
 │   ├── api.md                    # Public interfaces and exported module APIs
 │   ├── architecture.MD           # Project architecture, tech-stack, and dependencies
-│   ├── data-sources.md           # External data tracking specifications
+│   ├── commands.md               # CLI commands, test flags, manual checklists
+│   ├── features.md               # 6-tab workspace specifications & db schema
 │   └── progress-log.md           # Chronological phase implementation log
 ├── .env.sample                   # Sample credentials template (Supabase public anon key)
 ├── pyproject.toml                # Project packaging, CLI script, ruff and pytest configs
@@ -31,12 +32,13 @@ plus-ultra/
 │       ├── desktop.py            # Single-instance lock (fcntl.flock), notifications
 │       ├── ui/                   # Presentation layer (Zero direct DB access)
 │       │   ├── __init__.py       # Package marker
-│       │   ├── floating.py       # Circular always-on-top draggable floating pill
+│       │   ├── floating.py       # Dynamic capsule with animated border beam
 │       │   ├── theme.py          # UI styling tokens, color palettes, capsule geometry
 │       │   └── panel.py          # [Phase 4] Main dashboard window (Treeview, forms, filters)
-│       ├── db.py                 # [Phase 3] SQLite connection, WAL mode, transaction context
-│       ├── models.py             # [Phase 3] Data classes (Task, Category, Reminder, AppState)
-│       ├── repository.py         # [Phase 3] Parameterized SQL CRUD operations
+│       ├── notifications.py      # Capsule notification queue & width sizing
+│       ├── db.py                 # SQLite connection, WAL mode, transaction context
+│       ├── models.py             # Strongly typed data models (Category, Task, Reminder, AppState)
+│       ├── repository.py         # Parameterized SQL CRUD & cascading soft deletes
 │       ├── services.py           # [Phase 4] Business logic decoupled from GUI
 │       ├── scheduler.py          # [Phase 5] Background reminder evaluation thread
 │       └── sync.py               # [Phase 7] Differential online synchronization worker
@@ -44,9 +46,10 @@ plus-ultra/
 │   ├── test_config.py            # XDG paths, fallback logic, mode 0o700, logging tests
 │   ├── test_settings.py          # Settings validation, type safety, corrupt file quarantine
 │   ├── test_desktop.py           # Single instance lock and process contention tests
-│   ├── test_ui.py                # FloatingWidget geometry, hover glow, and drag calculations
-│   ├── test_db.py                # [Phase 3] Schema migrations, foreign keys, rollback tests
-│   ├── test_repository.py        # [Phase 3] CRUD queries, soft deletes, index verification
+│   ├── test_notifications.py     # Queue management and dynamic width tests
+│   ├── test_ui.py                # Mathematical capsule, beam, dynamic expansion
+│   ├── test_db.py                # Schema migrations, foreign keys, rollback, pragmas, indexes
+│   ├── test_repository.py        # CRUD queries, soft deletes, index verification, app state
 │   └── test_services.py          # [Phase 4] Service layer logic tests
 └── uv.lock                       # Locked dependency tree
 ```

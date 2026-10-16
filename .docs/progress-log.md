@@ -126,7 +126,52 @@
 
 ---
 
-## Next: Phase 3: Database layer
+## Phase 3: Database Layer & SQLite Persistence
 
-- **Status**: Pending Gate Approval
-- **Target**: Implement `db.py`, `models.py`, `repository.py`, SQLite WAL mode, transactions, migrations with `user_version`, CRUD for tasks/categories/reminders/`app_state`, soft deletes, and widget position persistence.
+- **Status**: Completed
+- **Date**: 2026-10-16
+
+### Phase 3 To-do List:
+- [x] Implement `src/plus_ultra/db.py`:
+  - [x] Connection factory `get_connection()` enabling `PRAGMA foreign_keys = ON;`, `PRAGMA journal_mode = WAL;`, `busy_timeout = 5000;`, and `row_factory = sqlite3.Row`.
+  - [x] ACID transaction context manager `transaction(conn)` with automatic commit and rollback.
+  - [x] Schema migration runner `init_db()` using `PRAGMA user_version` (Version 1).
+  - [x] Core schema: `categories`, `tasks`, `reminders`, `reminder_fires`, `app_state`.
+  - [x] Unique active partial index on `categories(name) WHERE is_deleted = 0`.
+  - [x] Due reminders partial index on `reminders(remind_at) WHERE is_deleted = 0`.
+- [x] Implement `src/plus_ultra/models.py`:
+  - [x] Strongly typed dataclasses: `Category`, `Task`, `Reminder`, `AppState`.
+  - [x] Extended `Task` attributes: `task_label`, `critical_level`, `pace_level`, `is_google_task`.
+- [x] Implement `src/plus_ultra/repository.py`:
+  - [x] `CategoryRepository`: CRUD, active partial index check, soft-delete cascading nullification (`tasks.category_id = NULL`).
+  - [x] `TaskRepository`: CRUD, check constraints, soft-delete cascading to reminders (`reminders.is_deleted = 1`).
+  - [x] `ReminderRepository`: CRUD, `list_due()` excluding soft-deleted tasks and fired reminders, `mark_fired()`.
+  - [x] `AppStateRepository`: Runtime machine state isolation (`widget_x`, `widget_y`).
+- [x] Wire widget position persistence:
+  - [x] `FloatingWidget` accepts `initial_x`, `initial_y`, and `on_position_change` callback without DB coupling.
+  - [x] `src/plus_ultra/main.py` restores saved coordinates and updates `app_state` on drag release.
+- [x] Create comprehensive test suites:
+  - [x] `tests/test_db.py`: Migrations, WAL pragma, rollback, CHECK constraints, FK enforcement, partial unique index, query plan index usage (12 tests).
+  - [x] `tests/test_repository.py`: CRUD, cascading soft deletes, due filtering, app state persistence, corrupt coordinates handling, Unicode & large strings (10 tests).
+  - [x] Update `tests/test_ui.py`: Verify position callback firing (total 52 project tests passing).
+- [x] Update documentation (`README.md`, `.docs/api.md`, `.docs/architecture.MD`, `.docs/commands.md`, `.docs/progress-log.md`).
+
+### Issues & Status:
+- **Ruff SIM117 on nested context managers**: In tests, combined `with pytest.raises(...), transaction(conn) as cur:` to cleanly test rollbacks and constraint violations.
+- **Ruff F841 unused variables**: Resolved by asserting exclusion of future reminder IDs from query results.
+- **Strict 80-char line length**: Wrapped all multiline SQL queries, dataclass definitions, and comments to fit strictly within 80 characters.
+
+### Important Notes:
+- **Clean Architecture Integrity**: `FloatingWidget` has ZERO database imports. Position persistence is wired purely via high-level callback in `main.py`.
+- **Machine State vs Preferences Separation**: User settings (`user-settings.json`, mode `0o600`) hold human choices; machine runtime coordinates (`widget_x`, `widget_y`) live in SQLite `app_state`.
+- **Active Name Reusability**: Using SQLite partial unique indexes (`WHERE is_deleted = 0`) allows users to soft-delete a category and create a new category with the same name.
+- **Query Planner Verification**: `EXPLAIN QUERY PLAN` confirms `idx_reminders_due` is actively leveraged for due reminder scans.
+- Total test suite now runs 52 tests in 0.42s with 100% pass rate.
+
+---
+
+## Next: Phase 4: Services Layer & Main Dashboard Panel
+
+- **Status**: Ready for Planning & Implementation
+- **Target**: Build `services.py` (pure business logic orchestrating repositories), build dashboard window in `ui/panel.py` implementing the 6 horizontal tabs specified in `.docs/features.md` (Code, Courses, Ideas-Doubt, Opportunities, Quick Links, Tasks), filter bars, search, and detail dialogs.
+
