@@ -139,24 +139,50 @@ This document records public APIs, module interfaces, and command-line entry poi
   - `set(key: str, value: str) -> None`: Sets or updates machine state value via upsert (`ON CONFLICT(key) DO UPDATE`).
   - `get_widget_position() -> tuple[int, int] | None`: Reads saved `(widget_x, widget_y)`.
 ### `plus_ultra.notifications`
-- `CapsuleNotification`: Dataclass containing `id: str`, `title: str`, `message: str`, `icon: str`, `action_label: str`, `dismissable: bool`, `created_at: str`.
+- `CapsuleNotification`: Dataclass containing `id: str`, `title: str`, `message: str`, `icon: str`, `action_label: str`, `dismissable: bool`, `created_at: str`, `is_read: bool`.
 - `CapsuleNotificationQueue(min_width: int = 160, max_width: int = 440, char_width_px: int = 7)`:
-  - `push(title: str, message: str = "", icon: str = "🔔", action_label: str = "View", notification_id: str | None = None) -> CapsuleNotification`: Adds or updates a notification in the queue.
+  - `push(title: str, message: str = "", icon: str = "🔔", action_label: str = "View", notification_id: str | None = None) -> CapsuleNotification`: Adds or updates a notification.
   - `dismiss(notification_id: str) -> CapsuleNotification | None`: Dismisses notification by ID.
-  - `dismiss_current() -> CapsuleNotification | None`: Dismisses the top active notification.
-  - `peek() -> CapsuleNotification | None`: Returns the top active notification.
-  - `clear() -> None`: Clears all active notifications.
-  - `count: int`: Returns number of unread notifications.
-  - `is_empty: bool`: Returns True if queue is empty.
-  - `compute_target_width() -> int`: Calculates required horizontal width clamped between `min_width` (160) and `max_width` (440).
-  - `format_display_text(available_text_width_px: int) -> str`: Formats title and preview text, truncating with ellipsis when necessary.
+  - `clear() -> None`: Clears all notifications.
+  - `mark_read(notification_id: str) -> None`: Marks a specific notification as read.
+  - `mark_all_read() -> None`: Marks all queued notifications as read.
+  - `list_all() -> list[CapsuleNotification]`: Returns all notifications.
+  - `unread_count: int`: Returns number of unread notifications.
+  - `has_unread: bool`: Returns `True` if any unread notification exists.
+  - `compute_popup_width(item: CapsuleNotification) -> int`: Returns width for 3-second popup pill clamped between 200px and 360px.
 
-### `plus_ultra.desktop` (Platform Adapters)
-- `apply_window_shape_mask(window_id: int, width: int, height: int, radius: int) -> bool`:
-  - Applies a 1-bit capsule bitmap mask via X11 Shape extension (`XShapeCombineMask`).
-  - Physically clips XWayland window bounding box to eliminate square dark corners.
-  - Non-blocking, safe fallback returning False if Xlib or XShape extension is unavailable.
+---
 
+## 6. Implemented Module Specifications (Phase 4)
 
+### `plus_ultra.services`
+- `VALID_STATUSES`: `("Pending", "In Progress", "Completed", "Overdue")`
+- `VALID_CRITICAL_LEVELS`: `("High", "Medium", "Low")`
+- `VALID_PACE_LEVELS`: `("Long-term", "Short-term")`
+- `TaskService(task_repo: TaskRepository, category_repo: CategoryRepository)`:
+  - `create_task(title: str, category_id: str | None = None, description: str = "", due_date: str | None = None, status: str = "Pending", task_label: str = "College", critical_level: str = "Medium", pace_level: str = "Short-term", is_google_task: bool = False) -> Task`: Pure business logic validation; rejects whitespace-only titles, invalid statuses, or non-existent categories.
+  - `get_task(task_id: str) -> Task | None`: Retrieves active task.
+  - `update_task(task_id: str, ...) -> Task | None`: Validates updates and persists.
+  - `toggle_status(task_id: str) -> Task | None`: Cycles status between `Pending` and `Completed`.
+  - `soft_delete_task(task_id: str) -> bool`: Soft-deletes task and cascades to reminders.
+  - `list_tasks(category_id: str | None = None, status: str | None = None, critical_level: str | None = None, search_query: str | None = None) -> list[Task]`: Multi-criteria querying and case-insensitive text search.
+- `CategoryService(category_repo: CategoryRepository)`:
+  - `create_category(name: str, color: str = "#4a5568") -> Category`: Validates and creates a new category.
+  - `get_category(category_id: str) -> Category | None`: Retrieves category by ID.
+  - `update_category(category_id: str, name: str, color: str) -> Category | None`: Updates category name and color.
+  - `soft_delete_category(category_id: str) -> bool`: Soft deletes category and nullifies `tasks.category_id` in linked tasks.
+  - `list_active() -> list[Category]`: Lists active categories alphabetically.
 
-
+### `plus_ultra.ui.panel`
+- `TaskDialog(parent, categories, task=None, on_save=None, theme=THEME)`:
+  - Modal dialog for task creation and editing.
+  - Fields: Title, Category combobox, Priority combobox, Pace combobox, Due Date entry, Description/Notes text area.
+  - Validates title non-empty and invokes `on_save(data)`.
+- `DashboardPanel(parent: tk.Tk, task_service: TaskService, category_service: CategoryService, notification_queue: CapsuleNotificationQueue, on_notifications_cleared: Callable[[], None] | None = None, theme: CapsuleTheme = THEME)`:
+  - 3-column workspace window:
+    - **Column 1 (Left Sidebar)**: 6 navigation tabs (`Tasks`, `Code`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`) + pinned Settings.
+    - **Column 2 (Center Panel)**: Option A styled `ttk.Treeview` task list, search bar, status pills (`All`, `Pending`, `Completed`), priority filter combobox, double-click to edit, right-click context menu (toggle status, edit, soft delete), "+ New Task", "+ Category".
+    - **Column 3 (Right Sidebar)**: Notification panel with "Mark All Read" and "Clear", wired to `CapsuleNotificationQueue` and capsule bell indicator.
+  - `show() -> None`: Displays dashboard window and refreshes data.
+  - `hide() -> None`: Hides dashboard window via `withdraw()`.
+  - `toggle() -> None`: Toggles visibility between normal and withdrawn.

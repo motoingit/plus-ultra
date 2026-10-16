@@ -1,12 +1,12 @@
-"""Tests for plus_ultra.ui (theme tokens, FloatingWidget, and Dynamic Capsule).
+"""Tests for plus_ultra.ui (theme tokens, FloatingWidget, and popup capsule).
 
 Validates:
 - Theme tokens: Capsule dimensions, color palette, typography.
 - FloatingWidget instantiation: borderless window flags, geometry placement.
 - Mathematical capsule points and perimeter trajectory generation.
-- Animated Border Beam canvas elements.
-- Dynamic notification expansion, badge display, and dismissal.
-- Center-outward expansion anchor calculation.
+- Hover-driven Animated Border Beam (runs only on hover).
+- Orange bell indicator visibility based on unread notification state.
+- Position saving and restoration callbacks.
 """
 
 from __future__ import annotations
@@ -37,13 +37,13 @@ def test_theme_and_geometry_defaults() -> None:
     assert THEME.window_bg == "#12151c"
     assert THEME.beam_body == "#00e5ff"
     assert THEME.beam_head == "#ffffff"
+    assert THEME.bell_orange == "#ff9800"
 
 
 def test_capsule_points_and_perimeter_generators() -> None:
     """Verify mathematical capsule point and perimeter generation."""
     points = generate_capsule_points(160, 36, 18, steps=16)
     assert len(points) > 20
-    # Coordinates must be within bounds [0, 160] and [0, 36]
     xs = points[0::2]
     ys = points[1::2]
     assert min(xs) >= 0.0 and max(xs) <= 160.0
@@ -51,14 +51,13 @@ def test_capsule_points_and_perimeter_generators() -> None:
 
     path = generate_perimeter_path(160, 36, 18)
     assert len(path) > 50
-    # Path forms a continuous closed perimeter
     for px, py in path:
         assert 0.0 <= px <= 160.0
         assert 0.0 <= py <= 36.0
 
 
-def test_floating_widget_creation() -> None:
-    """Verify FloatingWidget initializes canvas, beam, and text."""
+def test_floating_widget_creation_and_click() -> None:
+    """Verify FloatingWidget initializes canvas, beam, and bell."""
     root = tk.Tk()
     try:
         clicked = False
@@ -69,24 +68,20 @@ def test_floating_widget_creation() -> None:
 
         widget = FloatingWidget(root=root, on_click_callback=_on_click)
 
-        # Check canvas and visual items
         assert widget.canvas is not None
         assert widget.capsule_id is not None
         assert widget.beam_body_id is not None
         assert widget.beam_head_id is not None
         assert widget.idle_text_id is not None
+        assert widget.bell_id is not None
         assert widget.always_on_top is True
 
-        # Test hover event handling
-        dummy_event: tk.Event[Any] = tk.Event()
-        widget._on_enter(dummy_event)
-        assert widget._is_hovered is True
-
-        widget._on_leave(dummy_event)
-        assert widget._is_hovered is False
+        # Initially bell is hidden
+        assert widget.canvas.itemcget(widget.bell_id, "state") == "hidden"
 
         # Test click triggering
         widget._dragged = False
+        dummy_event: tk.Event[Any] = tk.Event()
         widget._on_button_release(dummy_event)
         assert clicked is True
         assert widget._active_toggle is True
@@ -96,8 +91,61 @@ def test_floating_widget_creation() -> None:
             root.destroy()
 
 
+def test_floating_widget_hover_runs_beam() -> None:
+    """Verify beam runs exclusively when mouse hovers over the capsule."""
+    root = tk.Tk()
+    try:
+        widget = FloatingWidget(root=root)
+        dummy_event: tk.Event[Any] = tk.Event()
+
+        # Idle: not hovered, beam timer stopped
+        assert widget._is_hovered is False
+
+        # Hover entrance: starts beam
+        widget._on_enter(dummy_event)
+        assert widget._is_hovered is True
+        assert widget._beam_timer_id is not None
+
+        # Hover exit: stops beam and clears beam coords
+        widget._on_leave(dummy_event)
+        assert widget._is_hovered is False
+        assert widget._beam_timer_id is None
+        assert widget.canvas.coords(widget.beam_body_id) == [0.0, 0.0, 0.0, 0.0]
+
+        widget.close()
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
+def test_floating_widget_unread_bell_indicator() -> None:
+    """Verify orange bell appears on unread notification and hides when read."""
+    root = tk.Tk()
+    try:
+        widget = FloatingWidget(root=root)
+        assert widget.notifications.has_unread is False
+        assert widget.canvas.itemcget(widget.bell_id, "state") == "hidden"
+
+        # Post notification -> unread bell visible
+        widget.post_notification("Assignment Due", "OS Lab 3 due in 30m")
+        assert widget.notifications.has_unread is True
+        widget._update_bell_state()
+        assert widget.canvas.itemcget(widget.bell_id, "state") == "normal"
+
+        # Mark all read -> bell hides
+        widget.mark_all_read()
+        assert widget.notifications.has_unread is False
+        widget._update_bell_state()
+        assert widget.canvas.itemcget(widget.bell_id, "state") == "hidden"
+
+        widget.close()
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
 def test_floating_widget_drag_calculation() -> None:
-    """Verify drag offset calculation updates anchor center."""
+    """Verify drag offset calculation updates window geometry."""
     root = tk.Tk()
     try:
         widget = FloatingWidget(root=root)
@@ -116,49 +164,6 @@ def test_floating_widget_drag_calculation() -> None:
         widget._on_motion(motion_event)
 
         assert widget._dragged is True
-        # Anchor center must reflect dragged location
-        expected_center = (
-            motion_event.x_root
-            - widget._drag_start_x
-            + int(widget.current_width // 2)
-        )
-        assert widget.anchor_center_x == expected_center
-        widget.close()
-    finally:
-        with contextlib.suppress(Exception):
-            root.destroy()
-
-
-def test_floating_widget_notification_expansion_and_dismiss() -> None:
-    """Verify posting a notification expands the capsule and dismiss shrinks."""
-    root = tk.Tk()
-    try:
-        widget = FloatingWidget(root=root)
-        assert widget.notifications.is_empty is True
-        assert widget.target_width == widget.geometry.min_width
-
-        # Post a notification
-        nid = widget.post_notification(
-            "Task Deadline", "Complete Phase 3 tests", icon="📌"
-        )
-        assert widget.notifications.count == 1
-        widget._trigger_layout_update()
-        assert widget.target_width > widget.geometry.min_width
-
-        # Step resize to completion
-        widget.current_width = widget.target_width
-        widget._apply_geometry_and_layout()
-        assert widget.canvas.itemcget(widget.idle_text_id, "state") == "hidden"
-        assert (
-            widget.canvas.itemcget(widget.preview_text_id, "state") == "normal"
-        )
-
-        # Dismiss notification
-        widget.dismiss_notification(nid)
-        assert widget.notifications.is_empty is True
-        widget._trigger_layout_update()
-        assert widget.target_width == widget.geometry.min_width
-
         widget.close()
     finally:
         with contextlib.suppress(Exception):
@@ -183,9 +188,7 @@ def test_floating_widget_saved_position_and_callback() -> None:
 
         assert widget.initial_x == 320
         assert widget.initial_y == 45
-        assert widget.anchor_center_x == 320 + int(widget.current_width // 2)
 
-        # Simulate release after drag
         widget._dragged = True
         dummy_event: tk.Event[Any] = tk.Event()
         widget._on_button_release(dummy_event)

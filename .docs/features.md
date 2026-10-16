@@ -43,3 +43,38 @@ All features share the single, ultra-fast local SQLite database (`$XDG_DATA_HOME
 - Uses SQLite `PRAGMA user_version`.
 - Phase 3 implements Migration 1 (`tasks`, `categories`, `reminders`, `reminder_fires`, `app_state`).
 - Future columns and feature tables are added via incremental versioned migrations using `ALTER TABLE ADD COLUMN` or `CREATE TABLE`, guaranteeing zero data loss.
+
+---
+
+## 4. Dashboard Window Layout (3-Column Architecture)
+
+Phase 4 implements a structured 3-column desktop layout:
+1. **Left Sidebar (Navigation)**:
+   - 6 main workspace tabs arranged alphabetically: `Code`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`, `Tasks`.
+   - Bottom-pinned Settings & Account controls.
+2. **Main Center Panel (Workspace Content)**:
+   - Header with active tab title, search bar, and "Add New" button.
+   - Filter pills (status, critical level, pace level, categories).
+   - Item views (cards/table/snippets) with instant action buttons.
+3. **Right Sidebar (Notification Panel)**:
+   - Dedicated stream of past and unread reminders, system alerts, and notifications.
+   - Unread badge indicator.
+   - Actions: "Mark All as Read", "Clear All", and individual notification dismissal.
+   - Marking notifications as read automatically clears the orange bell indicator on the floating desktop capsule.
+
+```
+┌─────────────────┬───────────────────────────────┬──────────────────────┐
+│  Left Sidebar   │       Main Center Panel       │    Right Sidebar     │
+├─────────────────┼───────────────────────────────┼──────────────────────┤
+│ 1. Code         │ Tab content, search bar,      │ Dedicated            │
+│ 2. Courses      │ filter pills, item cards,     │ Notification Panel:  │
+│ 3. Ideas-Doubt  │ code snippet copy buttons,    │ • Unread list        │
+│ 4. Opportunities│ forms, detail dialogs         │ • Unread badge count │
+│ 5. Quick Links  │                               │ • "Mark All as Read" │
+│ 6. Tasks        │                               │ • "Clear All"        │
+│ ─────────────── │                               │                      │
+│ ⚙️ Settings     │                               │ (Clearing unread     │
+│                 │                               │ removes orange bell) │
+└─────────────────┴───────────────────────────────┴──────────────────────┘
+
+```

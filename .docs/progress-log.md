@@ -166,12 +166,70 @@
 - **Machine State vs Preferences Separation**: User settings (`user-settings.json`, mode `0o600`) hold human choices; machine runtime coordinates (`widget_x`, `widget_y`) live in SQLite `app_state`.
 - **Active Name Reusability**: Using SQLite partial unique indexes (`WHERE is_deleted = 0`) allows users to soft-delete a category and create a new category with the same name.
 - **Query Planner Verification**: `EXPLAIN QUERY PLAN` confirms `idx_reminders_due` is actively leveraged for due reminder scans.
-- Total test suite now runs 52 tests in 0.42s with 100% pass rate.
+- Total test suite now runs 61 tests in 0.56s with 100% pass rate.
 
 ---
 
-## Next: Phase 4: Services Layer & Main Dashboard Panel
+## Phase 4: Services Layer & Main Dashboard Panel
 
-- **Status**: Ready for Planning & Implementation
-- **Target**: Build `services.py` (pure business logic orchestrating repositories), build dashboard window in `ui/panel.py` implementing the 6 horizontal tabs specified in `.docs/features.md` (Code, Courses, Ideas-Doubt, Opportunities, Quick Links, Tasks), filter bars, search, and detail dialogs.
+- **Status**: Completed
+- **Date**: 2026-10-16
+
+### Phase 4 To-do List:
+- [x] Implement pure business logic in `src/plus_ultra/services.py`:
+  - [x] `TaskService`: task creation with validation (empty title, invalid status, critical levels, pace levels), status toggle (`Pending` <-> `Completed`), soft delete cascade, multi-criteria filtering (category, status, priority), and case-insensitive search.
+  - [x] `CategoryService`: validation, active list, creation, update, and soft delete with cascading task nullification.
+  - [x] Fully decoupled from Tkinter for headless testing.
+- [x] Implement 3-column workspace window in `src/plus_ultra/ui/panel.py`:
+  - [x] **Column 1 (Left Sidebar)**: 6 navigation tabs (`Tasks`, `Code`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`) + pinned Settings button.
+  - [x] **Column 2 (Center Panel)**:
+    - [x] Option A styled `ttk.Treeview` task list.
+    - [x] Live search entry filtering by title and description.
+    - [x] Status filter buttons (`All`, `Pending`, `Completed`).
+    - [x] Priority filter combobox (`All Priority`, `High`, `Medium`, `Low`).
+    - [x] Double-click task row to open edit dialog.
+    - [x] Right-click context menu (Toggle status, Edit task, Delete task).
+    - [x] `TaskDialog` modal for creating and editing tasks with input validation.
+    - [x] `CategoryDialog` modal for adding categories.
+    - [x] Placeholder views for non-task tabs displaying mapped feature information.
+  - [x] **Column 3 (Right Sidebar)**:
+    - [x] Notification panel listing active/past alerts.
+    - [x] "Mark All Read" button: marks all queued alerts read and notifies the capsule to remove the orange bell indicator.
+    - [x] "Clear" button: empties notification list and removes the bell indicator.
+- [x] Wire integration in `src/plus_ultra/main.py`:
+  - [x] Instantiate `TaskRepository`, `CategoryRepository`, `TaskService`, `CategoryService`.
+  - [x] Construct `DashboardPanel` with parent `widget.root`.
+  - [x] Bind capsule click callback to `dashboard.toggle`.
+  - [x] Connect `on_notifications_cleared` to `widget._update_bell_state`.
+  - [x] Verify clean shutdown and smoke-test toggle support.
+- [x] Implement comprehensive unit tests:
+  - [x] `tests/test_services.py`: 4 tests validating input constraints, status cycling, category soft-delete cascading nullification, and search query filters.
+  - [x] `tests/test_panel.py`: 5 tests validating 3-column layout, tab switching, Treeview rendering, filter/search updates, right-click actions, TaskDialog saving, and notification panel actions.
+- [x] Verification:
+  - [x] All 70 tests passing via `uv run pytest -v`.
+  - [x] Clean formatting and zero lint errors via `uv run ruff check .` and `uv run ruff format --check .`.
+  - [x] Smoke test passes cleanly via `uv run plus-ultra --smoke-test`.
+- [x] Update documentation (`README.md`, `.docs/api.md`, `.docs/architecture.MD`, `.docs/commands.md`, `.docs/progress-log.md`).
+
+### Issues & Status:
+- **Tkinter Frame padding tuple error**: Passing `pady=(0, 10)` directly into `tk.Frame(...)` triggered `_tkinter.TclError: expected screen distance but got "0 10"`. Resolved by passing padding tuples to `.pack(pady=(0, 10))` where tuples are valid, keeping `tk.Frame` construction clean.
+- **Tkinter withdrawn window test assertions**: `winfo_ismapped()` returns 0 on widgets inside a withdrawn toplevel. Resolved by checking `winfo_manager() == "pack"` to reliably test tab switching in unit tests.
+- **Ruff 80-char line limit**: Formatted all method signatures, multiline conditionals, and dialog constructors to conform strictly to `<= 80` characters.
+
+### Important Notes:
+- **Architecture Integrity**: `ui/panel.py` imports only from `services.py`, `models.py`, `notifications.py`, and `ui/theme.py`. There are zero direct SQL or database imports in the UI layer.
+- **Two-way Capsule Sync**: Clearing or marking notifications read in the right sidebar immediately clears the persistent orange bell on the floating capsule and re-centers the capsule text.
+- **Option A Treeview**: Clean, tabular view of tasks with clear status markers (`✓ Completed` / `○ Pending`), category, priority, pace, and due dates.
+- Total test suite now runs 70 tests in 1.31s with 100% pass rate.
+
+---
+
+## Next: Phase 5: Background Scheduler, Desktop Notifications & System Tray
+
+- **Status**: Ready for Planning
+- **Target**:
+  - Implement `src/plus_ultra/scheduler.py`: background worker thread periodically evaluating due reminders from SQLite without blocking the UI main thread.
+  - Implement desktop notifications using Python `subprocess` invoking `notify-send` with safe argument lists.
+  - Implement system tray integration using `pystray` and `Pillow`, providing quick actions (Toggle Widget, Open Dashboard, Quit) and graceful shutdown.
+
 

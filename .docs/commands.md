@@ -26,6 +26,8 @@ tail -f ~/.local/state/plus-ultra/launcher.log
 uv run pytest -v
 
 # Run targeted test suites
+uv run pytest tests/test_services.py -v
+uv run pytest tests/test_panel.py -v
 uv run pytest tests/test_db.py -v
 uv run pytest tests/test_repository.py -v
 uv run pytest tests/test_desktop.py -v
@@ -57,15 +59,18 @@ uv run plus-ultra
 
 Verify the following behaviors:
 1. **Window Placement**: The capsule appears as a true mathematical pill with zero rectangular dark corners (clipped via XShape).
-2. **Animated Border Beam**: A luminous neon cyan beam with a bright tip continuously orbits smoothly around the contour of the pill (~40 FPS).
-3. **Hover Response**: Moving mouse cursor over the capsule increases the orbiting beam speed and brightens the pill.
-4. **Draggability**: Left-click and hold anywhere on the capsule to drag it smoothly across displays.
-5. **Dynamic Notification Expansion (Center-Outward)**:
-   - Right-click anywhere on the capsule (or press **`n`** on your keyboard).
-   - The capsule smoothly expands horizontally from the center outward to display an icon, title, and preview message.
-   - Press **`n`** again: A second unread notification arrives and an unread badge (`+1`) appears.
-   - Click the **`✕`** button on the right end: The top notification is dismissed, and the capsule smoothly shrinks back down toward idle width.
-6. **Position Persistence**: Drag the capsule to a new screen coordinate, close the application (`Escape` or `Ctrl+C`), and re-run `uv run plus-ultra`. The widget must reappear at the exact dragged location, restored from SQLite `app_state`.
-7. **Window Stacking**: The capsule stays on top of open browser or terminal windows (`-topmost`).
-8. **Single-Instance Enforcement**: Open a second terminal and execute `uv run plus-ultra`. It should immediately print `PLUS-ULTRA is already running.` and exit with code 0 without launching a second widget.
-9. **Clean Termination**: Pressing `Escape` while focused or `Ctrl+C` in the terminal destroys the widget and cleans up the lock file at `~/.local/state/plus-ultra/plus-ultra.lock`.
+2. **Animated Border Beam**: A luminous neon cyan beam with a bright tip orbits smoothly around the contour of the pill exclusively on hover (~40 FPS). It stops when unhovered.
+3. **Draggability & Position Memory**: Left-click and drag anywhere on the capsule. The widget remembers its coordinate in SQLite `app_state`.
+4. **Dashboard Toggle**: Single left-click without dragging toggles the 3-column Dashboard workspace window open and closed.
+5. **3-Column Workspace Window**:
+   - **Column 1 (Left Sidebar)**: 6 tabs (`Tasks`, `Code`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`) + pinned Settings.
+   - **Column 2 (Center Panel)**: Option A styled `ttk.Treeview` task list. Click `+ New Task` to add tasks. Live search instantly filters tasks. Click status pills (`Pending`, `Completed`) or priority dropdown to filter.
+   - **Column 3 (Right Sidebar)**: Notification panel showing active alerts. Click `Mark All Read` to clear unread status and remove the orange bell on the floating capsule.
+6. **Notification Flow**:
+   - Right-click on the capsule to trigger a test notification alert.
+   - Main capsule stays compact and displays an orange bell icon (`🔔`).
+   - A separate temporary popup pill appears directly below the main capsule for 3 seconds, then cleanly auto-dismisses.
+   - Open the dashboard panel, click `Mark All Read` or `Clear`: the orange bell on the capsule disappears and text re-centers.
+7. **Window Stacking**: The capsule stays on top of open windows (`-topmost`).
+8. **Single-Instance Enforcement**: Run `uv run plus-ultra` in another terminal; prints `PLUS-ULTRA is already running.` and exits with code 0.
+9. **Clean Termination**: `Ctrl+C` in the terminal destroys both windows and cleans up the lock file.

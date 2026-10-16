@@ -1,9 +1,3 @@
-# Architecture Documentation
-
-This document describes the architectural layout, technology stack, and dependency structure of **PLUS-ULTRA**.
-
----
-
 # Project Folder Structure
 
 PLUS-ULTRA adheres to a strict 3-layer decoupled architecture (`ui/` -> `services/` -> `repository/`, `db.py`) to isolate presentation from business logic and SQLite persistence.
@@ -34,40 +28,52 @@ plus-ultra/
 │       │   ├── __init__.py       # Package marker
 │       │   ├── floating.py       # Dynamic capsule with animated border beam
 │       │   ├── theme.py          # UI styling tokens, color palettes, capsule geometry
-│       │   └── panel.py          # [Phase 4] Main dashboard window (Treeview, forms, filters)
+│       │   └── panel.py          # 3-column dashboard window (Treeview, forms, filters)
 │       ├── notifications.py      # Capsule notification queue & width sizing
 │       ├── db.py                 # SQLite connection, WAL mode, transaction context
 │       ├── models.py             # Strongly typed data models (Category, Task, Reminder, AppState)
 │       ├── repository.py         # Parameterized SQL CRUD & cascading soft deletes
-│       ├── services.py           # [Phase 4] Business logic decoupled from GUI
+│       ├── services.py           # Pure business logic (TaskService, CategoryService)
 │       ├── scheduler.py          # [Phase 5] Background reminder evaluation thread
 │       └── sync.py               # [Phase 7] Differential online synchronization worker
 ├── tests/                        # Comprehensive test suite (Happy path, edge, failure paths)
 │   ├── test_config.py            # XDG paths, fallback logic, mode 0o700, logging tests
 │   ├── test_settings.py          # Settings validation, type safety, corrupt file quarantine
 │   ├── test_desktop.py           # Single instance lock and process contention tests
-│   ├── test_notifications.py     # Queue management and dynamic width tests
-│   ├── test_ui.py                # Mathematical capsule, beam, dynamic expansion
+│   ├── test_notifications.py     # Queue management and popup sizing tests
+│   ├── test_ui.py                # Mathematical capsule, beam, popup lifecycle
 │   ├── test_db.py                # Schema migrations, foreign keys, rollback, pragmas, indexes
 │   ├── test_repository.py        # CRUD queries, soft deletes, index verification, app state
-│   └── test_services.py          # [Phase 4] Service layer logic tests
+│   ├── test_services.py          # Pure business logic, status cycling, and search query tests
+│   └── test_panel.py             # 3-column dashboard, Treeview table, modals, actions
 └── uv.lock                       # Locked dependency tree
 ```
 
-# Data Runtime Data Directories (POSIX / XDG)
-User state is segregated per the XDG Base Directory specification:
-- **`$XDG_CONFIG_HOME/plus-ultra/user-settings.json`** (`~/.config/plus-ultra/`): User configuration overrides. Enforced mode `0o700` on directory, `0o600` on file. Atomic write with crash-resilient `.bad-<timestamp>` quarantine.
-- **`$XDG_DATA_HOME/plus-ultra/plus-ultra.sqlite3`** (`~/.local/share/plus-ultra/`): SQLite application database (tasks, reminders, local app_state).
-- **`$XDG_STATE_HOME/plus-ultra/launcher.log`** (`~/.local/state/plus-ultra/`): Persistent execution and diagnostic logs.
+# Project Tech-Stack
 
----
+The technology stack is locked to fulfill Problem-Based Learning (PBL) objectives emphasizing Operating Systems (OS) and Database Management Systems (DBMS) fundamentals:
+
+| Component | Technology | Rationale & Concept |
+|---|---|---|
+| **Host Platform** | Ubuntu Linux (GNOME on Wayland) | Target desktop operating system. Tkinter executes via XWayland. |
+| **Language Runtime** | CPython 3.12+ | Managed via `uv`. Modern standard library typing, pattern matching, and performance. |
+| **Package & Env Manager** | `uv` | High-performance virtual environment creation, dependency resolution, and locking (`uv.lock`). |
+| **GUI Framework** | `tkinter` & `tkinter.ttk` | Standard library GUI toolkit. Decoupled from business logic; isolated to main event loop thread. |
+| **Database Engine** | `sqlite3` (Standard Library) | Raw parameterized SQL only (no ORM). Enforces ACID transactions, WAL journal mode, Foreign Keys (`PRAGMA foreign_keys = ON`), and partial indexes. |
+| **Machine State Persistence** | SQLite `app_state` table | Dedicated key-value store for machine-written runtime state (`widget_x`, `widget_y`, `last_synced_at`). Kept strictly separate from user preferences. |
+| **User Settings Engine** | Custom JSON Layer | Package defaults (`default-settings.json`) overlaid with atomic user overrides (`user-settings.json`). Enforces `0o600` permissions and crash-safe rename (`os.replace`). |
+| **Process Management** | `fcntl.flock` (Linux Standard Library) | Single-instance mutual exclusion locking via advisory file locks. |
+| **Desktop Notifications** | `notify-send` via `subprocess` | Direct desktop notification dispatch without heavyweight third-party libraries. |
+| **System Tray Integration** | `pystray` + `Pillow` | System tray icon integration with status menu (Phase 5). |
+| **Remote Sync Engine** | Supabase (PostgreSQL / PostgREST) | Off-thread differential sync engine scheduled for Phase 7 using `updated_at > last_synced_at` conflict resolution. |
+| **Code Quality & Testing** | `ruff` & `pytest` | Fast linting/formatting (`ruff`, strict 80-char line limit) and automated testing suite (`pytest`). |
 
 # Project Dependencies
 
 Dependencies are declared in [`pyproject.toml`](file:///home/moto/My-Drive/PBL/plus-ultra/pyproject.toml) and pinned in `uv.lock`.
 
 ## 1. Active Runtime Dependencies
-Currently, the application runs entirely on the **Python Standard Library** with zero external network dependencies:
+The application runs entirely on the **Python Standard Library** with zero external network dependencies:
 - `argparse`: Command-line interface argument parsing.
 - `contextlib`: Resource cleanup and exception suppression (`contextlib.suppress`).
 - `dataclasses`: Lightweight domain models.
@@ -85,33 +91,11 @@ Currently, the application runs entirely on the **Python Standard Library** with
 - `threading`: Background execution of scheduler and sync workers off the UI event loop.
 - `tkinter`: Native desktop GUI rendering and event dispatch.
 
-## Development Dependencies
+## 2. Development Dependencies
 Declared in `[dependency-groups].dev`:
-- **`pytest >= 9.1.1`**: Automated test framework covering unit tests, edge cases, permission checks, and failure recovery.
+- **`pytest >= 9.1.1`**: Automated test framework covering unit tests, edge cases, permission checks, and failure recovery (70 tests across 9 test modules).
 - **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import order (`I`), simplification (`SIM`), bug prevention (`B`), and strict 80-character line lengths.
 
-
-## Scheduled Runtime Dependencies (Approved Phased Additions)
+## 3. Scheduled Runtime Dependencies (Approved Phased Additions)
 - **Phase 5**: `pystray` and `Pillow` (System tray integration).
 - **Phase 7**: Supabase client library (added only upon explicit user approval for cloud sync).
-
----
-
-# Project Tech-Stack
-
-The technology stack is locked to fulfill Problem-Based Learning (PBL) objectives emphasizing Operating Systems (OS) and Database Management Systems (DBMS) fundamentals:
-
-| Component | Technology | Rationale & Concept |
-|---|---|---|
-| **Host Platform** | Ubuntu Linux (GNOME on Wayland) | Target desktop operating system. Tkinter executes via XWayland. |
-| **Language Runtime** | CPython 3.12+ | Managed via `uv`. Modern standard library typing, pattern matching, and performance. |
-| **Package & Env Manager** | `uv` | High-performance virtual environment creation, dependency resolution, and locking (`uv.lock`). |
-| **GUI Framework** | `tkinter` & `tkinter.ttk` | Standard library GUI toolkit. Decoupled from business logic; isolated to main event loop thread. |
-| **Database Engine** | `sqlite3` (Standard Library) | Raw parameterized SQL only (no ORM). Enforces ACID transactions, WAL journal mode, Foreign Keys (`PRAGMA foreign_keys = ON`), and partial indexes. |
-| **Machine State Persistence** | SQLite `app_state` table | Dedicated key-value store for machine-written runtime state (`widget_x`, `widget_y`, `last_synced_at`). Kept strictly separate from user preferences. |
-| **User Settings Engine** | Custom JSON Layer | Package defaults (`default-settings.json`) overlaid with atomic user overrides (`user-settings.json`). Enforces `0o600` permissions and crash-safe rename (`os.replace`). |
-| **Process Management** | `fcntl.flock` (Linux Standard Library) | Single-instance mutual exclusion locking via advisory file locks. |
-| **Desktop Notifications** | `notify-send` via `subprocess` | Direct desktop notification dispatch without heavyweight third-party libraries. |
-| **System Tray Integration** | `pystray` + `Pillow` | System tray icon integration with status menu. |
-| **Remote Sync Engine** | Supabase (PostgreSQL / PostgREST) | Off-thread differential sync engine scheduled for Phase 7 using `updated_at > last_synced_at` conflict resolution. |
-| **Code Quality & Testing** | `ruff` & `pytest` | Fast linting/formatting (`ruff`, strict 80-char line limit) and automated testing suite (`pytest`). |

@@ -1,9 +1,9 @@
-"""Notification state management and width calculation for PLUS-ULTRA capsule.
+"""Notification state management for PLUS-ULTRA capsule.
 
 Applies architectural separation:
-- Zero Tkinter imports: pure Python data structures for state and layout sizing.
-- Center-outward expansion calculation with configurable min and max bounds.
-- Multi-notification queueing, badge count calculation, and text truncation.
+- Zero Tkinter imports: pure Python data structures for state and sizing.
+- Multi-notification queueing, read/unread state tracking.
+- Popup notification text formatting and width calculation.
 """
 
 from __future__ import annotations
@@ -26,13 +26,12 @@ class CapsuleNotification:
     title: str
     message: str = ""
     icon: str = "🔔"
-    action_label: str = "View"
-    dismissable: bool = True
+    is_read: bool = False
     created_at: str = ""
 
 
 class CapsuleNotificationQueue:
-    """Manages unread notifications and computes dynamic capsule dimensions."""
+    """Manages unread notifications and computes dynamic dimensions."""
 
     def __init__(
         self,
@@ -50,7 +49,6 @@ class CapsuleNotificationQueue:
         title: str,
         message: str = "",
         icon: str = "🔔",
-        action_label: str = "View",
         notification_id: str | None = None,
     ) -> CapsuleNotification:
         """Add or update an active notification in the queue."""
@@ -61,88 +59,82 @@ class CapsuleNotificationQueue:
             title=clean_title,
             message=message.strip(),
             icon=icon,
-            action_label=action_label,
+            is_read=False,
             created_at=_now_utc(),
         )
-        # If already exists with same ID, replace it; else append
+        # If already exists with same ID, replace it; else append to front
         for idx, existing in enumerate(self._items):
             if existing.id == item_id:
                 self._items[idx] = item
                 return item
 
-        self._items.append(item)
+        self._items.insert(0, item)
         return item
 
+    def mark_read(self, notification_id: str) -> None:
+        """Mark a specific notification as read."""
+        for item in self._items:
+            if item.id == notification_id:
+                item.is_read = True
+
+    def mark_all_read(self) -> None:
+        """Mark all notifications as read."""
+        for item in self._items:
+            item.is_read = True
+
     def dismiss(self, notification_id: str) -> CapsuleNotification | None:
-        """Dismiss a specific notification by ID."""
+        """Dismiss and remove a notification by ID."""
         for idx, item in enumerate(self._items):
             if item.id == notification_id:
                 return self._items.pop(idx)
         return None
 
-    def dismiss_current(self) -> CapsuleNotification | None:
-        """Dismiss the currently visible top notification."""
-        if self._items:
-            return self._items.pop(0)
-        return None
-
     def peek(self) -> CapsuleNotification | None:
-        """Return the current top notification without removing it."""
+        """Return the most recent notification without removing it."""
         return self._items[0] if self._items else None
 
+    def list_all(self) -> list[CapsuleNotification]:
+        """Return a copy of all notifications."""
+        return list(self._items)
+
     def clear(self) -> None:
-        """Clear all active notifications."""
+        """Clear all notifications."""
         self._items.clear()
 
     @property
+    def unread_count(self) -> int:
+        """Return count of unread notifications."""
+        return sum(1 for item in self._items if not item.is_read)
+
+    @property
+    def has_unread(self) -> bool:
+        """Return True if at least one notification is unread."""
+        return self.unread_count > 0
+
+    @property
     def count(self) -> int:
-        """Return the number of unread notifications in the queue."""
+        """Return total count of notifications."""
         return len(self._items)
 
     @property
     def is_empty(self) -> bool:
-        """Return True if there are no unread notifications."""
+        """Return True if there are no notifications."""
         return len(self._items) == 0
 
-    def compute_target_width(self) -> int:
-        """Compute required capsule width for the current notification state.
+    def compute_popup_width(self, item: CapsuleNotification) -> int:
+        """Compute required width for the 3-second popup capsule."""
+        text = self.format_popup_text(item)
+        content_len = len(text) + 6  # icon + padding
+        estimated_w = 40 + (content_len * self.char_width_px)
+        return max(200, min(360, estimated_w))
 
-        Clamps result between min_width (idle) and max_width.
-        """
-        top = self.peek()
-        if not top:
-            return self.min_width
-
-        # Base layout elements:
-        # - Left end semicircle + padding: 32px
-        # - Icon width: 20px
-        # - Space between icon and text: 8px
-        # - Text content (title + preview message)
-        # - Badge width if multiple notifications: 28px
-        # - Dismiss button width ('✕'): 24px
-        # - Right end semicircle + padding: 32px
-        fixed_chrome = 32 + 20 + 8 + 24 + 32
-        if self.count > 1:
-            fixed_chrome += 28
-
-        text_len = len(top.title)
-        if top.message:
-            text_len += len(top.message) + 3  # " - " separator
-
-        estimated_text_width = text_len * self.char_width_px
-        total_width = fixed_chrome + estimated_text_width
-        return max(self.min_width, min(self.max_width, total_width))
-
-    def format_display_text(self, available_text_width_px: int) -> str:
-        """Format and truncate title and message to fit the available space."""
-        top = self.peek()
-        if not top:
-            return "PLUS-ULTRA"
-
-        max_chars = max(10, available_text_width_px // self.char_width_px)
-        full_text = top.title
-        if top.message:
-            full_text = f"{top.title} - {top.message}"
+    def format_popup_text(
+        self, item: CapsuleNotification, max_chars: int = 42
+    ) -> str:
+        """Format and truncate notification for the popup banner."""
+        full_text = item.title
+        if item.message:
+            full_text = f"{item.title}: {item.message}"
 
         if len(full_text) <= max_chars:
             return full_text

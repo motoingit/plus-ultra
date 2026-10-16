@@ -1,12 +1,14 @@
 """Floating desktop capsule widget for PLUS-ULTRA.
 
 Applies OS and UI concepts:
-- Dynamic Notification Capsule: Idle compact pill horizontally expandable
-  from the center outward when unread notifications arrive.
-- Animated Border Beam: Smooth orbiting light beam around the perimeter.
-- Event-driven programming: Non-blocking Tkinter animation timers (~40 FPS).
+- Compact Main Capsule: Top-center hovering presence with unread bell indicator.
+- Orbiting Beam on Hover: Trailing animated border beam runs exclusively
+  when mouse cursor hovers over the capsule contour.
+- Transient Popup Capsule: 3-second temporary notification pill positioned
+  directly below the main capsule.
+- Unread Persistence: Orange bell remains visible on the main capsule as long
+  as unread notifications exist.
 - XWayland Shape Masking: Hardware clipping to eliminate rectangular corners.
-- Pointer tracking: Drag gesture delta math preserving center-anchor position.
 """
 
 from __future__ import annotations
@@ -20,7 +22,10 @@ from typing import Any
 
 from plus_ultra import settings
 from plus_ultra.desktop import apply_window_shape_mask
-from plus_ultra.notifications import CapsuleNotificationQueue
+from plus_ultra.notifications import (
+    CapsuleNotification,
+    CapsuleNotificationQueue,
+)
 from plus_ultra.ui.theme import GEOMETRY, THEME, CapsuleGeometry, CapsuleTheme
 
 logger = logging.getLogger(__name__)
@@ -91,7 +96,7 @@ def generate_perimeter_path(
 
 
 class FloatingWidget:
-    """Always-on-top hovering capsule widget with animated border beam."""
+    """Always-on-top hovering capsule widget with hover beam and popups."""
 
     def __init__(
         self,
@@ -111,19 +116,18 @@ class FloatingWidget:
         self.on_position_change = on_position_change
         self.root = root or tk.Tk()
 
-        # Dynamic Notification Queue
+        # Notification State Queue
         self.notifications = CapsuleNotificationQueue(
             min_width=self.geometry.min_width,
             max_width=self.geometry.max_width,
         )
 
-        # Dynamic Sizing & Center-Outward State
-        self.current_width: float = float(self.geometry.min_width)
-        self.target_width: float = float(self.geometry.min_width)
+        # Fixed Compact Capsule Dimensions
+        self.width: int = self.geometry.width
         self.height: int = self.geometry.height
         self.radius: int = self.geometry.radius
 
-        # Mouse & Animation Tracking
+        # Mouse & State Flags
         self._drag_start_x: int = 0
         self._drag_start_y: int = 0
         self._dragged: bool = False
@@ -131,15 +135,17 @@ class FloatingWidget:
         self._active_toggle: bool = False
         self._beam_idx: int = 0
         self._beam_length: int = 34
-        self._resize_timer_id: str | None = None
         self._beam_timer_id: str | None = None
         self._closed: bool = False
+
+        # Popup window reference and dismiss timer
+        self._popup_window: tk.Toplevel | None = None
+        self._popup_dismiss_timer_id: str | None = None
 
         self._load_preferences()
         self._setup_window()
         self._build_canvas()
         self._bind_events()
-        self._start_animations()
 
     def _load_preferences(self) -> None:
         """Load user preferences for window stacking and animations."""
@@ -154,22 +160,17 @@ class FloatingWidget:
             self.root.attributes("-topmost", True)
 
         screen_w = self.root.winfo_screenwidth()
-        default_x = (screen_w - int(self.current_width)) // 2
+        default_x = (screen_w - self.width) // 2
         default_y = self.geometry.top_offset
         init_x = self.initial_x if self.initial_x is not None else default_x
         init_y = self.initial_y if self.initial_y is not None else default_y
 
-        # Anchor center preserves center-outward resizing
-        self.anchor_center_x: int = init_x + int(self.current_width // 2)
-
-        self.root.geometry(
-            f"{int(self.current_width)}x{self.height}+{init_x}+{init_y}"
-        )
+        self.root.geometry(f"{self.width}x{self.height}+{init_x}+{init_y}")
         self.root.configure(bg=self.theme.window_bg)
 
     def _build_canvas(self) -> None:
         """Construct canvas and draw capsule polygon, beam, and text."""
-        w = int(self.current_width)
+        w = self.width
         h = self.height
         r = self.radius
 
@@ -183,7 +184,7 @@ class FloatingWidget:
         )
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
-        # 1. Base capsule polygon
+        # 1. Base capsule polygon (clean dark fill)
         points = generate_capsule_points(w, h, r)
         self.capsule_id = self.canvas.create_polygon(
             points,
@@ -192,7 +193,7 @@ class FloatingWidget:
             width=2,
         )
 
-        # 2. Animated Border Beam (smooth running beam orbiting the contour)
+        # 2. Animated Border Beam (runs only on hover)
         self._perimeter_path = generate_perimeter_path(w, h, r)
         self.beam_body_id = self.canvas.create_line(
             0,
@@ -214,51 +215,22 @@ class FloatingWidget:
             capstyle="round",
         )
 
-        # 3. Content items
+        # 3. Content items: Orange Bell indicator + PLUS-ULTRA text
+        self.bell_id = self.canvas.create_text(
+            24,
+            h // 2,
+            text="🔔",
+            fill=self.theme.bell_orange,
+            font=(self.theme.font_family, self.theme.font_size + 1),
+            state="hidden",
+        )
+
         self.idle_text_id = self.canvas.create_text(
             w // 2,
             h // 2,
             text="PLUS-ULTRA",
             fill=self.theme.idle_text,
             font=(self.theme.font_family, self.theme.font_size, "bold"),
-        )
-
-        self.icon_id = self.canvas.create_text(
-            22,
-            h // 2,
-            text="",
-            fill=self.theme.hover_border,
-            font=(self.theme.font_family, self.theme.font_size + 2),
-            state="hidden",
-        )
-
-        self.preview_text_id = self.canvas.create_text(
-            44,
-            h // 2,
-            text="",
-            anchor="w",
-            fill=self.theme.hover_text,
-            font=(self.theme.font_family, self.theme.font_size),
-            state="hidden",
-        )
-
-        self.badge_id = self.canvas.create_text(
-            w - 42,
-            h // 2,
-            text="",
-            fill=self.theme.badge_bg,
-            font=(self.theme.font_family, self.theme.font_size - 1, "bold"),
-            state="hidden",
-        )
-
-        self.dismiss_id = self.canvas.create_text(
-            w - 20,
-            h // 2,
-            text="✕",
-            fill=self.theme.dismiss_fg,
-            font=(self.theme.font_family, self.theme.font_size, "bold"),
-            state="hidden",
-            tags="dismiss_btn",
         )
 
         # Apply initial XWayland shape mask to eliminate square corners
@@ -272,41 +244,55 @@ class FloatingWidget:
         self.canvas.bind("<Button-1>", self._on_button_press)
         self.canvas.bind("<B1-Motion>", self._on_motion)
         self.canvas.bind("<ButtonRelease-1>", self._on_button_release)
-        self.canvas.bind("<Button-3>", lambda _e: self._demo_notification())
-        self.root.bind("<n>", lambda _e: self._demo_notification())
         self.root.bind("<Escape>", lambda _e: self.close())
 
-        # Specific binding for the dismiss button
-        self.canvas.tag_bind("dismiss_btn", "<Enter>", self._on_dismiss_enter)
-        self.canvas.tag_bind("dismiss_btn", "<Leave>", self._on_dismiss_leave)
-        self.canvas.tag_bind(
-            "dismiss_btn", "<Button-1>", self._on_dismiss_click
+    def _on_enter(self, _event: tk.Event[Any]) -> None:
+        """Handle mouse hover entrance: start trailing beam."""
+        self._is_hovered = True
+        self.canvas.itemconfig(self.idle_text_id, fill=self.theme.hover_text)
+        if self.glow_enabled:
+            self._start_beam()
+
+    def _on_leave(self, _event: tk.Event[Any]) -> None:
+        """Handle mouse hover exit: stop trailing beam and restore border."""
+        self._is_hovered = False
+        self.canvas.itemconfig(self.idle_text_id, fill=self.theme.idle_text)
+        self._stop_beam()
+        idle_border = (
+            self.theme.hover_border
+            if self._active_toggle
+            else self.theme.idle_border
+        )
+        self.canvas.itemconfig(
+            self.capsule_id,
+            fill=self.theme.idle_fill,
+            outline=idle_border,
         )
 
-    def _demo_notification(self) -> None:
-        """Trigger a sample notification for interactive verification."""
-        samples = [
-            ("Assignment Due", "OS Lab 3 due in 30 mins", "📅"),
-            ("LeetCode Daily", "Binary Search Trees challenge ready", "💻"),
-            ("Hackathon Update", "Team application approved", "🚀"),
-        ]
-        sample = samples[self.notifications.count % len(samples)]
-        self.post_notification(sample[0], sample[1], icon=sample[2])
+    def _start_beam(self) -> None:
+        """Start the orbiting beam animation loop on hover."""
+        if self._beam_timer_id is None and not self._closed:
+            self._tick_beam()
 
-    def _start_animations(self) -> None:
-        """Launch continuous non-blocking animation loops."""
-        self._tick_beam()
+    def _stop_beam(self) -> None:
+        """Stop orbiting beam and clear line coordinates when not hovered."""
+        if self._beam_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._beam_timer_id)
+            self._beam_timer_id = None
+
+        # Hide beam segments
+        self.canvas.coords(self.beam_body_id, 0, 0, 0, 0)
+        self.canvas.coords(self.beam_head_id, 0, 0, 0, 0)
 
     def _tick_beam(self) -> None:
         """Advance Animated Border Beam along perimeter path (~40 FPS)."""
-        if self._closed:
+        if self._closed or not self._is_hovered:
             return
 
         total_pts = len(self._perimeter_path)
         if total_pts > 0 and self.glow_enabled:
-            # Advance beam index
-            speed = 3 if self._is_hovered else 2
-            self._beam_idx = (self._beam_idx + speed) % total_pts
+            self._beam_idx = (self._beam_idx + 2) % total_pts
 
             # Body coordinates (trailing tail)
             body_coords: list[float] = []
@@ -324,44 +310,6 @@ class FloatingWidget:
 
         self._beam_timer_id = self.root.after(25, self._tick_beam)
 
-    def _on_enter(self, _event: tk.Event[Any]) -> None:
-        """Handle mouse hover entrance with glow styling."""
-        self._is_hovered = True
-        if self.glow_enabled:
-            fill_color = (
-                self.theme.notification_bg
-                if not self.notifications.is_empty
-                else self.theme.hover_fill
-            )
-            self.canvas.itemconfig(
-                self.capsule_id,
-                fill=fill_color,
-                outline=self.theme.hover_border,
-            )
-            self.canvas.itemconfig(
-                self.idle_text_id, fill=self.theme.hover_text
-            )
-
-    def _on_leave(self, _event: tk.Event[Any]) -> None:
-        """Handle mouse hover exit returning to idle styling."""
-        self._is_hovered = False
-        fill_color = (
-            self.theme.notification_bg
-            if not self.notifications.is_empty
-            else self.theme.idle_fill
-        )
-        idle_border = (
-            self.theme.hover_border
-            if self._active_toggle
-            else self.theme.idle_border
-        )
-        self.canvas.itemconfig(
-            self.capsule_id,
-            fill=fill_color,
-            outline=idle_border,
-        )
-        self.canvas.itemconfig(self.idle_text_id, fill=self.theme.idle_text)
-
     def _on_button_press(self, event: tk.Event[Any]) -> None:
         """Record initial mouse coordinates on click."""
         self._drag_start_x = event.x_root - self.root.winfo_x()
@@ -378,12 +326,14 @@ class FloatingWidget:
         new_x = event.x_root - self._drag_start_x
         new_y = event.y_root - self._drag_start_y
 
-        # Update anchor center during drag so future resizing respects location
-        self.anchor_center_x = new_x + int(self.current_width // 2)
+        self.root.geometry(f"{self.width}x{self.height}+{new_x}+{new_y}")
 
-        self.root.geometry(
-            f"{int(self.current_width)}x{self.height}+{new_x}+{new_y}"
-        )
+        # If popup is visible, keep it anchored below main capsule
+        if self._popup_window and self._popup_window.winfo_exists():
+            pop_w = self._popup_window.winfo_width()
+            pop_x = new_x + (self.width - pop_w) // 2
+            pop_y = new_y + self.height + 8
+            self._popup_window.geometry(f"+{pop_x}+{pop_y}")
 
     def _on_button_release(self, _event: tk.Event[Any]) -> None:
         """Handle click when mouse was released without dragging."""
@@ -392,18 +342,6 @@ class FloatingWidget:
         elif self.on_position_change:
             self.on_position_change(self.root.winfo_x(), self.root.winfo_y())
 
-    def _on_dismiss_enter(self, _event: tk.Event[Any]) -> None:
-        """Highlight dismiss button on hover."""
-        self.canvas.itemconfig(self.dismiss_id, fill=self.theme.dismiss_hover)
-
-    def _on_dismiss_leave(self, _event: tk.Event[Any]) -> None:
-        """Restore dismiss button idle color."""
-        self.canvas.itemconfig(self.dismiss_id, fill=self.theme.dismiss_fg)
-
-    def _on_dismiss_click(self, _event: tk.Event[Any]) -> None:
-        """Dismiss current notification and recalculate dimensions."""
-        self.dismiss_current()
-
     def _on_click(self) -> None:
         """Toggle active state and trigger click callback."""
         self._active_toggle = not self._active_toggle
@@ -411,164 +349,157 @@ class FloatingWidget:
         if self.on_click_callback:
             self.on_click_callback()
 
-    # --- Dynamic Notification & Sizing Methods ---
+    # --- Notification & Popup Banner Methods ---
 
     def post_notification(
         self,
         title: str,
         message: str = "",
         icon: str = "🔔",
-        action_label: str = "View",
         notification_id: str | None = None,
     ) -> str:
-        """Add notification (thread-safe); smoothly expands capsule outward."""
+        """Add notification: shows 3s popup below and displays orange bell."""
         item = self.notifications.push(
             title=title,
             message=message,
             icon=icon,
-            action_label=action_label,
             notification_id=notification_id,
         )
-        self.root.after_idle(self._trigger_layout_update)
+        self.root.after_idle(lambda: self._handle_new_notification(item))
         return item.id
 
-    def dismiss_notification(self, notification_id: str) -> None:
-        """Dismiss a specific notification by ID (thread-safe)."""
-        self.notifications.dismiss(notification_id)
-        self.root.after_idle(self._trigger_layout_update)
+    def mark_all_read(self) -> None:
+        """Mark all notifications read and hide orange bell indicator."""
+        self.notifications.mark_all_read()
+        self.root.after_idle(self._update_bell_state)
 
-    def dismiss_current(self) -> None:
-        """Dismiss the top notification (thread-safe)."""
-        self.notifications.dismiss_current()
-        self.root.after_idle(self._trigger_layout_update)
+    def mark_read(self, notification_id: str) -> None:
+        """Mark single notification read and update bell indicator."""
+        self.notifications.mark_read(notification_id)
+        self.root.after_idle(self._update_bell_state)
 
     def clear_notifications(self) -> None:
-        """Clear all notifications and shrink back to idle pill."""
+        """Clear all notifications and hide bell indicator."""
         self.notifications.clear()
-        self.root.after_idle(self._trigger_layout_update)
+        self.root.after_idle(self._update_bell_state)
 
-    def _trigger_layout_update(self) -> None:
-        """Update target width and initiate smooth resize animation."""
-        if self._closed:
-            return
-        self.target_width = float(self.notifications.compute_target_width())
-        self._step_resize()
-
-    def _step_resize(self) -> None:
-        """Smoothly interpolate current width toward target width."""
+    def _handle_new_notification(self, item: CapsuleNotification) -> None:
+        """Display orange bell in main capsule and spawn 3-second popup pill."""
         if self._closed:
             return
 
-        diff = self.target_width - self.current_width
-        if abs(diff) > 0.8:
-            step = diff * 0.28
-            if abs(step) < 1.0:
-                step = 1.0 if diff > 0 else -1.0
-            self.current_width += step
+        self._update_bell_state()
+        self._spawn_popup_pill(item)
 
-            self._apply_geometry_and_layout()
-            self._resize_timer_id = self.root.after(16, self._step_resize)
-        else:
-            self.current_width = self.target_width
-            self._apply_geometry_and_layout()
-            # Reapply shape mask on animation finish
-            apply_window_shape_mask(
-                self.root.winfo_id(),
-                int(self.current_width),
-                self.height,
-                self.radius,
-            )
+    def _update_bell_state(self) -> None:
+        """Show orange bell if unread notifications exist, else center text."""
+        if self._closed:
+            return
 
-    def _apply_geometry_and_layout(self) -> None:
-        """Apply center-outward window coordinates and redraw canvas."""
-        w = int(self.current_width)
+        w = self.width
         h = self.height
-        r = self.radius
 
-        # Center-outward calculation: anchor_center_x is preserved
-        screen_w = self.root.winfo_screenwidth()
-        new_x = int(round(self.anchor_center_x - w / 2))
-        new_x = max(4, min(screen_w - w - 4, new_x))
-        new_y = self.root.winfo_y()
-
-        self.root.geometry(f"{w}x{h}+{new_x}+{new_y}")
-        self.canvas.configure(width=w)
-
-        # Redraw capsule polygon with true semicircles
-        points = generate_capsule_points(w, h, r)
-        self.canvas.coords(self.capsule_id, *points)
-
-        # Rebuild perimeter path for the animated border beam
-        self._perimeter_path = generate_perimeter_path(w, h, r)
-
-        # Update content presentation
-        self._update_content_presentation(w, h)
-
-    def _update_content_presentation(self, w: int, h: int) -> None:
-        """Update content visibility and text alignment based on state."""
-        top = self.notifications.peek()
-        if not top:
-            # Idle Mode: centered PLUS-ULTRA
-            self.canvas.coords(self.idle_text_id, w // 2, h // 2)
-            self.canvas.itemconfig(self.idle_text_id, state="normal")
-            self.canvas.itemconfig(self.icon_id, state="hidden")
-            self.canvas.itemconfig(self.preview_text_id, state="hidden")
-            self.canvas.itemconfig(self.badge_id, state="hidden")
-            self.canvas.itemconfig(self.dismiss_id, state="hidden")
-            self.canvas.itemconfig(
-                self.capsule_id,
-                fill=self.theme.hover_fill
-                if self._is_hovered
-                else self.theme.idle_fill,
-            )
+        if self.notifications.has_unread:
+            # Orange bell visible on left; text offset right
+            self.canvas.itemconfig(self.bell_id, state="normal")
+            self.canvas.coords(self.idle_text_id, (w // 2) + 10, h // 2)
         else:
-            # Notification Mode: icon, truncated text, optional badge, dismiss
-            self.canvas.itemconfig(self.idle_text_id, state="hidden")
-            self.canvas.itemconfig(
-                self.capsule_id, fill=self.theme.notification_bg
-            )
+            # All read: bell hidden, text perfectly centered
+            self.canvas.itemconfig(self.bell_id, state="hidden")
+            self.canvas.coords(self.idle_text_id, w // 2, h // 2)
 
-            # 1. Icon
-            self.canvas.coords(self.icon_id, 24, h // 2)
-            self.canvas.itemconfig(self.icon_id, text=top.icon, state="normal")
+    def _spawn_popup_pill(self, item: CapsuleNotification) -> None:
+        """Display 3s popup capsule directly below main capsule."""
+        if self._closed:
+            return
 
-            # 2. Dismiss Button
-            dismiss_x = w - 20
-            self.canvas.coords(self.dismiss_id, dismiss_x, h // 2)
-            self.canvas.itemconfig(self.dismiss_id, state="normal")
+        # Cancel any pending dismiss timer for existing popup
+        if self._popup_dismiss_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._popup_dismiss_timer_id)
+            self._popup_dismiss_timer_id = None
 
-            # 3. Badge if multiple unread
-            right_boundary = dismiss_x - 14
-            if self.notifications.count > 1:
-                badge_text = f"+{self.notifications.count - 1}"
-                badge_x = dismiss_x - 22
-                self.canvas.coords(self.badge_id, badge_x, h // 2)
-                self.canvas.itemconfig(
-                    self.badge_id, text=badge_text, state="normal"
-                )
-                right_boundary = badge_x - 16
-            else:
-                self.canvas.itemconfig(self.badge_id, state="hidden")
+        pop_w = self.notifications.compute_popup_width(item)
+        pop_h = 32
+        pop_r = 16
 
-            # 4. Preview Text (Title + Message truncated)
-            text_x = 44
-            available_text_w = max(40, right_boundary - text_x)
-            formatted = self.notifications.format_display_text(available_text_w)
-            self.canvas.coords(self.preview_text_id, text_x, h // 2)
-            self.canvas.itemconfig(
-                self.preview_text_id, text=formatted, state="normal"
-            )
+        # Position below main capsule
+        main_x = self.root.winfo_x()
+        main_y = self.root.winfo_y()
+        pop_x = main_x + (self.width - pop_w) // 2
+        pop_y = main_y + self.height + 8
+
+        # Create or update popup window
+        if not self._popup_window or not self._popup_window.winfo_exists():
+            popup = tk.Toplevel(self.root)
+            popup.overrideredirect(True)
+            if self.always_on_top:
+                popup.attributes("-topmost", True)
+            popup.configure(bg=self.theme.window_bg)
+            self._popup_window = popup
+        else:
+            popup = self._popup_window
+
+        popup.geometry(f"{pop_w}x{pop_h}+{pop_x}+{pop_y}")
+
+        # Clear canvas
+        for child in popup.winfo_children():
+            child.destroy()
+
+        canvas = tk.Canvas(
+            popup,
+            width=pop_w,
+            height=pop_h,
+            bg=self.theme.window_bg,
+            highlightthickness=0,
+        )
+        canvas.pack(fill=tk.BOTH, expand=True)
+
+        # Capsule contour
+        points = generate_capsule_points(pop_w, pop_h, pop_r)
+        canvas.create_polygon(
+            points,
+            fill=self.theme.popup_bg,
+            outline=self.theme.popup_border,
+            width=1.5,
+        )
+
+        # Content text (Icon + preview text)
+        preview_text = self.notifications.format_popup_text(item)
+        canvas.create_text(
+            pop_w // 2,
+            pop_h // 2,
+            text=f"{item.icon}  {preview_text}",
+            fill=self.theme.popup_text,
+            font=(self.theme.font_family, self.theme.font_size),
+        )
+
+        # Apply shape mask to popup
+        popup.update_idletasks()
+        apply_window_shape_mask(popup.winfo_id(), pop_w, pop_h, pop_r)
+
+        # Auto-dismiss strictly after 3000ms (3.0 seconds)
+        self._popup_dismiss_timer_id = self.root.after(
+            3000, self._dismiss_popup_pill
+        )
+
+    def _dismiss_popup_pill(self) -> None:
+        """Dismiss the 3-second popup pill window."""
+        self._popup_dismiss_timer_id = None
+        if self._popup_window and self._popup_window.winfo_exists():
+            with contextlib.suppress(Exception):
+                self._popup_window.destroy()
+        self._popup_window = None
 
     def close(self) -> None:
-        """Destroy window and terminate animation loops cleanly."""
+        """Destroy window and popup cleanly."""
         logger.info("Closing floating widget window.")
         self._closed = True
+        self._dismiss_popup_pill()
+
         if self._beam_timer_id is not None:
             with contextlib.suppress(Exception):
                 self.root.after_cancel(self._beam_timer_id)
-        if self._resize_timer_id is not None:
-            with contextlib.suppress(Exception):
-                self.root.after_cancel(self._resize_timer_id)
 
         if self.on_position_change:
             with contextlib.suppress(Exception):

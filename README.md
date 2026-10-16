@@ -34,22 +34,24 @@ plus-ultra/
 │       │   ├── __init__.py       # Package marker
 │       │   ├── floating.py       # Dynamic capsule with animated border beam
 │       │   ├── theme.py          # Geometry tokens and color palettes
-│       │   └── panel.py          # [Phase 4] Dashboard window with 6 tabs
+│       │   └── panel.py          # 3-column dashboard window with 6 tabs
 │       ├── notifications.py      # Capsule notification queue & width sizing
 │       ├── db.py                 # SQLite connection, WAL mode, transactions
 │       ├── models.py             # Domain models (Category, Task, Reminder)
 │       ├── repository.py         # Parameterized SQL CRUD & soft delete cascades
-│       ├── services.py           # [Phase 4] Business logic decoupled from UI
+│       ├── services.py           # Pure business logic (TaskService, CategoryService)
 │       ├── scheduler.py          # [Phase 5] Background reminder evaluation
 │       └── sync.py               # [Phase 7] Cloud differential sync worker
 ├── tests/                        # Automated test suites
 │   ├── test_config.py            # XDG paths, fallback, permissions, metadata
 │   ├── test_settings.py          # Settings validation, atomic write, quarantine
 │   ├── test_desktop.py           # Advisory locking and PID tracking
-│   ├── test_notifications.py     # Queue management and dynamic width tests
-│   ├── test_ui.py                # Mathematical capsule, beam, dynamic expansion
+│   ├── test_notifications.py     # Queue management and popup sizing
+│   ├── test_ui.py                # Mathematical capsule, beam, popup lifecycle
 │   ├── test_db.py                # Migrations, WAL pragma, ACID rollback, checks
-│   └── test_repository.py        # CRUD, soft deletes, due filtering, app state
+│   ├── test_repository.py        # CRUD, soft deletes, due filtering, app state
+│   ├── test_services.py          # Business logic, status state machine, search
+│   └── test_panel.py             # 3-column dashboard, Treeview, modals, actions
 └── uv.lock                       # Pinned dependency lockfile
 ```
 
@@ -98,7 +100,7 @@ The core application currently relies entirely on the **Python Standard Library*
 - `tkinter`: Native desktop GUI rendering and event dispatch.
 
 ## Development Dependencies
-- **`pytest >= 9.1.1`**: Automated test framework (52 tests across 6 test modules).
+- **`pytest >= 9.1.1`**: Automated test framework (70 tests across 9 test modules).
 - **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import sorting, and strict 80-character line lengths.
 
 ## Scheduled Runtime Dependencies (Phased)

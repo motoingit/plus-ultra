@@ -26,8 +26,14 @@ from plus_ultra.config import (
 )
 from plus_ultra.db import get_connection, init_db
 from plus_ultra.desktop import SingleInstanceLock
-from plus_ultra.repository import AppStateRepository
+from plus_ultra.repository import (
+    AppStateRepository,
+    CategoryRepository,
+    TaskRepository,
+)
+from plus_ultra.services import CategoryService, TaskService
 from plus_ultra.ui.floating import FloatingWidget
+from plus_ultra.ui.panel import DashboardPanel
 
 logger = logging.getLogger(APP_NAME)
 
@@ -115,6 +121,10 @@ def main(argv: list[str] | None = None) -> int:
         init_db()
         conn = get_connection()
         app_state_repo = AppStateRepository(conn)
+        task_repo = TaskRepository(conn)
+        cat_repo = CategoryRepository(conn)
+        task_service = TaskService(task_repo, cat_repo)
+        cat_service = CategoryService(cat_repo)
 
         if args.no_ui or (
             "PYTEST_CURRENT_TEST" in os.environ and not args.smoke_test
@@ -132,15 +142,29 @@ def main(argv: list[str] | None = None) -> int:
             on_position_change=app_state_repo.set_widget_position,
         )
 
+        dashboard = DashboardPanel(
+            parent=widget.root,
+            task_service=task_service,
+            category_service=cat_service,
+            notification_queue=widget.notifications,
+            on_notifications_cleared=widget._update_bell_state,
+        )
+        widget.on_click_callback = dashboard.toggle
+
         def _signal_handler(_sig: int, _frame: object) -> None:
             logger.info("Received termination signal, shutting down.")
+            if dashboard.winfo_exists():
+                dashboard.destroy()
             widget.close()
 
         signal.signal(signal.SIGINT, _signal_handler)
         signal.signal(signal.SIGTERM, _signal_handler)
 
         if args.smoke_test:
-            logger.info("Running in smoke-test mode; exiting in 500ms.")
+            logger.info(
+                "Running in smoke-test mode; verifying dashboard and exiting."
+            )
+            dashboard.show()
             widget.root.after(500, widget.close)
 
         try:

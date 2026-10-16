@@ -1,10 +1,9 @@
-"""Unit tests for notification queue and dynamic capsule width calculations.
+"""Unit tests for notification queue, read/unread states, and popup formatting.
 
 Validates:
 - Pure data structure isolation (zero Tkinter dependencies).
-- Single and multi-notification queue management.
-- Dynamic width estimation clamped between min_width and max_width.
-- Text truncation and badge indicator formatting.
+- Read/unread status tracking (unread_count, has_unread, mark_all_read).
+- Popup width computation and text truncation.
 """
 
 from __future__ import annotations
@@ -13,64 +12,59 @@ from plus_ultra.notifications import CapsuleNotificationQueue
 
 
 def test_notification_queue_idle_defaults() -> None:
-    """Verify queue starts empty and computes min_width."""
+    """Verify queue starts empty and reports zero unread."""
     queue = CapsuleNotificationQueue(min_width=160, max_width=440)
     assert queue.is_empty is True
     assert queue.count == 0
+    assert queue.unread_count == 0
+    assert queue.has_unread is False
     assert queue.peek() is None
-    assert queue.compute_target_width() == 160
-    assert queue.format_display_text(100) == "PLUS-ULTRA"
 
 
-def test_notification_queue_push_and_dismiss() -> None:
-    """Verify pushing notification expands width and dismissal shrinks."""
+def test_notification_push_and_unread_tracking() -> None:
+    """Verify pushing notifications sets unread status and marks read."""
     queue = CapsuleNotificationQueue(min_width=160, max_width=440)
 
     n1 = queue.push("System Alert", "Kernel updated", icon="⚡")
     assert queue.count == 1
-    assert queue.is_empty is False
-    assert queue.peek() == n1
-    assert queue.compute_target_width() > 160
+    assert queue.unread_count == 1
+    assert queue.has_unread is True
+    assert n1.is_read is False
 
-    # Dismiss specific notification
-    dismissed = queue.dismiss(n1.id)
-    assert dismissed == n1
-    assert queue.is_empty is True
-    assert queue.compute_target_width() == 160
+    # Mark single read
+    queue.mark_read(n1.id)
+    assert queue.unread_count == 0
+    assert queue.has_unread is False
+    assert n1.is_read is True
 
 
-def test_notification_queue_multiple_unread_and_dismiss_current() -> None:
-    """Verify multiple notifications stack, report count, and dismiss top."""
+def test_notification_multiple_and_mark_all_read() -> None:
+    """Verify multiple unread notifications and mark_all_read."""
     queue = CapsuleNotificationQueue(min_width=160, max_width=440)
 
     queue.push("Task Due", "OS assignment due in 15m", icon="📅")
     queue.push("DSA Practice", "LeetCode daily challenge ready", icon="💻")
 
     assert queue.count == 2
-    # Extra badge chrome added when count > 1
-    w_multi = queue.compute_target_width()
-    assert w_multi > 160
+    assert queue.unread_count == 2
+    assert queue.has_unread is True
 
-    # Dismiss top item
-    top = queue.dismiss_current()
-    assert top is not None
-    assert top.title == "Task Due"
-    assert queue.count == 1
-    assert queue.peek().title == "DSA Practice"
+    queue.mark_all_read()
+    assert queue.unread_count == 0
+    assert queue.has_unread is False
 
 
-def test_notification_text_truncation() -> None:
-    """Verify long preview text is truncated with ellipsis."""
-    queue = CapsuleNotificationQueue(
-        min_width=160, max_width=440, char_width_px=7
-    )
-    long_msg = "A" * 150
-    queue.push("Super Long Title", long_msg)
+def test_popup_width_and_text_formatting() -> None:
+    """Verify popup width calculation and preview text truncation."""
+    queue = CapsuleNotificationQueue()
+    n = queue.push("Task 1", "Very detailed reminder text")
 
-    # Available width for ~10 characters
-    formatted = queue.format_display_text(available_text_width_px=70)
+    w = queue.compute_popup_width(n)
+    assert 200 <= w <= 360
+
+    formatted = queue.format_popup_text(n, max_chars=20)
     assert formatted.endswith("…")
-    assert len(formatted) <= 12
+    assert len(formatted) <= 20
 
 
 def test_notification_queue_update_existing_id() -> None:
@@ -83,12 +77,16 @@ def test_notification_queue_update_existing_id() -> None:
     assert queue.peek().title == "Updated Title"
 
 
-def test_notification_queue_clear() -> None:
-    """Verify clear resets all notifications."""
+def test_notification_queue_dismiss_and_clear() -> None:
+    """Verify dismiss by ID and clear resets all notifications."""
     queue = CapsuleNotificationQueue()
-    queue.push("Msg 1")
+    n1 = queue.push("Msg 1")
     queue.push("Msg 2")
     assert queue.count == 2
+
+    dismissed = queue.dismiss(n1.id)
+    assert dismissed == n1
+    assert queue.count == 1
 
     queue.clear()
     assert queue.is_empty is True
