@@ -15,6 +15,7 @@ from plus_ultra.notifications import (
     CapsuleNotification,
     CapsuleNotificationQueue,
 )
+from plus_ultra.ui.components.popup_pill import CapsulePopupPill
 from plus_ultra.ui.geometry import (
     generate_capsule_points,
     generate_perimeter_path,
@@ -61,12 +62,17 @@ class FloatingWidget:
         self._closed = False
         self._beam_length = 56
         self._beam_timer_id: str | None = None
-        self._popup_window: tk.Toplevel | None = None
-        self._popup_dismiss_timer_id: str | None = None
         self._net_monitor = NetworkStatusMonitor()
         self._net_poll_timer_id: str | None = None
 
         self._load_preferences()
+        self.popup_pill = CapsulePopupPill(
+            parent=self.root,
+            queue=self.notifications,
+            theme=self.theme,
+            always_on_top=self.always_on_top,
+            default_duration_ms=self.popup_duration_ms,
+        )
         self._setup_window()
         self._build_canvas()
         self._bind_events()
@@ -77,6 +83,9 @@ class FloatingWidget:
         eff: dict[str, Any] = settings.load_effective_settings()
         self.always_on_top: bool = eff.get("always_on_top", True)
         self.glow_enabled: bool = eff.get("glow_enabled", True)
+        self.popup_duration_ms: int = eff.get(
+            "notification_popup_duration_ms", 3000
+        )
 
     def _setup_window(self) -> None:
         """Configure borderless window placement at top-center of screen."""
@@ -253,12 +262,7 @@ class FloatingWidget:
         new_x = event.x_root - self._drag_start_x
         new_y = event.y_root - self._drag_start_y
         self.root.geometry(f"{self.width}x{self.height}+{new_x}+{new_y}")
-
-        if self._popup_window and self._popup_window.winfo_exists():
-            pop_w = self._popup_window.winfo_width()
-            pop_x = new_x + (self.width - pop_w) // 2
-            pop_y = new_y + self.height + 8
-            self._popup_window.geometry(f"+{pop_x}+{pop_y}")
+        self.popup_pill.reposition(new_x, new_y, self.width, self.height)
 
     def _on_button_release(self, _event: tk.Event[Any]) -> None:
         if not self._dragged:
@@ -371,74 +375,26 @@ class FloatingWidget:
             self.canvas.itemconfig(self.bell_id, state="hidden")
             self.canvas.coords(self.idle_text_id, w // 2, h // 2)
 
+    @property
+    def _popup_window(self) -> tk.Toplevel | None:
+        """Expose popup window for backward compatibility with tests."""
+        return self.popup_pill.window
+
     def _spawn_popup_pill(self, item: CapsuleNotification) -> None:
         """Display 3s popup capsule directly below main capsule."""
         if self._closed:
             return
-        if self._popup_dismiss_timer_id is not None:
-            with contextlib.suppress(Exception):
-                self.root.after_cancel(self._popup_dismiss_timer_id)
-            self._popup_dismiss_timer_id = None
-
-        pop_w = max(320, self.notifications.compute_popup_width(item))
-        pop_h, pop_r = 52, 26
-        main_x, main_y = self.root.winfo_x(), self.root.winfo_y()
-        pop_x = main_x + (self.width - pop_w) // 2
-        pop_y = main_y + self.height + 10
-
-        if not self._popup_window or not self._popup_window.winfo_exists():
-            popup = tk.Toplevel(self.root)
-            popup.overrideredirect(True)
-            if self.always_on_top:
-                popup.attributes("-topmost", True)
-            popup.configure(bg=self.theme.window_bg)
-            self._popup_window = popup
-        else:
-            popup = self._popup_window
-
-        popup.geometry(f"{pop_w}x{pop_h}+{pop_x}+{pop_y}")
-        for child in popup.winfo_children():
-            child.destroy()
-
-        canvas = tk.Canvas(
-            popup,
-            width=pop_w,
-            height=pop_h,
-            bg=self.theme.window_bg,
-            highlightthickness=0,
-        )
-        canvas.pack(fill=tk.BOTH, expand=True)
-        pts = generate_capsule_points(pop_w, pop_h, pop_r)
-        canvas.create_polygon(
-            pts,
-            fill=self.theme.popup_bg,
-            outline=self.theme.popup_border,
-            width=2.0,
-        )
-        preview_text = self.notifications.format_popup_text(item)
-        content_str = (
-            f"{item.icon}  {preview_text}" if item.icon else preview_text
-        )
-        canvas.create_text(
-            pop_w // 2,
-            pop_h // 2,
-            text=content_str,
-            fill=self.theme.popup_text,
-            font=(self.theme.font_family, 11, "bold"),
-        )
-        popup.update_idletasks()
-        apply_window_shape_mask(popup.winfo_id(), pop_w, pop_h, pop_r)
-        self._popup_dismiss_timer_id = self.root.after(
-            3000, self._dismiss_popup_pill
+        self.popup_pill.show(
+            item=item,
+            parent_x=self.root.winfo_x(),
+            parent_y=self.root.winfo_y(),
+            parent_w=self.width,
+            parent_h=self.height,
         )
 
     def _dismiss_popup_pill(self) -> None:
         """Dismiss the 3-second popup pill window."""
-        self._popup_dismiss_timer_id = None
-        if self._popup_window and self._popup_window.winfo_exists():
-            with contextlib.suppress(Exception):
-                self._popup_window.destroy()
-        self._popup_window = None
+        self.popup_pill.dismiss()
 
     def _poll_network_status(self) -> None:
         """Poll network connectivity and update indicator dot on capsule."""
@@ -451,9 +407,7 @@ class FloatingWidget:
         else:
             self._net_monitor.probe_async()
             res = self._net_monitor.get_result()
-            is_on = (
-                res if res is not None else self._net_monitor.status.is_online
-            )
+            is_on = res if res is not None else self._net_monitor.last_status
             color = "#10b981" if is_on else "#ef4444"
             self.canvas.itemconfig(self.net_dot_id, fill=color, state="normal")
             self.canvas.coords(

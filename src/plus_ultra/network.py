@@ -33,6 +33,7 @@ class NetworkStatusMonitor:
     def __init__(self) -> None:
         self.result_queue: queue.Queue[bool] = queue.Queue()
         self._probing: bool = False
+        self.last_status: bool = True
 
     def probe_async(self) -> None:
         """Start background socket probe if not already running."""
@@ -53,6 +54,8 @@ class NetworkStatusMonitor:
     def get_result(self) -> bool | None:
         """Retrieve latest probe result without blocking, or None."""
         try:
-            return self.result_queue.get_nowait()
+            val = self.result_queue.get_nowait()
+            self.last_status = val
+            return val
         except queue.Empty:
             return None

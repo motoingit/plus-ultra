@@ -12,9 +12,12 @@ plus-ultra/
 │   ├── features.md               # 6-tab workspace specifications & db schema
 │   └── progress-log.md           # Chronological phase implementation log
 ├── .env.sample                   # Sample credentials template (Supabase public anon key)
-├── .scripts/                      # Standalone maintenance and seed utilities
+├── .scripts/                      # Standalone maintenance and testing utilities
 │   ├── __init__.py               # Scripts package marker
-│   └── seeds.py                  # Demo seed dataset & standalone CLI
+│   ├── clear_db.py               # Table purging, soft/hard delete, vacuum utility
+│   ├── notify.py                 # Instant/delayed desktop notification testing CLI
+│   ├── seed_data.py              # Demo dataset seeding and unseeding engine
+│   └── seeds.py                  # Legacy wrapper delegating to seed_data.py
 ├── pyproject.toml                # Project packaging, CLI script, ruff and pytest configs
 ├── README.md                     # High-level overview, quick start, and layer summary
 ├── src/
@@ -25,7 +28,7 @@ plus-ultra/
 │       ├── settings.py           # Atomic JSON settings engine, strict type safety, recovery
 │       ├── resources/            # Packaged static assets
 │       │   ├── data/             # Packaged metadata and default configurations
-│       │   │   ├── default-settings.json # Shipped defaults
+│       │   │   ├── default-settings.json # Shipped defaults & configurable dimensions
 │       │   │   └── metadata.json # App metadata
 │       │   └── icons/            # Packaged raster/vector iconography
 │       │       ├── fallback.png  # High-resolution master icon asset
@@ -74,8 +77,10 @@ plus-ultra/
 │           ├── components/       # Reusable UI widgets
 │           │   ├── __init__.py
 │           │   ├── datetime_picker.py # Interactive DateTimePicker with Now & presets
+│           │   ├── popup_pill.py # Transient 3s notification popup capsule pill
 │           │   ├── scrollable.py # Scrollable canvas frame
 │           │   ├── sidebar.py    # Draggable tab navigation bar with 80px settings icon
+│           │   ├── task_card.py  # Decoupled task card component with action handlers
 │           │   └── notifications_panel.py # Right drawer (Alerts stream)
 │           ├── dialogs/          # Modal forms with generous dimensions
 │           │   ├── __init__.py
@@ -97,10 +102,11 @@ plus-ultra/
 │               ├── opportunities_view.py
 │               ├── quick_links_view.py
 │               └── settings_view.py # Preferences & network monitor toggle
-├── .tests/                       # Comprehensive test suite (95 tests, 100% pass)
+├── .tests/                       # Comprehensive test suite (103 tests, 100% pass)
 │   ├── test_config.py            # XDG paths, fallback logic, mode 0o700, logging tests
 │   ├── test_datetime_utils.py    # Timezone-aware, ISO, and space-separated date parsing
-│   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, dynamic capsule
+│   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, popup pill, task card
+│   ├── test_scripts.py           # Database clearing, seed/unseed, notify CLI tests
 │   ├── test_settings.py          # Settings validation, type safety, corrupt file quarantine
 │   ├── test_desktop.py           # Advisory locking, notify-send, and process contention
 │   ├── test_notifications.py     # Queue management and popup sizing tests

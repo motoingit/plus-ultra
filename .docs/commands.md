@@ -27,6 +27,7 @@ uv run pytest -v
 
 # Run targeted test suites
 uv run pytest .tests/test_scheduler.py -v
+uv run pytest .tests/test_scripts.py -v
 uv run pytest .tests/test_services.py -v
 uv run pytest .tests/test_panel.py -v
 uv run pytest .tests/test_db.py -v
@@ -36,8 +37,23 @@ uv run pytest .tests/test_ui.py -v
 uv run pytest .tests/test_config.py -v
 uv run pytest .tests/test_settings.py -v
 
-# Standalone demo data seeding
-uv run python .scripts/seeds.py
+# Standalone Workspace Seeding & Unseeding
+uv run python .scripts/seed_data.py --seed      # Seed demo records if empty
+uv run python .scripts/seed_data.py --force     # Force reseed demo records
+uv run python .scripts/seed_data.py --unseed    # Remove all demo records
+
+# Database Clearing Utilities
+uv run python .scripts/clear_db.py --all --force           # Hard delete all domain rows
+uv run python .scripts/clear_db.py --soft --force          # Soft delete (is_deleted = 1)
+uv run python .scripts/clear_db.py -t tasks -t code_items  # Clear specific tables
+uv run python .scripts/clear_db.py --include-app-state     # Also clear machine runtime state
+uv run python .scripts/clear_db.py --vacuum                # Run VACUUM after clearing
+
+# Desktop Notification Testing
+uv run python .scripts/notify.py                           # Immediate desktop popup
+uv run python .scripts/notify.py 2                         # Popup after 2 minutes delay
+uv run python .scripts/notify.py -s 15                     # Popup after 15 seconds delay
+uv run python .scripts/notify.py -t "Custom" -m "Alert!"   # Custom title and message
 ```
 
 ## CLI Test Flags & Headless Validation

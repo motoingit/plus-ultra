@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from plus_ultra.database import get_connection, init_db
+from plus_ultra.models import Task
 from plus_ultra.network import NetworkStatusMonitor, is_network_online
+from plus_ultra.notifications import CapsuleNotificationQueue
 from plus_ultra.repositories import (
     IdeaDoubtRepository,
 )
@@ -17,6 +19,8 @@ from plus_ultra.services import (
     IdeaDoubtService,
 )
 from plus_ultra.ui.components.datetime_picker import DateTimePicker
+from plus_ultra.ui.components.popup_pill import CapsulePopupPill
+from plus_ultra.ui.components.task_card import TaskCard
 from plus_ultra.ui.dialogs import CodeDialog, OpportunityDialog, TaskDialog
 from plus_ultra.ui.floating import FloatingWidget
 from plus_ultra.ui.views.ideas_view import IdeasView
@@ -206,3 +210,78 @@ def test_network_monitor_probe() -> None:
     # Synchronous probe returns boolean
     res = is_network_online(timeout=0.8)
     assert isinstance(res, bool)
+
+
+def test_capsule_popup_pill_lifecycle() -> None:
+    """Verify CapsulePopupPill show, reposition, and dismiss lifecycle."""
+    root = tk.Tk()
+    try:
+        queue = CapsuleNotificationQueue()
+        item = queue.push(title="Test Alert", message="Test Body", icon="🔔")
+        pill = CapsulePopupPill(parent=root, queue=queue)
+
+        assert pill.is_visible is False
+        pill.show(
+            item=item,
+            parent_x=100,
+            parent_y=50,
+            parent_w=320,
+            parent_h=72,
+            duration_ms=5000,
+        )
+        assert pill.is_visible is True
+        assert pill.window is not None
+
+        pill.reposition(parent_x=120, parent_y=60, parent_w=320, parent_h=72)
+        assert pill.is_visible is True
+
+        pill.dismiss()
+        assert pill.is_visible is False
+        assert pill.window is None
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
+def test_task_card_interactions() -> None:
+    """Verify TaskCard renders attributes and triggers action callbacks."""
+    root = tk.Tk()
+    try:
+        task = Task(
+            id="t-1",
+            category_id="c-1",
+            title="Design Clean Architecture",
+            description="Separate into 3 layers with tests",
+            due_date="2026-10-30 18:00",
+            status="Pending",
+            critical_level="High",
+            pace_level="Sprint",
+            is_google_task=True,
+            created_at="2026-10-17T00:00:00Z",
+            updated_at="2026-10-17T00:00:00Z",
+        )
+        toggled: list[str] = []
+        edited: list[Task] = []
+        deleted: list[str] = []
+
+        card = TaskCard(
+            parent=root,
+            task=task,
+            category_name="Architecture",
+            on_toggle=lambda tid: toggled.append(tid),
+            on_edit=lambda t: edited.append(t),
+            on_delete=lambda tid: deleted.append(tid),
+        )
+
+        card._handle_toggle()
+        assert toggled == ["t-1"]
+
+        card._handle_edit()
+        assert len(edited) == 1
+        assert edited[0].title == "Design Clean Architecture"
+
+        card._handle_delete()
+        assert deleted == ["t-1"]
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()

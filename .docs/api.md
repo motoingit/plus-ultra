@@ -336,13 +336,15 @@ Timezone-aware datetime parsing utility:
 ### `plus_ultra.ui.components`
 Reusable presentation components:
 - `DateTimePicker`: Interactive date and time picker featuring `⚡ Now` automatic timestamp insertion, date presets (`Today`, `Tomorrow`, `+3 Days`, `+1 Wk`), time presets (`09:00`, `12:00`, `15:00`, `18:00`, `21:00`, `23:59`), and step adjusters (`-1d`, `+1d`).
+- `CapsulePopupPill`: Transient rounded popup pill appearing directly below the floating capsule for temporary alert banners (configurable duration, XShape masked).
+- `TaskCard`: Standalone card widget presenting an individual task with status button (`[Done]`/`[Pending]`), category chip, priority badge, pace level, overdue highlighting, and contextual Edit/Delete actions.
 - `ScrollableFrame`: Canvas-backed scrollable container with mousewheel bindings.
 - `Sidebar`: Draggable navigation sidebar supporting manual cursor drag-and-drop tab reordering, 80px enlarged Settings button on bottom-left, and renamed tabs (`Tasks`, `Code c-p`, `DSA Tracker`, `Courses`, `PS/I`, `Opportunities`, `Quick Links`).
 - `NotificationsPanel`: Focused notification alerts stream with Mark All Read, Clear, and clean unread status list.
 
 ### `plus_ultra.ui.floating`
 Floating capsule presence:
-- `FloatingWidget`: Top-center hovering presence with trailing hover beam, dynamic width expansion on unread alerts, 3-second popup notification pill, and right-side network status indicator dot (`#10b981` online, `#ef4444` offline, toggleable via settings).
+- `FloatingWidget`: Top-center hovering presence with trailing hover beam, dynamic width expansion on unread alerts, integrated `CapsulePopupPill`, and right-side network status indicator dot (`#10b981` online, `#ef4444` offline, toggleable via settings).
 
 ### `plus_ultra.ui.dialogs`
 Centering modal dialogs with generous dimensions (`680x720`, `680x680`, `640x620`):
@@ -355,7 +357,7 @@ Centering modal dialogs with generous dimensions (`680x720`, `680x680`, `640x620
 
 ### `plus_ultra.ui.views`
 Decoupled workspace tab views with 2x card sizing and clean badges:
-- `TasksView` (`Tasks`): Streamlined view with category filters, priority filters, search bar, and full CRUD.
+- `TasksView` (`Tasks`): Streamlined view with category filters, priority filters, search bar, and full CRUD utilizing `TaskCard`.
 - `CodeView` (`Code c-p`): Code snippets workspace with language filters and one-click clipboard copy.
 - `DSAView` (`DSA Tracker`): Dedicated DSA Problem Tracker view in the main workspace.
 - `IdeasView` (`PS/I`): Dual-subtab view featuring dedicated `[ Project Ideas ]` and `[ Concept Doubts ]` tables, each with contextual creation actions (`+ Add Idea` / `+ Add Doubt`).
@@ -367,4 +369,9 @@ Decoupled workspace tab views with 2x card sizing and clean badges:
 Mathematical capsule coordinate calculations:
 - `generate_capsule_points(width, height, radius, steps_per_corner=12) -> list[int]`
 - `generate_perimeter_path(width, height, radius, total_points=56) -> list[tuple[float, float]]`
+
+### `.scripts` Standalone Utilities
+- `clear_db.py`: `clear_database(conn, tables, hard_delete, clear_app_state, vacuum)` - Clears database tables cleanly with hard DELETE or soft delete (`is_deleted = 1`) and `--force` support.
+- `seed_data.py`: `seed_demo_workspace_data(conn, force)`, `unseed_demo_workspace_data(conn, hard_delete)` - Full workspace demo population and selective removal.
+- `notify.py`: `dispatch_notification(title, message, delay_seconds, urgency)` - Desktop notification dispatcher supporting instant popup or delayed countdown delivery.
 

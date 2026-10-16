@@ -439,6 +439,42 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
+## Beta Release Quality Refactoring
+
+- **Status**: Completed
+- **Date**: 2026-10-17
+
+### Phase To-do List:
+- [x] Testing & Utility Scripts (`.scripts/`):
+  - Created `.scripts/clear_db.py`: Full domain database clearing utility supporting hard `DELETE` or soft delete (`is_deleted = 1`), runtime `app_state` clearing, SQLite `VACUUM`, and `--force` headless confirmation bypassing.
+  - Created `.scripts/seed_data.py`: Dual-mode dataset utility supporting `--seed` (populating demo records for tasks, code snippets, courses, doubts, opportunities, and quick links) and `--unseed` (cleanly removing seeded demo records and cascading to reminders without disturbing user data).
+  - Maintained `.scripts/seeds.py` as a backward-compatible wrapper delegating to `seed_data.py`.
+  - Created `.scripts/notify.py`: Standalone desktop notification testing CLI supporting immediate execution (`uv run python .scripts/notify.py`) or delayed execution after `X` minutes (`uv run python .scripts/notify.py 2`) or seconds (`-s 15`) with a live console countdown.
+- [x] Architecture & God-File Deconstruction:
+  - Extracted `CapsulePopupPill` into `src/plus_ultra/ui/components/popup_pill.py`: Encapsulates transient 3-second alert banners, XShape masking, canvas layout, positioning, and auto-dismissal. Reduced `floating.py` from 495 to 448 lines.
+  - Extracted `TaskCard` into `src/plus_ultra/ui/components/task_card.py`: Standalone card widget handling task status toggle, title, badges (category, priority, pace, due date, Google task), overdue highlighting, and Edit/Delete action handlers. Reduced `tasks_view.py` from 473 to 331 lines.
+  - Refactored `DashboardPanel._switch_tab()` in `panel.py` into dictionary-based dispatch, keeping `panel.py` comfortably within bounds.
+  - Re-exported new components in `src/plus_ultra/ui/components/__init__.py`.
+- [x] Configuration & State Centralization:
+  - Extended `src/plus_ultra/resources/data/default-settings.json` with `panel_width` (1380), `panel_height` (840), `panel_min_width` (1000), `panel_min_height` (640), and `notification_popup_duration_ms` (3000).
+  - Implemented `<Configure>` resize tracking and automatic dimension persistence in `DashboardPanel`: when the user resizes the dashboard and closes it, the new dimensions persist to `~/.config/plus-ultra/user-settings.json` and restore on next launch.
+  - Configured `FloatingWidget` and `CapsulePopupPill` to respect `notification_popup_duration_ms` with graceful fallback handling.
+- [x] Test Coverage & Quality Gates:
+  - Created `.tests/test_scripts.py` verifying `seed_data.py`, `clear_db.py`, and `notify.py` execution, arguments, and database effects.
+  - Added component unit tests for `CapsulePopupPill` and `TaskCard` in `.tests/test_refinements.py`.
+  - Added dimension persistence test in `.tests/test_settings.py`.
+  - Full suite expanded to **103 unit tests** passing cleanly (`uv run pytest -v`).
+  - Zero Ruff linter errors (`uv run ruff check .`) and 100% code formatted (`uv run ruff format --check .`).
+- [x] Documentation Uniformity:
+  - Synchronized `README.md`, `.docs/architecture.MD`, `.docs/commands.md`, and `.docs/api.md` with new scripts, components, test suites, and configuration options.
+
+### Issues & Solutions:
+- **`winfo_exists` integer return type in Tkinter**: `CapsulePopupPill.is_visible` asserted against `True`, but Tkinter's `winfo_exists()` returns an integer `1` or `0`, causing an `AssertionError: assert 1 is True`. Resolved by wrapping the return in `bool(self.window is not None and self.window.winfo_exists())`.
+- **Ruff alias import sorting in scripts test**: Importing functions under multiple aliases from `.scripts` files caused import sorting conflicts with first-party package boundaries. Resolved by importing `clear_db`, `notify`, and `seed_data` as module namespaces.
+- **`NetworkStatusMonitor` attribute mismatch during smoke-test**: During `uv run plus-ultra --smoke-test`, `floating.py` attempted to access `self._net_monitor.status.is_online`, but `NetworkStatusMonitor` in `network.py` only provided `get_result()`. Resolved by exposing `self.last_status: bool = True` on `NetworkStatusMonitor` and updating `floating.py` to retrieve the cached state.
+
+---
+
 ## Next: Phase 6: Robustness, Startup, and Autostart
 
 - **Status**: Ready for Planning
@@ -447,4 +483,5 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
   - Implement CLI flags: `--install-autostart` and `--uninstall-autostart` writing or removing `~/.config/autostart/plus-ultra.desktop`.
   - Implement `ui/splash.py`: startup progress logger (`[1/4] Paths`, `[2/4] Database`, `[3/4] Scheduler`, `[4/4] Ready`).
   - Graceful process termination and single-instance validation across user session logout/login.
+
 

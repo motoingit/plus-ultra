@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime
 import logging
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -11,6 +10,7 @@ from typing import Any
 from plus_ultra.models import Task
 from plus_ultra.services import CategoryService, ReminderService, TaskService
 from plus_ultra.ui.components.scrollable import ScrollableFrame
+from plus_ultra.ui.components.task_card import TaskCard
 from plus_ultra.ui.dialogs import CategoryDialog, TaskDialog
 from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
@@ -197,159 +197,16 @@ class TasksView:
     def _render_task_card(
         self, parent: tk.Widget, task: Task, cat_map: dict[str, str]
     ) -> None:
-        card = tk.Frame(
-            parent,
-            bg="#1c212c",
-            padx=24,
-            pady=18,
-            highlightbackground="#2b3448",
-            highlightthickness=1,
-        )
-        card.pack(fill="x", pady=8)
-
-        top_row = tk.Frame(card, bg="#1c212c")
-        top_row.pack(fill="x")
-
-        is_done = task.status == "Completed"
-        status_label = "[Done]" if is_done else "[Pending]"
-        status_fg = "#10b981" if is_done else "#00e5ff"
-        status_bg = "#0f291e" if is_done else "#162032"
-
-        status_btn = tk.Button(
-            top_row,
-            text=status_label,
-            bg=status_bg,
-            fg=status_fg,
-            activebackground=status_bg,
-            activeforeground=status_fg,
-            relief="flat",
-            bd=0,
-            highlightthickness=0,
-            font=(self.theme.font_family, 10, "bold"),
-            cursor="hand2",
-            padx=10,
-            pady=4,
-            command=lambda tid=task.id: self.toggle_selected_status(tid),
-        )
-        status_btn.pack(side="left", padx=(0, 12))
-
-        title_fg = "#64748b" if is_done else "#f8fafc"
-        tk.Label(
-            top_row,
-            text=task.title,
-            bg="#1c212c",
-            fg=title_fg,
-            font=(self.theme.font_family, 14, "bold"),
-            anchor="w",
-        ).pack(side="left", fill="x", expand=True)
-
-        act_box = tk.Frame(top_row, bg="#1c212c")
-        act_box.pack(side="right")
-
-        tk.Button(
-            act_box,
-            text="Edit",
-            bg="#2b3448",
-            fg="#e2e8f0",
-            activebackground="#3b475e",
-            relief="flat",
-            bd=0,
-            highlightthickness=0,
-            font=(self.theme.font_family, 10),
-            cursor="hand2",
-            padx=12,
-            pady=5,
-            command=lambda t=task: self.open_edit_task(t),
-        ).pack(side="left", padx=4)
-
-        tk.Button(
-            act_box,
-            text="Delete",
-            bg="#3f1d24",
-            fg="#fca5a5",
-            activebackground="#5c2630",
-            relief="flat",
-            bd=0,
-            highlightthickness=0,
-            font=(self.theme.font_family, 10),
-            cursor="hand2",
-            padx=12,
-            pady=5,
-            command=lambda tid=task.id: self.delete_task(tid),
-        ).pack(side="left", padx=4)
-
-        meta_row = tk.Frame(card, bg="#1c212c")
-        meta_row.pack(fill="x", pady=(10, 0))
-
         cat_name = cat_map.get(task.category_id or "", "General")
-        tk.Label(
-            meta_row,
-            text=f"[{cat_name}]",
-            bg="#083344",
-            fg="#22d3ee",
-            font=(self.theme.font_family, 9, "bold"),
-            padx=8,
-            pady=2,
-        ).pack(side="left", padx=(0, 6))
-
-        p_colors = {
-            "High": ("#451a1a", "#f87171"),
-            "Medium": ("#452a10", "#fbbf24"),
-            "Low": ("#1e293b", "#94a3b8"),
-        }
-        bg_c, fg_c = p_colors.get(task.critical_level, ("#1e293b", "#94a3b8"))
-        tk.Label(
-            meta_row,
-            text=f"[{task.critical_level}]",
-            bg=bg_c,
-            fg=fg_c,
-            font=(self.theme.font_family, 9, "bold"),
-            padx=8,
-            pady=2,
-        ).pack(side="left", padx=4)
-
-        if task.pace_level:
-            tk.Label(
-                meta_row,
-                text=f"Pace: {task.pace_level}",
-                bg="#1e2433",
-                fg="#cbd5e1",
-                font=(self.theme.font_family, 9),
-                padx=8,
-                pady=2,
-            ).pack(side="left", padx=4)
-
-        if task.due_date:
-            due_text = f"Due: {task.due_date}"
-            due_bg = "#1e2433"
-            due_fg = "#cbd5e1"
-            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-            due_cutoff = now_str[: len(task.due_date)]
-            if not is_done and task.due_date < due_cutoff:
-                due_text = f"Overdue: {task.due_date}"
-                due_bg = "#451a1a"
-                due_fg = "#f87171"
-
-            tk.Label(
-                meta_row,
-                text=due_text,
-                bg=due_bg,
-                fg=due_fg,
-                font=(self.theme.font_family, 9, "bold"),
-                padx=8,
-                pady=2,
-            ).pack(side="left", padx=4)
-
-        if task.description:
-            tk.Label(
-                card,
-                text=task.description,
-                bg="#1c212c",
-                fg="#94a3b8",
-                font=(self.theme.font_family, 11),
-                anchor="w",
-                justify="left",
-            ).pack(fill="x", pady=(8, 0))
+        TaskCard(
+            parent=parent,
+            task=task,
+            category_name=cat_name,
+            theme=self.theme,
+            on_toggle=self.toggle_selected_status,
+            on_edit=self.open_edit_task,
+            on_delete=self.delete_task,
+        )
 
     def toggle_selected_status(self, task_id: str) -> None:
         """Toggle task status between Pending and Completed."""

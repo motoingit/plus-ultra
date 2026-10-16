@@ -18,9 +18,12 @@ plus-ultra/
 │   ├── features.md               # 6-tab workspace & sub-section specs
 │   └── progress-log.md           # Chronological development log
 ├── .env.sample                   # Sample secrets template (Supabase public key)
-├── .scripts/                      # Standalone maintenance and seed utilities
+├── .scripts/                      # Standalone maintenance and testing utilities
 │   ├── __init__.py               # Scripts package marker
-│   └── seeds.py                  # Demo seed dataset & standalone CLI
+│   ├── clear_db.py               # Table purging, soft/hard delete, vacuum utility
+│   ├── notify.py                 # Instant/delayed desktop notification testing CLI
+│   ├── seed_data.py              # Demo dataset seeding and unseeding engine
+│   └── seeds.py                  # Legacy wrapper delegating to seed_data.py
 ├── pyproject.toml                # Project packaging, CLI script, ruff & pytest
 ├── README.md                     # Overview, structure, tech stack, and deps
 ├── src/
@@ -79,8 +82,10 @@ plus-ultra/
 │           ├── components/       # Reusable UI widgets
 │           │   ├── __init__.py
 │           │   ├── datetime_picker.py # Interactive DateTimePicker with Now & presets
+│           │   ├── popup_pill.py # Transient 3s notification popup capsule pill
 │           │   ├── scrollable.py # Scrollable canvas frame
 │           │   ├── sidebar.py    # Draggable tab navigation bar with 80px settings icon
+│           │   ├── task_card.py  # Decoupled task card component with action handlers
 │           │   └── notifications_panel.py # Right drawer (Alerts stream)
 │           ├── dialogs/          # Modal forms with generous dimensions
 │           │   ├── __init__.py
@@ -102,10 +107,11 @@ plus-ultra/
 │               ├── opportunities_view.py
 │               ├── quick_links_view.py
 │               └── settings_view.py # Preferences & network monitor toggle
-├── .tests/                       # Automated test suites (95 tests, 100% pass)
+├── .tests/                       # Automated test suites (103 tests, 100% pass)
 │   ├── test_config.py            # XDG paths, fallback, permissions, metadata
 │   ├── test_datetime_utils.py    # Timezone-aware date parsing and formatting
-│   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, dynamic capsule
+│   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, popup pill, task card
+│   ├── test_scripts.py           # Database clearing, seed/unseed, notify CLI tests
 │   ├── test_settings.py          # Settings validation, atomic write, quarantine
 │   ├── test_desktop.py           # Advisory locking, notify-send, PID tracking
 │   ├── test_notifications.py     # Queue management and popup sizing
@@ -163,7 +169,7 @@ The core application currently relies entirely on the **Python Standard Library*
 - `tkinter`: Native desktop GUI rendering and event dispatch.
 
 ## Development Dependencies
-- **`pytest >= 9.1.1`**: Automated test framework (81 tests across 10 test modules).
+- **`pytest >= 9.1.1`**: Automated test framework (103 tests across 13 test suites).
 - **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import sorting, and strict 80-character line lengths.
 
 
@@ -187,4 +193,20 @@ uv run plus-ultra
 
 # Run transient smoke test (validates GUI, DB, and lock, then exits cleanly in 500ms)
 uv run plus-ultra --smoke-test
+
+# Seed demo dataset across all 6 workspace tabs
+uv run python .scripts/seed_data.py --seed
+
+# Unseed demo records cleanly
+uv run python .scripts/seed_data.py --unseed
+
+# Clear database tables (with safety confirmation or --force)
+uv run python .scripts/clear_db.py --all --force
+
+# Test instant desktop notification
+uv run python .scripts/notify.py
+
+# Test delayed desktop notification after 2 minutes (or -s for seconds)
+uv run python .scripts/notify.py 2
+uv run python .scripts/notify.py -s 10
 ```

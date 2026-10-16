@@ -39,7 +39,11 @@ def test_default_settings_keys_and_values() -> None:
     assert defaults["glow_enabled"] is True
     assert defaults["glow_pulse_period_ms"] == 3000
     assert defaults["reminders_enabled"] is True
-    assert defaults["network_monitor_enabled"] is True
+    assert defaults["panel_width"] == 1380
+    assert defaults["panel_height"] == 840
+    assert defaults["panel_min_width"] == 1000
+    assert defaults["panel_min_height"] == 640
+    assert defaults["notification_popup_duration_ms"] == 3000
     assert set(defaults.keys()) == {
         "settings_version",
         "always_on_top",
@@ -47,6 +51,11 @@ def test_default_settings_keys_and_values() -> None:
         "glow_pulse_period_ms",
         "reminders_enabled",
         "network_monitor_enabled",
+        "panel_width",
+        "panel_height",
+        "panel_min_width",
+        "panel_min_height",
+        "notification_popup_duration_ms",
     }
 
 
@@ -183,3 +192,28 @@ def test_non_dict_json_quarantined(
 
     quarantined = list(settings_file.parent.glob(f"{settings_file.name}.bad-*"))
     assert len(quarantined) == 1
+
+
+def test_dashboard_dimension_configuration_and_persistence(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Verify panel dimensions load from settings and persist on update."""
+    cfg_dir = tmp_path / "config"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(cfg_dir))
+    settings.reload()
+
+    # Initial defaults
+    eff = settings.load_effective_settings()
+    assert eff["panel_width"] == 1380
+    assert eff["panel_height"] == 840
+    assert eff["panel_min_width"] == 1000
+    assert eff["panel_min_height"] == 640
+
+    # User modifies dimensions
+    settings.update_user_setting("panel_width", 1450)
+    settings.update_user_setting("panel_height", 900)
+
+    # Reload from disk
+    reloaded = settings.reload()
+    assert reloaded["panel_width"] == 1450
+    assert reloaded["panel_height"] == 900

@@ -6,12 +6,14 @@ streams in a responsive, modern dark aesthetic.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import ttk
 from typing import Any
 
+from plus_ultra import settings
 from plus_ultra.models import Task
 from plus_ultra.notifications import CapsuleNotificationQueue
 from plus_ultra.services import (
@@ -118,12 +120,19 @@ class DashboardPanel(tk.Toplevel):
         self.tab_containers: dict[str, tk.Widget] = {}
         self.tree = TreeCompatibilityFacade(self)
 
+        eff = settings.load_effective_settings()
+        self.panel_width = eff.get("panel_width", 1380)
+        self.panel_height = eff.get("panel_height", 840)
+        self.min_width = eff.get("panel_min_width", 1000)
+        self.min_height = eff.get("panel_min_height", 640)
+
         self.title("PLUS-ULTRA Workspace")
-        self.geometry("1380x840")
-        self.minsize(1000, 640)
+        self.geometry(f"{self.panel_width}x{self.panel_height}")
+        self.minsize(self.min_width, self.min_height)
         self.configure(bg="#0f1218")
         self.protocol("WM_DELETE_WINDOW", self.hide)
         self.bind("<Escape>", lambda _e: self.hide())
+        self.bind("<Configure>", self._on_configure)
 
         self._setup_styles()
         self._build_layout()
@@ -382,48 +391,46 @@ class DashboardPanel(tk.Toplevel):
         for container in self.tab_containers.values():
             container.pack_forget()
 
-        if tab_name == "Tasks":
-            self.tasks_container.pack(fill="both", expand=True)
-            self._refresh_tasks()
-        elif tab_name == "Code":
-            if self.code_service:
-                self.code_container.pack(fill="both", expand=True)
-                self._refresh_code()
-            else:
-                self.placeholder_container.pack(fill="both", expand=True)
-        elif tab_name == "DSA":
-            if self.code_service:
-                self.dsa_container.pack(fill="both", expand=True)
-                self._refresh_dsa()
-            else:
-                self.placeholder_container.pack(fill="both", expand=True)
-        elif tab_name == "Courses":
-            if self.course_service:
-                self.courses_container.pack(fill="both", expand=True)
-                self._refresh_courses()
-            else:
-                self.placeholder_container.pack(fill="both", expand=True)
-        elif tab_name == "Ideas-Doubt":
-            if self.idea_doubt_service:
-                self.ideas_container.pack(fill="both", expand=True)
-                self._refresh_ideas()
-            else:
-                self.placeholder_container.pack(fill="both", expand=True)
-        elif tab_name == "Opportunities":
-            if self.opportunity_service:
-                self.opps_container.pack(fill="both", expand=True)
-                self._refresh_opportunities()
-            else:
-                self.placeholder_container.pack(fill="both", expand=True)
-        elif tab_name == "Quick Links":
-            if self.quick_link_service:
-                self.links_container.pack(fill="both", expand=True)
-                self._refresh_quick_links()
-            else:
-                self.placeholder_container.pack(fill="both", expand=True)
-        elif tab_name == "Settings":
-            self.settings_container.pack(fill="both", expand=True)
-            self._refresh_settings()
+        tab_actions = {
+            "Tasks": (self.tasks_container, self._refresh_tasks),
+            "Code": (
+                (self.code_container, self._refresh_code)
+                if self.code_service
+                else None
+            ),
+            "DSA": (
+                (self.dsa_container, self._refresh_dsa)
+                if self.code_service
+                else None
+            ),
+            "Courses": (
+                (self.courses_container, self._refresh_courses)
+                if self.course_service
+                else None
+            ),
+            "Ideas-Doubt": (
+                (self.ideas_container, self._refresh_ideas)
+                if self.idea_doubt_service
+                else None
+            ),
+            "Opportunities": (
+                (self.opps_container, self._refresh_opportunities)
+                if self.opportunity_service
+                else None
+            ),
+            "Quick Links": (
+                (self.links_container, self._refresh_quick_links)
+                if self.quick_link_service
+                else None
+            ),
+            "Settings": (self.settings_container, self._refresh_settings),
+        }
+        target = tab_actions.get(tab_name)
+        if target:
+            target[0].pack(fill="both", expand=True)
+            target[1]()
+        else:
+            self.placeholder_container.pack(fill="both", expand=True)
 
     def _highlight_active_tab(self) -> None:
         self.sidebar.highlight_tab(self.active_tab)
@@ -442,8 +449,31 @@ class DashboardPanel(tk.Toplevel):
         self._refresh_tasks()
         self._refresh_notifications()
 
+    def _on_configure(self, event: tk.Event[Any]) -> None:
+        """Track user resizing of the main workspace panel."""
+        if (
+            event.widget is self
+            and self.state() == "normal"
+            and event.width >= self.min_width
+            and event.height >= self.min_height
+        ):
+            self.panel_width = event.width
+            self.panel_height = event.height
+
+    def _persist_dimensions(self) -> None:
+        """Persist current panel dimensions to user settings."""
+        with contextlib.suppress(Exception):
+            eff = settings.load_effective_settings()
+            if (
+                eff.get("panel_width") != self.panel_width
+                or eff.get("panel_height") != self.panel_height
+            ):
+                settings.update_user_setting("panel_width", self.panel_width)
+                settings.update_user_setting("panel_height", self.panel_height)
+
     def hide(self) -> None:
         """Hide workspace dashboard and notify pill to reappear."""
+        self._persist_dimensions()
         self.withdraw()
         if self.on_close:
             self.on_close()
@@ -457,6 +487,7 @@ class DashboardPanel(tk.Toplevel):
 
     def destroy(self) -> None:
         """Cleanly destroy window and restore pill."""
+        self._persist_dimensions()
         if self.on_close:
             self.on_close()
         super().destroy()
