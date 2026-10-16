@@ -12,6 +12,8 @@ from __future__ import annotations
 import stat
 from pathlib import Path
 
+import pytest
+
 from plus_ultra.desktop import SingleInstanceLock
 
 
@@ -65,3 +67,62 @@ def test_lock_stores_current_pid(tmp_path: Path) -> None:
     pid_text = lock_file.read_text(encoding="utf-8").strip()
     assert pid_text.isdigit()
     lock.release()
+
+
+def test_send_desktop_notification_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify notify-send called with argument list and shell=False."""
+    from unittest.mock import MagicMock
+
+    from plus_ultra.desktop import send_desktop_notification
+
+    monkeypatch.setattr("shutil.which", lambda _cmd: "/usr/bin/notify-send")
+    mock_run = MagicMock()
+    monkeypatch.setattr("subprocess.run", mock_run)
+
+    result = send_desktop_notification(
+        title="Lab Deadline",
+        message="Operating Systems Assignment 2",
+        urgency="critical",
+        timeout_ms=3000,
+    )
+    assert result is True
+    mock_run.assert_called_once()
+    args, kwargs = mock_run.call_args
+    cmd = args[0]
+    assert cmd[0] == "/usr/bin/notify-send"
+    assert "-u" in cmd and "critical" in cmd
+    assert "-t" in cmd and "3000" in cmd
+    assert "Lab Deadline" in cmd
+    assert "Operating Systems Assignment 2" in cmd
+    assert kwargs.get("check") is True
+
+
+def test_send_desktop_notification_missing_executable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify missing notify-send returns False gracefully."""
+    from plus_ultra.desktop import send_desktop_notification
+
+    monkeypatch.setattr("shutil.which", lambda _cmd: None)
+    result = send_desktop_notification(title="Test", message="Body")
+    assert result is False
+
+
+def test_send_desktop_notification_subprocess_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify subprocess error is caught without crashing."""
+    import subprocess
+
+    from plus_ultra.desktop import send_desktop_notification
+
+    monkeypatch.setattr("shutil.which", lambda _cmd: "/usr/bin/notify-send")
+
+    def _mock_raise(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.SubprocessError("Command failed")
+
+    monkeypatch.setattr("subprocess.run", _mock_raise)
+    result = send_desktop_notification(title="Test", message="Body")
+    assert result is False

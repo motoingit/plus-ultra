@@ -33,19 +33,20 @@ plus-ultra/
 │       ├── db.py                 # SQLite connection, WAL mode, transaction context
 │       ├── models.py             # Strongly typed data models (Category, Task, Reminder, AppState)
 │       ├── repository.py         # Parameterized SQL CRUD & cascading soft deletes
-│       ├── services.py           # Pure business logic (TaskService, CategoryService)
-│       ├── scheduler.py          # [Phase 5] Background reminder evaluation thread
+│       ├── services.py           # Pure business logic (Tasks, Categories, Reminders)
+│       ├── scheduler.py          # Background reminder evaluation thread
 │       └── sync.py               # [Phase 7] Differential online synchronization worker
 ├── tests/                        # Comprehensive test suite (Happy path, edge, failure paths)
 │   ├── test_config.py            # XDG paths, fallback logic, mode 0o700, logging tests
 │   ├── test_settings.py          # Settings validation, type safety, corrupt file quarantine
-│   ├── test_desktop.py           # Single instance lock and process contention tests
+│   ├── test_desktop.py           # Advisory locking, notify-send, and process contention
 │   ├── test_notifications.py     # Queue management and popup sizing tests
 │   ├── test_ui.py                # Mathematical capsule, beam, popup lifecycle
 │   ├── test_db.py                # Schema migrations, foreign keys, rollback, pragmas, indexes
 │   ├── test_repository.py        # CRUD queries, soft deletes, index verification, app state
 │   ├── test_services.py          # Pure business logic, status cycling, and search query tests
-│   └── test_panel.py             # 3-column dashboard, Treeview table, modals, actions
+│   ├── test_panel.py             # 3-column dashboard, Treeview table, modals, actions
+│   └── test_scheduler.py         # Reminder evaluation, fake clocks, thread lifecycle
 └── uv.lock                       # Locked dependency tree
 ```
 
@@ -64,7 +65,7 @@ The technology stack is locked to fulfill Problem-Based Learning (PBL) objective
 | **User Settings Engine** | Custom JSON Layer | Package defaults (`default-settings.json`) overlaid with atomic user overrides (`user-settings.json`). Enforces `0o600` permissions and crash-safe rename (`os.replace`). |
 | **Process Management** | `fcntl.flock` (Linux Standard Library) | Single-instance mutual exclusion locking via advisory file locks. |
 | **Desktop Notifications** | `notify-send` via `subprocess` | Direct desktop notification dispatch without heavyweight third-party libraries. |
-| **System Tray Integration** | `pystray` + `Pillow` | System tray icon integration with status menu (Phase 5). |
+| **System Tray Integration** | Dropped (Decision D1) | Dropped to maintain pure standard library runtime; floating capsule and native popups provide all controls. |
 | **Remote Sync Engine** | Supabase (PostgreSQL / PostgREST) | Off-thread differential sync engine scheduled for Phase 7 using `updated_at > last_synced_at` conflict resolution. |
 | **Code Quality & Testing** | `ruff` & `pytest` | Fast linting/formatting (`ruff`, strict 80-char line limit) and automated testing suite (`pytest`). |
 
@@ -93,9 +94,9 @@ The application runs entirely on the **Python Standard Library** with zero exter
 
 ## 2. Development Dependencies
 Declared in `[dependency-groups].dev`:
-- **`pytest >= 9.1.1`**: Automated test framework covering unit tests, edge cases, permission checks, and failure recovery (70 tests across 9 test modules).
+- **`pytest >= 9.1.1`**: Automated test framework covering unit tests, edge cases, permission checks, and failure recovery (81 tests across 10 test modules).
 - **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import order (`I`), simplification (`SIM`), bug prevention (`B`), and strict 80-character line lengths.
 
+
 ## 3. Scheduled Runtime Dependencies (Approved Phased Additions)
-- **Phase 5**: `pystray` and `Pillow` (System tray integration).
 - **Phase 7**: Supabase client library (added only upon explicit user approval for cloud sync).

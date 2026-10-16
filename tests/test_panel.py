@@ -18,8 +18,24 @@ from typing import Any
 
 from plus_ultra.db import get_connection, init_db
 from plus_ultra.notifications import CapsuleNotificationQueue
-from plus_ultra.repository import CategoryRepository, TaskRepository
-from plus_ultra.services import CategoryService, TaskService
+from plus_ultra.repository import (
+    CategoryRepository,
+    CodeRepository,
+    CourseRepository,
+    IdeaDoubtRepository,
+    OpportunityRepository,
+    QuickLinkRepository,
+    TaskRepository,
+)
+from plus_ultra.services import (
+    CategoryService,
+    CodeService,
+    CourseService,
+    IdeaDoubtService,
+    OpportunityService,
+    QuickLinkService,
+    TaskService,
+)
 from plus_ultra.ui.panel import DashboardPanel, TaskDialog
 
 
@@ -244,6 +260,212 @@ def test_notification_panel_actions(tmp_path: Path) -> None:
         assert len(queue.list_all()) == 0
         assert cleared_called is True
         assert panel.notif_listbox.get(0) == "No recent alerts."
+
+        panel.destroy()
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
+def setup_all_test_services(
+    tmp_path: Path,
+) -> tuple[
+    TaskService,
+    CategoryService,
+    CodeService,
+    CourseService,
+    IdeaDoubtService,
+    OpportunityService,
+    QuickLinkService,
+    CapsuleNotificationQueue,
+]:
+    """Create all feature services with an isolated SQLite DB."""
+    db_path = tmp_path / "panel_all_test.db"
+    init_db(db_path)
+    conn = get_connection(db_path)
+
+    cat_repo = CategoryRepository(conn)
+    task_repo = TaskRepository(conn)
+    code_repo = CodeRepository(conn)
+    course_repo = CourseRepository(conn)
+    idea_repo = IdeaDoubtRepository(conn)
+    opp_repo = OpportunityRepository(conn)
+    link_repo = QuickLinkRepository(conn)
+
+    task_svc = TaskService(task_repo, cat_repo)
+    cat_svc = CategoryService(cat_repo)
+    code_svc = CodeService(code_repo)
+    course_svc = CourseService(course_repo)
+    idea_svc = IdeaDoubtService(idea_repo)
+    opp_svc = OpportunityService(opp_repo)
+    link_svc = QuickLinkService(link_repo)
+    queue = CapsuleNotificationQueue()
+
+    return (
+        task_svc,
+        cat_svc,
+        code_svc,
+        course_svc,
+        idea_svc,
+        opp_svc,
+        link_svc,
+        queue,
+    )
+
+
+def test_dashboard_all_feature_tabs_render_and_switch(
+    tmp_path: Path,
+) -> None:
+    """Verify switching across all 6 workspace tabs and Settings."""
+    (
+        task_svc,
+        cat_svc,
+        code_svc,
+        course_svc,
+        idea_svc,
+        opp_svc,
+        link_svc,
+        queue,
+    ) = setup_all_test_services(tmp_path)
+
+    root = tk.Tk()
+    try:
+        panel = DashboardPanel(
+            parent=root,
+            task_service=task_svc,
+            category_service=cat_svc,
+            notification_queue=queue,
+            code_service=code_svc,
+            course_service=course_svc,
+            idea_doubt_service=idea_svc,
+            opportunity_service=opp_svc,
+            quick_link_service=link_svc,
+        )
+
+        for tab_name in [
+            "Tasks",
+            "Code",
+            "Courses",
+            "Ideas-Doubt",
+            "Opportunities",
+            "Quick Links",
+            "Settings",
+        ]:
+            panel._switch_tab(tab_name)
+            assert panel.active_tab == tab_name
+            assert panel.tab_containers[tab_name].winfo_manager() == "pack"
+
+        panel.destroy()
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
+def test_dashboard_code_copy_and_dsa_toggle(tmp_path: Path) -> None:
+    """Verify code item copy feedback and DSA problem status toggle."""
+    (
+        task_svc,
+        cat_svc,
+        code_svc,
+        course_svc,
+        idea_svc,
+        opp_svc,
+        link_svc,
+        queue,
+    ) = setup_all_test_services(tmp_path)
+
+    dsa_item = code_svc.create_item(
+        category="DSA Problem Tracker",
+        title="Binary Search",
+        difficulty="Easy",
+        is_done=0,
+    )
+    assert dsa_item.is_done == 0
+
+    root = tk.Tk()
+    try:
+        panel = DashboardPanel(
+            parent=root,
+            task_service=task_svc,
+            category_service=cat_svc,
+            notification_queue=queue,
+            code_service=code_svc,
+            course_service=course_svc,
+            idea_doubt_service=idea_svc,
+            opportunity_service=opp_svc,
+            quick_link_service=link_svc,
+        )
+        panel._switch_tab("Code")
+
+        # Toggle DSA status
+        panel._toggle_dsa_done(dsa_item.id)
+        updated = code_svc.get_item(dsa_item.id)
+        assert updated is not None
+        assert updated.is_done == 1
+
+        # Test clipboard copy feedback
+        dummy_btn = tk.Button(panel, text="📋 Copy")
+        panel._copy_to_clipboard("test_code_snippet()", dummy_btn)
+        assert dummy_btn.cget("text") == "✓ Copied!"
+
+        panel.destroy()
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
+def test_dashboard_course_and_opportunity_actions(tmp_path: Path) -> None:
+    """Verify course module increment and opportunity lifecycle progression."""
+    (
+        task_svc,
+        cat_svc,
+        code_svc,
+        course_svc,
+        idea_svc,
+        opp_svc,
+        link_svc,
+        queue,
+    ) = setup_all_test_services(tmp_path)
+
+    course = course_svc.create_course(
+        title="Dist Systems", total_modules=10, completed_modules=2
+    )
+    opp = opp_svc.create_opportunity(
+        title="Fellowship", organization="Linux Foundation", status="Saved"
+    )
+    link = link_svc.create_link(name="Doc", target_uri="https://docs.org")
+
+    root = tk.Tk()
+    try:
+        panel = DashboardPanel(
+            parent=root,
+            task_service=task_svc,
+            category_service=cat_svc,
+            notification_queue=queue,
+            code_service=code_svc,
+            course_service=course_svc,
+            idea_doubt_service=idea_svc,
+            opportunity_service=opp_svc,
+            quick_link_service=link_svc,
+        )
+
+        # Increment course
+        panel._inc_course(course.id)
+        c_updated = course_svc.get_course(course.id)
+        assert c_updated is not None
+        assert c_updated.completed_modules == 3
+
+        # Advance opportunity
+        panel._advance_opp(opp.id)
+        o_updated = opp_svc.get_opportunity(opp.id)
+        assert o_updated is not None
+        assert o_updated.status == "Applied"
+
+        # Record link click
+        link_svc.record_click(link.id)
+        l_updated = link_svc.get_link(link.id)
+        assert l_updated is not None
+        assert l_updated.click_count == 1
 
         panel.destroy()
     finally:

@@ -186,3 +186,76 @@ This document records public APIs, module interfaces, and command-line entry poi
   - `show() -> None`: Displays dashboard window and refreshes data.
   - `hide() -> None`: Hides dashboard window via `withdraw()`.
   - `toggle() -> None`: Toggles visibility between normal and withdrawn.
+
+---
+
+## 7. Implemented Module Specifications (Phase 5)
+
+### `plus_ultra.desktop` (Desktop Notifications)
+- `send_desktop_notification(title: str, message: str = "", urgency: str = "normal", timeout_ms: int = 5000, app_name: str = config.APP_NAME) -> bool`:
+  - Dispatches native desktop notifications using `notify-send` with an argument list and `shell=False`.
+  - Verifies executable availability with `shutil.which`.
+  - Catches `SubprocessError` and `OSError` without crashing.
+  - Alias: `notify = send_desktop_notification`.
+
+### `plus_ultra.services` (Reminder Management)
+- `ReminderService(reminder_repo: ReminderRepository, task_repo: TaskRepository)`:
+  - `create_reminder(task_id: str, remind_at: str) -> Reminder`: Validates task existence, active state, and non-empty timestamp.
+  - `get_due_reminders(before_timestamp: str) -> list[tuple[Reminder, Task]]`: Queries due reminders, joins with parent active tasks, and filters out already fired or deleted items.
+  - `mark_fired(reminder_id: str) -> None`: Records firing in `reminder_fires`.
+  - `is_fired(reminder_id: str) -> bool`: Checks if reminder already fired on this device.
+  - `soft_delete_reminder(reminder_id: str) -> bool`: Soft-deletes a reminder.
+
+### `plus_ultra.scheduler` (Background Poller)
+- `DEFAULT_POLL_INTERVAL_S: float = 10.0`
+- `ReminderScheduler(reminder_service, poll_interval_s=10.0, on_reminder_due=None, desktop_notify=True, now_provider=None, db_path=None, conn_factory=None)`:
+  - Background daemon thread executing off the Tkinter UI event loop.
+  - Thread-isolated SQLite WAL connection to prevent concurrency errors.
+  - Producer-consumer dispatch: fires `notify-send` desktop popups and delivers in-app alerts via `on_reminder_due(task, reminder)`.
+  - `tick(now_iso: str | None = None, service: ReminderService | None = None) -> list[tuple[Reminder, Task]]`: Evaluates due reminders, invokes notifiers, and marks records fired atomically.
+  - `start() -> None`: Starts daemon thread loop.
+  - `stop(timeout: float = 2.0) -> None`: Sets `threading.Event` cancellation flag and cleanly joins the thread.
+  - `is_running: bool`: Returns `True` if background worker thread is active.
+
+---
+
+## 8. Implemented Module Specifications (Workspace Tabs & Schema v2)
+
+### `plus_ultra.db` (Schema Migration 2)
+- `CURRENT_SCHEMA_VERSION: int = 2`
+- Tables added:
+  - `code_items`: `(id, category, title, content, language, difficulty, is_done, url, notes, created_at, updated_at, synced_at, is_deleted)`
+  - `courses`: `(id, title, platform, instructor, total_modules, completed_modules, url, notes, created_at, updated_at, synced_at, is_deleted)`
+  - `ideas_doubts`: `(id, kind, title, description, tech_stack_or_ref, status, created_at, updated_at, synced_at, is_deleted)`
+  - `opportunities`: `(id, title, organization, kind, url, deadline, status, notes, created_at, updated_at, synced_at, is_deleted)`
+  - `quick_links`: `(id, name, target_uri, category, click_count, created_at, updated_at, synced_at, is_deleted)`
+- `seed_demo_workspace_data(conn: sqlite3.Connection) -> None`: Populates rich initial sample items across all tabs if tables are empty.
+
+### `plus_ultra.services`
+- `CodeService`:
+  - `list_items(category=None, search_query=None) -> list[CodeItem]`
+  - `create_item(...) -> CodeItem`
+  - `toggle_done(item_id: str) -> bool`
+  - `soft_delete_item(item_id: str) -> bool`
+- `CourseService`:
+  - `list_courses(platform=None, search_query=None) -> list[Course]`
+  - `create_course(...) -> Course`
+  - `increment_module(course_id: str) -> bool`
+  - `soft_delete_course(course_id: str) -> bool`
+- `IdeaDoubtService`:
+  - `list_items(kind=None, status=None, search_query=None) -> list[IdeaDoubt]`
+  - `create_item(...) -> IdeaDoubt`
+  - `advance_status(item_id: str) -> bool`: Cycles through standard stages or resolves doubts.
+  - `soft_delete_item(item_id: str) -> bool`
+- `OpportunityService`:
+  - `list_opportunities(kind=None, status=None, search_query=None) -> list[Opportunity]`
+  - `create_opportunity(...) -> Opportunity`
+  - `advance_status(opp_id: str) -> bool`: Advances Saved -> Applied -> In Progress -> Accepted.
+  - `soft_delete_opportunity(opp_id: str) -> bool`
+- `QuickLinkService`:
+  - `list_links(category=None, search_query=None) -> list[QuickLink]`
+  - `create_link(name: str, target_uri: str, category: str) -> QuickLink`
+  - `record_click(link_id: str) -> bool`: Increments click count.
+  - `soft_delete_link(link_id: str) -> bool`
+
+

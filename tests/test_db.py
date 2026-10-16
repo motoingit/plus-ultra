@@ -47,8 +47,14 @@ def test_init_db_creates_schema_and_version(test_db_path: Path) -> None:
             "reminders",
             "reminder_fires",
             "app_state",
+            "code_items",
+            "courses",
+            "ideas_doubts",
+            "opportunities",
+            "quick_links",
         }
         assert expected_tables.issubset(table_names)
+
     finally:
         conn.close()
 

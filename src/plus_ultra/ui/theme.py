@@ -42,7 +42,7 @@ class CapsuleTheme(NamedTuple):
     popup_bg: str = "#141a24"
     popup_border: str = "#2b3448"
     popup_text: str = "#f8fafc"
-    font_family: str = "DejaVu Sans"
+    font_family: str = "helvetica"
     font_size: int = 9
 
 

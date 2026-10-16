@@ -224,12 +224,74 @@
 
 ---
 
-## Next: Phase 5: Background Scheduler, Desktop Notifications & System Tray
+## Phase 5: Reminders, Desktop Notifications & Background Scheduler
+
+- **Status**: Completed
+- **Date**: 2026-10-16
+
+### Decision D1 (System Tray vs Floating Capsule & Native Notifications):
+- Executed tray spike with `pystray._xorg` on Ubuntu GNOME on Wayland.
+- Ubuntu GNOME top bar uses the `ubuntu-appindicators` extension (`StatusNotifierItem` DBus interface), while the legacy X11 XEmbed tray has been removed from GNOME.
+- User evaluated Decision D1 and approved the recommended option: **Drop the system tray** (`pystray`/`Pillow`) to maintain a 100% pure Python standard library stack with zero external C-binding dependencies, relying on the **Floating Capsule** and **Native Desktop Notifications** (`notify-send`).
+
+### Phase 5 To-do List:
+- [x] Implement native desktop notifications in `src/plus_ultra/desktop.py`:
+  - [x] `send_desktop_notification(title, message, urgency, timeout_ms, app_name)` invoking `notify-send` via `subprocess.run` with argument list and `shell=False`.
+  - [x] Check executable presence via `shutil.which`.
+  - [x] Graceful error handling (`SubprocessError`, `OSError`) without crashing.
+  - [x] Alias `notify = send_desktop_notification`.
+- [x] Implement `ReminderService` in `src/plus_ultra/services.py`:
+  - [x] `create_reminder`: validation of task existence and non-empty timestamp.
+  - [x] `get_due_reminders`: query due reminders joined with active tasks, excluding fired or deleted reminders.
+  - [x] `mark_fired`: atomically record in `reminder_fires`.
+  - [x] `is_fired`: check firing state.
+  - [x] `soft_delete_reminder`: soft delete reminder.
+- [x] Implement `ReminderScheduler` in `src/plus_ultra/scheduler.py`:
+  - [x] Dedicated daemon worker thread polling every 10 seconds (`REMINDER_POLL_MS = 10_000`).
+  - [x] Thread-isolated SQLite WAL connection to prevent concurrency errors.
+  - [x] Producer-consumer pattern: queries SQLite, dispatches `notify-send` desktop alerts, and thread-safely enqueues in-app alerts to the floating capsule and dashboard panel.
+  - [x] Controlled cancellation using `threading.Event`.
+  - [x] Respects `reminders_enabled` user setting flag.
+- [x] Wire integration in `src/plus_ultra/main.py`:
+  - [x] Instantiate `ReminderRepository`, `ReminderService`, `ReminderScheduler`.
+  - [x] Safe in-app callback enqueuing via `widget.root.after_idle`.
+  - [x] Clean shutdown in `_signal_handler` and `finally:` calling `scheduler.stop()`.
+  - [x] Support smoke test execution (`scheduler.tick()`).
+- [x] Automated test suites:
+  - [x] `tests/test_desktop.py`: 3 new unit tests for `send_desktop_notification` (success, missing executable, subprocess error).
+  - [x] `tests/test_scheduler.py`: 4 new unit tests (due evaluation, future exclusion, soft-deleted task exclusion, settings disabled, thread lifecycle).
+  - [x] `tests/test_services.py`: `test_reminder_service_lifecycle_and_validation` validating constraints and atomic firing.
+  - [x] All 78 tests passing via `uv run pytest -v`.
+- [x] Verification:
+  - [x] Clean linting and formatting via `uv run ruff check .` and `uv run ruff format --check .`.
+  - [x] Smoke test passes cleanly via `uv run plus-ultra --smoke-test`.
+- [x] Update documentation (`README.md`, `.docs/api.md`, `.docs/architecture.MD`, `.docs/commands.md`, `.docs/progress-log.md`).
+
+### Issues & Status:
+- **SQLite check_same_thread concurrency error**: Sharing the main thread's SQLite connection with the background scheduler thread caused `ProgrammingError: SQLite objects created in a thread can only be used in that same thread`. Resolved by opening a dedicated thread-isolated SQLite connection in WAL mode within `ReminderScheduler._run_loop()`, cleanly closing it upon thread exit.
+- **Decision D1 C-binding complexity**: `pystray`'s AppIndicator backend required `PyGObject` binary wheels which failed to build without system `pkg-config`/`cairo` dev packages. Settled by dropping `pystray`/`Pillow` in favor of standard-library `subprocess` `notify-send` and the floating capsule.
+- **Font Rendering on XWayland**: Tkinter fell back to jagged pixelated bitmap font `fixed` when requesting `DejaVu Sans` because the system's X11 server font database lacked that exact name. Resolved by updating `font_family` to `helvetica`, which maps directly to vector TrueType `nimbus sans l`.
+- **Button Outlines and Severe Truncation**: Default Tkinter buttons rendered with 1px raised border and 1px highlight ring, causing harsh white/gray double-borders. Left sidebar (180px) and notification panel (220px) were too narrow. Resolved by setting `bd=0, highlightthickness=0, relief="flat"`, widening the sidebar to 230px, the notification panel to 240px, and default window geometry to 1180x700.
+- **All 6 Workspace Tabs Fully Interactive**: Non-task tabs previously had placeholder text. Implemented Schema Migration 2 with tables `code_items`, `courses`, `ideas_doubts`, `opportunities`, and `quick_links`. Replaced placeholders with full working sub-views (code copy feedback, DSA solver toggles, course progress increments, idea status cycling, opportunity tracker, and desktop quick launcher with click counter).
+
+### Important Notes:
+- **100% Python Standard Library**: Application requires zero external pip packages in production runtime.
+- **Thread Safety**: UI calls from the background thread are safely deferred to the Tkinter main thread using `widget.root.after_idle`.
+- **Exactly-Once Alert Semantics**: Dispatched reminders are committed to `reminder_fires` table immediately, preventing duplicate alerts across restarts or polling cycles.
+- **Interactive Feature Verification**: All 6 tabs (`Tasks`, `Code`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`) plus `Settings` are 100% interactive and testable with seeded demo data.
+- Total test suite now runs 81 tests in 3.98s with 100% pass rate.
+
+---
+
+## Next: Phase 6: Robustness, Startup, and Autostart
 
 - **Status**: Ready for Planning
 - **Target**:
-  - Implement `src/plus_ultra/scheduler.py`: background worker thread periodically evaluating due reminders from SQLite without blocking the UI main thread.
-  - Implement desktop notifications using Python `subprocess` invoking `notify-send` with safe argument lists.
-  - Implement system tray integration using `pystray` and `Pillow`, providing quick actions (Toggle Widget, Open Dashboard, Quit) and graceful shutdown.
+  - Implement Decision D2 (autostart path resolution).
+  - Implement CLI flags: `--install-autostart` and `--uninstall-autostart` writing or removing `~/.config/autostart/plus-ultra.desktop`.
+  - Implement `ui/splash.py`: startup progress logger (`[1/4] Paths`, `[2/4] Database`, `[3/4] Scheduler`, `[4/4] Ready`).
+  - Graceful process termination and single-instance validation across user session logout/login.
+
+
 
 

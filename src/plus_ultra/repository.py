@@ -15,7 +15,16 @@ from datetime import UTC, datetime
 from typing import Any
 
 from plus_ultra.db import transaction
-from plus_ultra.models import Category, Reminder, Task
+from plus_ultra.models import (
+    Category,
+    CodeItem,
+    Course,
+    IdeaDoubt,
+    Opportunity,
+    QuickLink,
+    Reminder,
+    Task,
+)
 
 
 def _now_utc() -> str:
@@ -62,6 +71,92 @@ def _row_to_reminder(row: sqlite3.Row) -> Reminder:
         id=row["id"],
         task_id=row["task_id"],
         remind_at=row["remind_at"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        synced_at=row["synced_at"],
+        is_deleted=row["is_deleted"],
+    )
+
+
+def _row_to_code_item(row: sqlite3.Row) -> CodeItem:
+    """Convert an SQLite row to a CodeItem model."""
+    return CodeItem(
+        id=row["id"],
+        category=row["category"],
+        title=row["title"],
+        content=row["content"],
+        language=row["language"],
+        difficulty=row["difficulty"],
+        is_done=row["is_done"],
+        url=row["url"],
+        notes=row["notes"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        synced_at=row["synced_at"],
+        is_deleted=row["is_deleted"],
+    )
+
+
+def _row_to_course(row: sqlite3.Row) -> Course:
+    """Convert an SQLite row to a Course model."""
+    return Course(
+        id=row["id"],
+        title=row["title"],
+        platform=row["platform"],
+        instructor=row["instructor"],
+        total_modules=row["total_modules"],
+        completed_modules=row["completed_modules"],
+        url=row["url"],
+        notes=row["notes"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        synced_at=row["synced_at"],
+        is_deleted=row["is_deleted"],
+    )
+
+
+def _row_to_idea_doubt(row: sqlite3.Row) -> IdeaDoubt:
+    """Convert an SQLite row to an IdeaDoubt model."""
+    return IdeaDoubt(
+        id=row["id"],
+        kind=row["kind"],
+        title=row["title"],
+        description=row["description"],
+        tech_stack_or_ref=row["tech_stack_or_ref"],
+        status=row["status"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        synced_at=row["synced_at"],
+        is_deleted=row["is_deleted"],
+    )
+
+
+def _row_to_opportunity(row: sqlite3.Row) -> Opportunity:
+    """Convert an SQLite row to an Opportunity model."""
+    return Opportunity(
+        id=row["id"],
+        title=row["title"],
+        organization=row["organization"],
+        kind=row["kind"],
+        url=row["url"],
+        deadline=row["deadline"],
+        status=row["status"],
+        notes=row["notes"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        synced_at=row["synced_at"],
+        is_deleted=row["is_deleted"],
+    )
+
+
+def _row_to_quick_link(row: sqlite3.Row) -> QuickLink:
+    """Convert an SQLite row to a QuickLink model."""
+    return QuickLink(
+        id=row["id"],
+        name=row["name"],
+        target_uri=row["target_uri"],
+        category=row["category"],
+        click_count=row["click_count"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
         synced_at=row["synced_at"],
@@ -486,3 +581,570 @@ class AppStateRepository:
         with transaction(self.conn):
             self.set("widget_x", str(x))
             self.set("widget_y", str(y))
+
+
+class CodeRepository:
+    """Data access operations for CodeItem entities."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def list_items(
+        self,
+        category: str | None = None,
+        search_query: str | None = None,
+    ) -> list[CodeItem]:
+        """Query active code items with optional category and search filters."""
+        query = ["SELECT * FROM code_items WHERE is_deleted = 0"]
+        params: list[Any] = []
+
+        if category and category != "All":
+            query.append("AND category = ?")
+            params.append(category)
+
+        if search_query:
+            query.append("AND (title LIKE ? OR content LIKE ? OR notes LIKE ?)")
+            wildcard = f"%{search_query.strip()}%"
+            params.extend([wildcard, wildcard, wildcard])
+
+        query.append("ORDER BY created_at DESC")
+        cur = self.conn.execute(" ".join(query), params)
+        return [_row_to_code_item(row) for row in cur.fetchall()]
+
+    def get(self, item_id: str) -> CodeItem | None:
+        """Fetch a single code item by ID."""
+        cur = self.conn.execute(
+            "SELECT * FROM code_items WHERE id = ? AND is_deleted = 0",
+            (item_id,),
+        )
+        row = cur.fetchone()
+        return _row_to_code_item(row) if row else None
+
+    def create(
+        self,
+        category: str,
+        title: str,
+        content: str = "",
+        language: str = "python",
+        difficulty: str = "Easy",
+        is_done: int = 0,
+        url: str = "",
+        notes: str = "",
+    ) -> CodeItem:
+        """Create a new code item."""
+        now = _now_utc()
+        item_id = uuid.uuid4().hex
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO code_items (
+                    id, category, title, content, language, difficulty,
+                    is_done, url, notes, created_at, updated_at, is_deleted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                """,
+                (
+                    item_id,
+                    category,
+                    title,
+                    content,
+                    language,
+                    difficulty,
+                    is_done,
+                    url,
+                    notes,
+                    now,
+                    now,
+                ),
+            )
+        return CodeItem(
+            id=item_id,
+            category=category,
+            title=title,
+            content=content,
+            language=language,
+            difficulty=difficulty,
+            is_done=is_done,
+            url=url,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def toggle_done(self, item_id: str) -> bool:
+        """Toggle is_done status for a DSA item."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE code_items
+                SET is_done = CASE WHEN is_done = 1 THEN 0 ELSE 1 END,
+                    updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (now, item_id),
+            )
+            return cur.rowcount > 0
+
+    def soft_delete(self, item_id: str) -> bool:
+        """Soft delete a code item."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE code_items
+                SET is_deleted = 1, updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (now, item_id),
+            )
+            return cur.rowcount > 0
+
+
+class CourseRepository:
+    """Data access operations for Course entities."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def list_courses(
+        self,
+        platform: str | None = None,
+        search_query: str | None = None,
+    ) -> list[Course]:
+        """List active courses with platform and search filters."""
+        query = ["SELECT * FROM courses WHERE is_deleted = 0"]
+        params: list[Any] = []
+
+        if platform and platform != "All":
+            query.append("AND platform = ?")
+            params.append(platform)
+
+        if search_query:
+            query.append(
+                "AND (title LIKE ? OR instructor LIKE ? OR notes LIKE ?)"
+            )
+            wildcard = f"%{search_query.strip()}%"
+            params.extend([wildcard, wildcard, wildcard])
+
+        query.append("ORDER BY created_at DESC")
+        cur = self.conn.execute(" ".join(query), params)
+        return [_row_to_course(row) for row in cur.fetchall()]
+
+    def get(self, course_id: str) -> Course | None:
+        """Fetch course by ID."""
+        cur = self.conn.execute(
+            "SELECT * FROM courses WHERE id = ? AND is_deleted = 0",
+            (course_id,),
+        )
+        row = cur.fetchone()
+        return _row_to_course(row) if row else None
+
+    def create(
+        self,
+        title: str,
+        platform: str = "Coursera",
+        instructor: str = "",
+        total_modules: int = 10,
+        completed_modules: int = 0,
+        url: str = "",
+        notes: str = "",
+    ) -> Course:
+        """Insert a new course."""
+        now = _now_utc()
+        course_id = uuid.uuid4().hex
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO courses (
+                    id, title, platform, instructor, total_modules,
+                    completed_modules, url, notes, created_at, updated_at,
+                    is_deleted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                """,
+                (
+                    course_id,
+                    title,
+                    platform,
+                    instructor,
+                    total_modules,
+                    completed_modules,
+                    url,
+                    notes,
+                    now,
+                    now,
+                ),
+            )
+        return Course(
+            id=course_id,
+            title=title,
+            platform=platform,
+            instructor=instructor,
+            total_modules=total_modules,
+            completed_modules=completed_modules,
+            url=url,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def increment_module(self, course_id: str) -> bool:
+        """Increment completed_modules count up to total_modules."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE courses
+                SET completed_modules = MIN(
+                    total_modules, completed_modules + 1
+                ),
+                updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+
+                """,
+                (now, course_id),
+            )
+            return cur.rowcount > 0
+
+    def soft_delete(self, course_id: str) -> bool:
+        """Soft delete a course."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE courses
+                SET is_deleted = 1, updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (now, course_id),
+            )
+            return cur.rowcount > 0
+
+
+class IdeaDoubtRepository:
+    """Data access operations for IdeaDoubt entities."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def list_items(
+        self,
+        kind: str | None = None,
+        status: str | None = None,
+        search_query: str | None = None,
+    ) -> list[IdeaDoubt]:
+        """List active ideas and doubts."""
+        query = ["SELECT * FROM ideas_doubts WHERE is_deleted = 0"]
+        params: list[Any] = []
+
+        if kind and kind != "All":
+            query.append("AND kind = ?")
+            params.append(kind)
+
+        if status and status != "All":
+            query.append("AND status = ?")
+            params.append(status)
+
+        if search_query:
+            query.append(
+                "AND (title LIKE ? OR description LIKE ? OR "
+                "tech_stack_or_ref LIKE ?)"
+            )
+            wildcard = f"%{search_query.strip()}%"
+            params.extend([wildcard, wildcard, wildcard])
+
+        query.append("ORDER BY created_at DESC")
+        cur = self.conn.execute(" ".join(query), params)
+        return [_row_to_idea_doubt(row) for row in cur.fetchall()]
+
+    def get(self, item_id: str) -> IdeaDoubt | None:
+        """Fetch item by ID."""
+        cur = self.conn.execute(
+            "SELECT * FROM ideas_doubts WHERE id = ? AND is_deleted = 0",
+            (item_id,),
+        )
+        row = cur.fetchone()
+        return _row_to_idea_doubt(row) if row else None
+
+    def create(
+        self,
+        kind: str,
+        title: str,
+        description: str = "",
+        tech_stack_or_ref: str = "",
+        status: str = "Idea",
+    ) -> IdeaDoubt:
+        """Create a new idea or doubt."""
+        now = _now_utc()
+        item_id = uuid.uuid4().hex
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO ideas_doubts (
+                    id, kind, title, description, tech_stack_or_ref,
+                    status, created_at, updated_at, is_deleted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+                """,
+                (
+                    item_id,
+                    kind,
+                    title,
+                    description,
+                    tech_stack_or_ref,
+                    status,
+                    now,
+                    now,
+                ),
+            )
+        return IdeaDoubt(
+            id=item_id,
+            kind=kind,
+            title=title,
+            description=description,
+            tech_stack_or_ref=tech_stack_or_ref,
+            status=status,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def update_status(self, item_id: str, new_status: str) -> bool:
+        """Update status of an idea or doubt."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE ideas_doubts
+                SET status = ?, updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (new_status, now, item_id),
+            )
+            return cur.rowcount > 0
+
+    def soft_delete(self, item_id: str) -> bool:
+        """Soft delete an idea or doubt."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE ideas_doubts
+                SET is_deleted = 1, updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (now, item_id),
+            )
+            return cur.rowcount > 0
+
+
+class OpportunityRepository:
+    """Data access operations for Opportunity entities."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def list_opportunities(
+        self,
+        kind: str | None = None,
+        status: str | None = None,
+        search_query: str | None = None,
+    ) -> list[Opportunity]:
+        """List active opportunities with filters."""
+        query = ["SELECT * FROM opportunities WHERE is_deleted = 0"]
+        params: list[Any] = []
+
+        if kind and kind != "All":
+            query.append("AND kind = ?")
+            params.append(kind)
+
+        if status and status != "All":
+            query.append("AND status = ?")
+            params.append(status)
+
+        if search_query:
+            query.append(
+                "AND (title LIKE ? OR organization LIKE ? OR notes LIKE ?)"
+            )
+            wildcard = f"%{search_query.strip()}%"
+            params.extend([wildcard, wildcard, wildcard])
+
+        query.append("ORDER BY created_at DESC")
+        cur = self.conn.execute(" ".join(query), params)
+        return [_row_to_opportunity(row) for row in cur.fetchall()]
+
+    def get(self, opp_id: str) -> Opportunity | None:
+        """Fetch opportunity by ID."""
+        cur = self.conn.execute(
+            "SELECT * FROM opportunities WHERE id = ? AND is_deleted = 0",
+            (opp_id,),
+        )
+        row = cur.fetchone()
+        return _row_to_opportunity(row) if row else None
+
+    def create(
+        self,
+        title: str,
+        organization: str,
+        kind: str = "Internship",
+        url: str = "",
+        deadline: str = "",
+        status: str = "Saved",
+        notes: str = "",
+    ) -> Opportunity:
+        """Create a new opportunity."""
+        now = _now_utc()
+        opp_id = uuid.uuid4().hex
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO opportunities (
+                    id, title, organization, kind, url, deadline,
+                    status, notes, created_at, updated_at, is_deleted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                """,
+                (
+                    opp_id,
+                    title,
+                    organization,
+                    kind,
+                    url,
+                    deadline,
+                    status,
+                    notes,
+                    now,
+                    now,
+                ),
+            )
+        return Opportunity(
+            id=opp_id,
+            title=title,
+            organization=organization,
+            kind=kind,
+            url=url,
+            deadline=deadline,
+            status=status,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def update_status(self, opp_id: str, new_status: str) -> bool:
+        """Update opportunity status."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE opportunities
+                SET status = ?, updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (new_status, now, opp_id),
+            )
+            return cur.rowcount > 0
+
+    def soft_delete(self, opp_id: str) -> bool:
+        """Soft delete an opportunity."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE opportunities
+                SET is_deleted = 1, updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (now, opp_id),
+            )
+            return cur.rowcount > 0
+
+
+class QuickLinkRepository:
+    """Data access operations for QuickLink entities."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def list_links(
+        self,
+        category: str | None = None,
+        search_query: str | None = None,
+    ) -> list[QuickLink]:
+        """List active quick links."""
+        query = ["SELECT * FROM quick_links WHERE is_deleted = 0"]
+        params: list[Any] = []
+
+        if category and category != "All":
+            query.append("AND category = ?")
+            params.append(category)
+
+        if search_query:
+            query.append("AND (name LIKE ? OR target_uri LIKE ?)")
+            wildcard = f"%{search_query.strip()}%"
+            params.extend([wildcard, wildcard])
+
+        query.append("ORDER BY click_count DESC, created_at DESC")
+        cur = self.conn.execute(" ".join(query), params)
+        return [_row_to_quick_link(row) for row in cur.fetchall()]
+
+    def get(self, link_id: str) -> QuickLink | None:
+        """Fetch quick link by ID."""
+        cur = self.conn.execute(
+            "SELECT * FROM quick_links WHERE id = ? AND is_deleted = 0",
+            (link_id,),
+        )
+        row = cur.fetchone()
+        return _row_to_quick_link(row) if row else None
+
+    def create(
+        self,
+        name: str,
+        target_uri: str,
+        category: str = "Web",
+    ) -> QuickLink:
+        """Create a new quick link."""
+        now = _now_utc()
+        link_id = uuid.uuid4().hex
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO quick_links (
+                    id, name, target_uri, category, click_count,
+                    created_at, updated_at, is_deleted
+                ) VALUES (?, ?, ?, ?, 0, ?, ?, 0)
+                """,
+                (link_id, name, target_uri, category, now, now),
+            )
+        return QuickLink(
+            id=link_id,
+            name=name,
+            target_uri=target_uri,
+            category=category,
+            click_count=0,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def increment_click(self, link_id: str) -> bool:
+        """Increment click count."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE quick_links
+                SET click_count = click_count + 1, updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (now, link_id),
+            )
+            return cur.rowcount > 0
+
+    def soft_delete(self, link_id: str) -> bool:
+        """Soft delete a quick link."""
+        now = _now_utc()
+        with transaction(self.conn) as cur:
+            cur.execute(
+                """
+                UPDATE quick_links
+                SET is_deleted = 1, updated_at = ?
+                WHERE id = ? AND is_deleted = 0
+                """,
+                (now, link_id),
+            )
+            return cur.rowcount > 0

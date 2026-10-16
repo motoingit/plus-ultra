@@ -24,14 +24,35 @@ from plus_ultra.config import (
     get_metadata,
     get_state_dir,
 )
-from plus_ultra.db import get_connection, init_db
+from plus_ultra.db import (
+    get_connection,
+    init_db,
+    seed_demo_workspace_data,
+)
 from plus_ultra.desktop import SingleInstanceLock
+from plus_ultra.models import Reminder, Task
 from plus_ultra.repository import (
     AppStateRepository,
     CategoryRepository,
+    CodeRepository,
+    CourseRepository,
+    IdeaDoubtRepository,
+    OpportunityRepository,
+    QuickLinkRepository,
+    ReminderRepository,
     TaskRepository,
 )
-from plus_ultra.services import CategoryService, TaskService
+from plus_ultra.scheduler import ReminderScheduler
+from plus_ultra.services import (
+    CategoryService,
+    CodeService,
+    CourseService,
+    IdeaDoubtService,
+    OpportunityService,
+    QuickLinkService,
+    ReminderService,
+    TaskService,
+)
 from plus_ultra.ui.floating import FloatingWidget
 from plus_ultra.ui.panel import DashboardPanel
 
@@ -120,11 +141,26 @@ def main(argv: list[str] | None = None) -> int:
     try:
         init_db()
         conn = get_connection()
+        seed_demo_workspace_data(conn)
+
         app_state_repo = AppStateRepository(conn)
         task_repo = TaskRepository(conn)
         cat_repo = CategoryRepository(conn)
+        rem_repo = ReminderRepository(conn)
+        code_repo = CodeRepository(conn)
+        course_repo = CourseRepository(conn)
+        idea_repo = IdeaDoubtRepository(conn)
+        opp_repo = OpportunityRepository(conn)
+        link_repo = QuickLinkRepository(conn)
+
         task_service = TaskService(task_repo, cat_repo)
         cat_service = CategoryService(cat_repo)
+        rem_service = ReminderService(rem_repo, task_repo)
+        code_service = CodeService(code_repo)
+        course_service = CourseService(course_repo)
+        idea_service = IdeaDoubtService(idea_repo)
+        opp_service = OpportunityService(opp_repo)
+        link_service = QuickLinkService(link_repo)
 
         if args.no_ui or (
             "PYTEST_CURRENT_TEST" in os.environ and not args.smoke_test
@@ -147,12 +183,42 @@ def main(argv: list[str] | None = None) -> int:
             task_service=task_service,
             category_service=cat_service,
             notification_queue=widget.notifications,
+            code_service=code_service,
+            course_service=course_service,
+            idea_doubt_service=idea_service,
+            opportunity_service=opp_service,
+            quick_link_service=link_service,
             on_notifications_cleared=widget._update_bell_state,
         )
         widget.on_click_callback = dashboard.toggle
 
+        def _handle_reminder_due(task: Task, _rem: Reminder) -> None:
+            """Safely enqueue reminder alert to Tkinter main thread."""
+
+            def _ui_action() -> None:
+                if not widget._closed:
+                    widget.post_notification(
+                        title=f"Due: {task.title}",
+                        message=task.description
+                        or f"Priority: {task.critical_level}",
+                        icon="⏰",
+                    )
+                    if dashboard.winfo_exists():
+                        dashboard._refresh_tasks()
+                        dashboard._refresh_notifications()
+
+            widget.root.after_idle(_ui_action)
+
+        scheduler = ReminderScheduler(
+            reminder_service=rem_service,
+            on_reminder_due=_handle_reminder_due,
+            desktop_notify=True,
+        )
+        scheduler.start()
+
         def _signal_handler(_sig: int, _frame: object) -> None:
             logger.info("Received termination signal, shutting down.")
+            scheduler.stop()
             if dashboard.winfo_exists():
                 dashboard.destroy()
             widget.close()
@@ -162,14 +228,16 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.smoke_test:
             logger.info(
-                "Running in smoke-test mode; verifying dashboard and exiting."
+                "Running in smoke-test mode; verifying scheduler and UI."
             )
+            scheduler.tick()
             dashboard.show()
             widget.root.after(500, widget.close)
 
         try:
             widget.run()
         finally:
+            scheduler.stop()
             conn.close()
         return 0
     finally:

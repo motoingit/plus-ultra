@@ -13,6 +13,8 @@ import contextlib
 import fcntl
 import logging
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 from plus_ultra import config
@@ -158,3 +160,57 @@ def apply_window_shape_mask(
     except Exception as exc:
         logger.debug("Window shape mask skipped or unsupported: %s", exc)
         return False
+
+
+def send_desktop_notification(
+    title: str,
+    message: str = "",
+    urgency: str = "normal",
+    timeout_ms: int = 5000,
+    app_name: str = config.APP_NAME,
+) -> bool:
+    """Send a native Linux desktop notification via notify-send without shell.
+
+    Args:
+        title: Notification summary heading.
+        message: Notification body text.
+        urgency: Urgency level ('low', 'normal', 'critical').
+        timeout_ms: Expiration timeout in milliseconds.
+        app_name: Originating application identifier.
+
+    Returns:
+        True if notify-send completed successfully, False otherwise.
+    """
+    executable = shutil.which("notify-send")
+    if not executable:
+        logger.warning(
+            "notify-send executable not found; desktop notification skipped."
+        )
+        return False
+
+    cmd = [
+        executable,
+        "-a",
+        app_name,
+        "-u",
+        urgency,
+        "-t",
+        str(timeout_ms),
+        title,
+        message,
+    ]
+    try:
+        subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            timeout=3,
+        )
+        logger.info("Desktop notification dispatched: %s", title)
+        return True
+    except (subprocess.SubprocessError, OSError) as exc:
+        logger.warning("Failed to dispatch desktop notification: %s", exc)
+        return False
+
+
+notify = send_desktop_notification

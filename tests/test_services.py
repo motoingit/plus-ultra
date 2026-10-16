@@ -14,8 +14,16 @@ from pathlib import Path
 import pytest
 
 from plus_ultra.db import get_connection, init_db
-from plus_ultra.repository import CategoryRepository, TaskRepository
-from plus_ultra.services import CategoryService, TaskService
+from plus_ultra.repository import (
+    CategoryRepository,
+    ReminderRepository,
+    TaskRepository,
+)
+from plus_ultra.services import (
+    CategoryService,
+    ReminderService,
+    TaskService,
+)
 
 
 @pytest.fixture
@@ -165,3 +173,51 @@ def test_category_service_lifecycle_and_cascade(
     reloaded_task = task_svc.get_task(task.id)
     assert reloaded_task is not None
     assert reloaded_task.category_id is None
+
+
+def test_reminder_service_lifecycle_and_validation(tmp_path: Path) -> None:
+    """Verify ReminderService validation, creation, and due querying."""
+    db_path = tmp_path / "rem_svc_test.db"
+    init_db(db_path)
+    conn = get_connection(db_path)
+    cat_repo = CategoryRepository(conn)
+    task_repo = TaskRepository(conn)
+    rem_repo = ReminderRepository(conn)
+    task_svc = TaskService(task_repo, cat_repo)
+    rem_svc = ReminderService(rem_repo, task_repo)
+
+    task = task_svc.create_task("OS Scheduling Exam")
+
+    # Empty task_id or non-existent task raises ValueError
+    with pytest.raises(ValueError, match="does not exist or is deleted"):
+        rem_svc.create_reminder("bad-uuid", "2026-10-16T10:00:00Z")
+
+    # Empty remind_at raises ValueError
+    with pytest.raises(ValueError, match="cannot be empty"):
+        rem_svc.create_reminder(task.id, "   ")
+
+    # Happy path creation
+    rem = rem_svc.create_reminder(task.id, "2026-10-16T10:00:00Z")
+    assert rem.task_id == task.id
+    assert rem.remind_at == "2026-10-16T10:00:00Z"
+
+    # Due query before 10:00:00Z
+    assert len(rem_svc.get_due_reminders("2026-10-16T09:59:59Z")) == 0
+
+    # Due query at or after 10:00:00Z
+    due = rem_svc.get_due_reminders("2026-10-16T10:00:00Z")
+    assert len(due) == 1
+    assert due[0][0].id == rem.id
+    assert due[0][1].id == task.id
+
+    # Mark fired
+    rem_svc.mark_fired(rem.id)
+    assert rem_svc.is_fired(rem.id) is True
+
+    # After firing, it is excluded from get_due_reminders
+    assert len(rem_svc.get_due_reminders("2026-10-16T11:00:00Z")) == 0
+
+    # Soft delete reminder
+    rem2 = rem_svc.create_reminder(task.id, "2026-10-16T12:00:00Z")
+    assert rem_svc.soft_delete_reminder(rem2.id) is True
+    assert len(rem_svc.get_due_reminders("2026-10-16T13:00:00Z")) == 0
