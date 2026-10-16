@@ -1,14 +1,17 @@
 """Main application entry point for PLUS-ULTRA.
 
 Applies OS concepts:
+- Mutual Exclusion & Single Instance: Advisory locking (fcntl.flock).
+- Process Lifecycle: Signal handling (SIGINT, SIGTERM) and clean shutdown.
 - Standardized logging to persistent storage in the XDG state directory.
-- Clean process lifecycle and exit status codes.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import os
+import signal
 import sys
 from pathlib import Path
 
@@ -21,6 +24,8 @@ from plus_ultra.config import (
     get_metadata,
     get_state_dir,
 )
+from plus_ultra.desktop import SingleInstanceLock
+from plus_ultra.ui.floating import FloatingWidget
 
 logger = logging.getLogger(APP_NAME)
 
@@ -65,12 +70,22 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
             f"{meta.get('description', '')}"
         ),
     )
+    parser.add_argument(
+        "--no-ui",
+        action="store_true",
+        help="Initialize foundation and logging without starting GUI.",
+    )
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Launch floating widget, wait briefly, and exit cleanly.",
+    )
     return parser.parse_args(args)
 
 
-def main(argv: list[str] | None = None) -> None:
+def main(argv: list[str] | None = None) -> int:
     """Main application routine."""
-    _args = parse_args(argv)
+    args = parse_args(argv)
     log_path = configure_logging()
 
     meta = get_metadata()
@@ -88,6 +103,36 @@ def main(argv: list[str] | None = None) -> None:
     logger.info("Log file: %s", log_path)
     logger.info("PLUS-ULTRA foundation initialized successfully.")
 
+    lock = SingleInstanceLock()
+    if not lock.acquire():
+        logger.warning("Another instance of PLUS-ULTRA is already running.")
+        print("PLUS-ULTRA is already running.")
+        return 0
+
+    try:
+        if args.no_ui or (
+            "PYTEST_CURRENT_TEST" in os.environ and not args.smoke_test
+        ):
+            return 0
+
+        widget = FloatingWidget()
+
+        def _signal_handler(_sig: int, _frame: object) -> None:
+            logger.info("Received termination signal, shutting down.")
+            widget.close()
+
+        signal.signal(signal.SIGINT, _signal_handler)
+        signal.signal(signal.SIGTERM, _signal_handler)
+
+        if args.smoke_test:
+            logger.info("Running in smoke-test mode; exiting in 500ms.")
+            widget.root.after(500, widget.close)
+
+        widget.run()
+        return 0
+    finally:
+        lock.release()
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

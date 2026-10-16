@@ -87,7 +87,46 @@
 
 ---
 
-## Next: Phase 2: Wayland/XWayland Spike + Single Instance Lock
+## Phase 2: Wayland/XWayland Spike + Single Instance Lock
+
+- **Status**: Completed
+- **Date**: 2026-10-16
+
+### Phase 2 To-do List:
+- [x] Implement `src/plus_ultra/desktop.py` with `SingleInstanceLock` using `fcntl.flock`:
+  - [x] Exclusive advisory locking (`LOCK_EX | LOCK_NB`) on `$XDG_STATE_HOME/plus-ultra/plus-ultra.lock`.
+  - [x] Write PID on acquisition for process diagnostics.
+  - [x] Clean release and unlinking on exit.
+  - [x] Support Python context manager protocol.
+- [x] Implement `src/plus_ultra/ui/theme.py`:
+  - [x] Define `CapsuleGeometry` tokens (140x36, radius 18, top-offset 12).
+  - [x] Define `CapsuleTheme` color tokens (dark palette, idle/hover fill, electric cyan hover glow).
+- [x] Implement `src/plus_ultra/ui/floating.py`:
+  - [x] `FloatingWidget` with borderless window (`overrideredirect(True)`).
+  - [x] `-topmost` attribute honoring user settings.
+  - [x] Canvas-based smooth capsule rendering.
+  - [x] Mouse drag handling (`<Button-1>`, `<B1-Motion>`) and click detection.
+  - [x] Hover glow state transitions (`<Enter>`, `<Leave>`).
+  - [x] Clean closure on `<Escape>` or window destruction.
+- [x] Update `src/plus_ultra/main.py`:
+  - [x] Acquire `SingleInstanceLock` before starting GUI; graceful exit on contention.
+  - [x] Support `--smoke-test` (500ms transient run and exit 0) and `--no-ui`.
+  - [x] POSIX signal trapping (`SIGINT`, `SIGTERM`) for graceful shutdown.
+- [x] Implement tests in `tests/test_desktop.py` and `tests/test_ui.py` (29 tests passing).
+- [x] Update documentation (`README.md`, `.docs/api.md`, `.docs/progress-log.md`, `.docs/architecture.MD`).
+
+### Issues & Status:
+- **Pytest blocking on Tkinter mainloop**: Resolved by detecting test environments (`PYTEST_CURRENT_TEST`) and supporting `--no-ui` / `--smoke-test` CLI flags.
+- **Ruff linter compliance**: Removed unused imports, simplified `.encode()` call, formatted to strict 80-char line limit.
+
+### Important Points:
+- Mutual exclusion verified: second instance attempting to run reports contention and exits cleanly without crashing or corrupting state.
+- Floating capsule opens centered at top of display and allows smooth dragging across screen.
+- Total test suite now runs 29 tests in 0.39s with 100% pass rate.
+
+---
+
+## Next: Phase 3: Database layer
 
 - **Status**: Pending Gate Approval
-- **Target**: Evaluate Tkinter floating behavior under GNOME Wayland/XWayland and implement single-instance process lock using standard-library `fcntl.flock`.
+- **Target**: Implement `db.py`, `models.py`, `repository.py`, SQLite WAL mode, transactions, migrations with `user_version`, CRUD for tasks/categories/reminders/`app_state`, soft deletes, and widget position persistence.

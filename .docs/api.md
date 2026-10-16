@@ -53,4 +53,34 @@ This document records public APIs, module interfaces, and command-line entry poi
 - `reset_all_settings() -> None`: Clears all user overrides, removing the settings file and restoring default settings.
 - `reload() -> dict[str, Any]`: Forces an immediate reload from disk, bypassing memory cache.
 
+---
+
+## 4. Implemented Module Specifications (Phase 2)
+
+### `plus_ultra.desktop`
+- `SingleInstanceLock(lock_path: Path | None = None)`:
+  - `acquire() -> bool`: Attempts to acquire an exclusive, non-blocking advisory file lock (`fcntl.flock(LOCK_EX | LOCK_NB)`) on `$XDG_STATE_HOME/plus-ultra/plus-ultra.lock`. Writes current PID to the file. Returns `True` if acquired, `False` on contention.
+  - `release() -> None`: Releases lock (`fcntl.LOCK_UN`), closes file descriptor, and unlinks lock file.
+  - Supports Python context manager (`with SingleInstanceLock(): ...`).
+
+### `plus_ultra.ui.theme`
+- `CapsuleGeometry`: NamedTuple containing `width: int = 140`, `height: int = 36`, `radius: int = 18`, `top_offset: int = 12`.
+- `CapsuleTheme`: NamedTuple containing color tokens:
+  - `window_bg: "#12151c"`
+  - `idle_fill: "#1a1f2c"`, `idle_border: "#2b3448"`, `idle_text: "#cbd5e1"`
+  - `hover_fill: "#242c3d"`, `hover_border: "#00e5ff"`, `hover_text: "#ffffff"`
+  - `font_family: "DejaVu Sans"`, `font_size: 9`
+
+### `plus_ultra.ui.floating`
+- `FloatingWidget(root: tk.Tk | None, geometry: CapsuleGeometry, theme: CapsuleTheme, on_click_callback: Callable | None)`:
+  - Initializes a borderless (`overrideredirect(True)`), `-topmost` floating window placed at the top-center of the primary display.
+  - Draws a smooth capsule polygon with hover glow animation.
+  - Implements mouse drag tracking (`<Button-1>`, `<B1-Motion>`) and click detection on mouse release.
+  - `close() -> None`: Closes window and exits main event loop cleanly.
+  - `run() -> None`: Starts Tkinter `mainloop()`.
+
+### CLI Flags (`plus-ultra`)
+- `--smoke-test`: Automatically initializes the application and closes the floating widget after 500ms, returning exit code 0.
+- `--no-ui`: Initializes configuration, state directories, and logging without starting the GUI event loop.
+
 

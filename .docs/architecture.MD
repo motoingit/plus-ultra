@@ -28,11 +28,12 @@ plus-ultra/
 │       ├── resources/            # Packaged static assets
 │       │   ├── default-settings.json # Shipped defaults (always_on_top, glow, reminders)
 │       │   └── metadata.json     # App metadata (app_name, display_name, company, desc)
-│       ├── desktop.py            # [Phase 2] Single-instance lock (fcntl.flock), notifications
-│       ├── ui/                   # [Phase 2/4] Presentation layer (Zero direct DB access)
-│       │   ├── floating.py       # [Phase 2] Circular always-on-top draggable floating pill
-│       │   ├── panel.py          # [Phase 4] Main dashboard window (Treeview, forms, filters)
-│       │   └── theme.py          # [Phase 2/8] UI styling, color palettes, pulse animations
+│       ├── desktop.py            # Single-instance lock (fcntl.flock), notifications
+│       ├── ui/                   # Presentation layer (Zero direct DB access)
+│       │   ├── __init__.py       # Package marker
+│       │   ├── floating.py       # Circular always-on-top draggable floating pill
+│       │   ├── theme.py          # UI styling tokens, color palettes, capsule geometry
+│       │   └── panel.py          # [Phase 4] Main dashboard window (Treeview, forms, filters)
 │       ├── db.py                 # [Phase 3] SQLite connection, WAL mode, transaction context
 │       ├── models.py             # [Phase 3] Data classes (Task, Category, Reminder, AppState)
 │       ├── repository.py         # [Phase 3] Parameterized SQL CRUD operations
@@ -42,7 +43,8 @@ plus-ultra/
 ├── tests/                        # Comprehensive test suite (Happy path, edge, failure paths)
 │   ├── test_config.py            # XDG paths, fallback logic, mode 0o700, logging tests
 │   ├── test_settings.py          # Settings validation, type safety, corrupt file quarantine
-│   ├── test_desktop.py           # [Phase 2] Single instance lock and process safety tests
+│   ├── test_desktop.py           # Single instance lock and process contention tests
+│   ├── test_ui.py                # FloatingWidget geometry, hover glow, and drag calculations
 │   ├── test_db.py                # [Phase 3] Schema migrations, foreign keys, rollback tests
 │   ├── test_repository.py        # [Phase 3] CRUD queries, soft deletes, index verification
 │   └── test_services.py          # [Phase 4] Service layer logic tests

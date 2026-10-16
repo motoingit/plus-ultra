@@ -16,7 +16,8 @@ If another project instruction (including `GEMINI.md`) conflicts with this file,
 
 ## Platform
 - Target: Ubuntu with GNOME on **Wayland**. Tkinter runs through XWayland, not as a native Wayland client.
-- Respect the limits documented in the "GUI limitations (Wayland / XWayland)" section of `.agents/initial-plan.md` if that file and section exist. If they do not exist, report this gap rather than inventing their contents.
+- Respect the limits documented in the "GUI limitations (Wayland / XWayland)" section 
+- if that file and section exist. If they do not exist, report this gap rather than inventing their contents.
 - Do not use X11-only window hacks (`xdotool`, `wmctrl`, `xprop`, raw Xlib calls) without asking. They do not control Wayland-native windows reliably and may not work for this application.
 
 ## Tooling

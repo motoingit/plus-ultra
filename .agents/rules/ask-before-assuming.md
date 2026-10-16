@@ -7,7 +7,8 @@ description: Ask the user before making ambiguous or preference-dependent choice
 
 - Never silently assume the user's intended choice when multiple reasonable options exist.
 - When a decision materially affects the result and the user's preference is unknown, ask the user before proceeding.
-- Pause at every phase gate defined in `.agents/initial-plan.md`. Do not start the next phase until the user says to.
+- Take Feedback frpm User
+- Do not start the next phase until the user says to.
 
 ## How You Ask
 

@@ -47,8 +47,14 @@ The codebase strictly enforces loose coupling and layer isolation:
   - `reset_setting(key: str) -> None`: Restores default for a single setting.
   - `reset_all_settings() -> None`: Clears all user overrides.
   - `reload() -> dict[str, Any]`: Refreshes settings cache from disk.
+- **Desktop Adapter (`plus_ultra.desktop`)**:
+  - `SingleInstanceLock`: Advisory POSIX process locking (`fcntl.flock`) preventing duplicate concurrent instances.
+- **Floating UI (`plus_ultra.ui.floating`)**:
+  - `FloatingWidget`: Top-center hovering capsule widget with hover glow, smooth dragging, and topmost window stacking.
+- **Supported Flags**:
+  - `--smoke-test`: Transient UI launch (runs 500ms and exits 0 for automated verification).
+  - `--no-ui`: Initialize logging and foundation without starting GUI.
 - **Planned Flags**:
-  - `--smoke-test`: Headless/transient UI integration test (Phase 4).
   - `--install-autostart` / `--uninstall-autostart`: XDG autostart generator (Phase 6).
 
 ---

@@ -5,7 +5,7 @@ description: "Consult when planning, creating, or reorganizing the project's dir
 
 # General Project Structure
 
-Keep this separation as the application grows. Create a file or directory only in the phase of `.agents/initial-plan.md` that needs it.
+This will for Constant Update on ProjectF0lderStructure
 
 ## Layout
 
@@ -21,7 +21,7 @@ plus-ultra/
 │   ├── skills/                # one folder per skill, each with SKILL.md
 │   └── workflows/
 ├── .my/                       # the user's private notes; agents read, never rewrite
-├── src/plus_ultra/            # application source (see .agents/initial-plan.md for modules)
+├── src/plus_ultra/            # application source
 └── tests/                     # pytest tests
 ```
 
