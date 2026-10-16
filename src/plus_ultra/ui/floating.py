@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import math
 import tkinter as tk
 from collections.abc import Callable
 from typing import Any
@@ -26,73 +25,13 @@ from plus_ultra.notifications import (
     CapsuleNotification,
     CapsuleNotificationQueue,
 )
+from plus_ultra.ui.geometry import (
+    generate_capsule_points,
+    generate_perimeter_path,
+)
 from plus_ultra.ui.theme import GEOMETRY, THEME, CapsuleGeometry, CapsuleTheme
 
 logger = logging.getLogger(__name__)
-
-
-def generate_capsule_points(
-    w: int, h: int, r: int, steps: int = 24
-) -> list[float]:
-    """Generate exact coordinates for a horizontal capsule polygon."""
-    points: list[float] = []
-
-    # 1. Top straight edge: left to right
-    points.extend([float(r), 1.0, float(w - r), 1.0])
-
-    # 2. Right semicircle: -pi/2 to pi/2
-    cx, cy = float(w - r), float(h) / 2.0
-    for i in range(steps + 1):
-        theta = -math.pi / 2.0 + (math.pi * i / steps)
-        points.extend(
-            [cx + (r - 1) * math.cos(theta), cy + (r - 1) * math.sin(theta)]
-        )
-
-    # 3. Bottom straight edge: right to left
-    points.extend([float(w - r), float(h - 1), float(r), float(h - 1)])
-
-    # 4. Left semicircle: pi/2 to 3*pi/2
-    cx, cy = float(r), float(h) / 2.0
-    for i in range(steps + 1):
-        theta = math.pi / 2.0 + (math.pi * i / steps)
-        points.extend(
-            [cx + (r - 1) * math.cos(theta), cy + (r - 1) * math.sin(theta)]
-        )
-
-    return points
-
-
-def generate_perimeter_path(
-    w: int, h: int, r: int, num_arc_points: int = 24
-) -> list[tuple[float, float]]:
-    """Generate ordered 2D perimeter points for the animated border beam."""
-    path: list[tuple[float, float]] = []
-
-    # 1. Top edge: left to right (step by 2px)
-    for x in range(r, w - r + 1, 2):
-        path.append((float(x), 1.5))
-
-    # 2. Right semicircle: -pi/2 to pi/2
-    cx, cy = float(w - r), float(h) / 2.0
-    for i in range(1, num_arc_points + 1):
-        theta = -math.pi / 2.0 + (math.pi * i / num_arc_points)
-        path.append(
-            (cx + (r - 1.5) * math.cos(theta), cy + (r - 1.5) * math.sin(theta))
-        )
-
-    # 3. Bottom edge: right to left (step by 2px)
-    for x in range(w - r, r - 1, -2):
-        path.append((float(x), float(h - 1.5)))
-
-    # 4. Left semicircle: pi/2 to 3*pi/2
-    cx, cy = float(r), float(h) / 2.0
-    for i in range(1, num_arc_points + 1):
-        theta = math.pi / 2.0 + (math.pi * i / num_arc_points)
-        path.append(
-            (cx + (r - 1.5) * math.cos(theta), cy + (r - 1.5) * math.sin(theta))
-        )
-
-    return path
 
 
 class FloatingWidget:
@@ -134,7 +73,7 @@ class FloatingWidget:
         self._is_hovered: bool = False
         self._active_toggle: bool = False
         self._beam_idx: int = 0
-        self._beam_length: int = 34
+        self._beam_length: int = 56
         self._beam_timer_id: str | None = None
         self._closed: bool = False
 
@@ -201,7 +140,7 @@ class FloatingWidget:
             0,
             0,
             fill=self.theme.beam_body,
-            width=2.5,
+            width=3.5,
             capstyle="round",
             joinstyle="round",
         )
@@ -211,17 +150,17 @@ class FloatingWidget:
             0,
             0,
             fill=self.theme.beam_head,
-            width=3.0,
+            width=4.5,
             capstyle="round",
         )
 
         # 3. Content items: Orange Bell indicator + PLUS-ULTRA text
         self.bell_id = self.canvas.create_text(
-            24,
+            52,
             h // 2,
             text="🔔",
             fill=self.theme.bell_orange,
-            font=(self.theme.font_family, self.theme.font_size + 1),
+            font=(self.theme.font_family, self.theme.font_size + 6),
             state="hidden",
         )
 
@@ -419,15 +358,15 @@ class FloatingWidget:
                 self.root.after_cancel(self._popup_dismiss_timer_id)
             self._popup_dismiss_timer_id = None
 
-        pop_w = self.notifications.compute_popup_width(item)
-        pop_h = 32
-        pop_r = 16
+        pop_w = max(320, self.notifications.compute_popup_width(item))
+        pop_h = 52
+        pop_r = 26
 
         # Position below main capsule
         main_x = self.root.winfo_x()
         main_y = self.root.winfo_y()
         pop_x = main_x + (self.width - pop_w) // 2
-        pop_y = main_y + self.height + 8
+        pop_y = main_y + self.height + 10
 
         # Create or update popup window
         if not self._popup_window or not self._popup_window.winfo_exists():
@@ -461,7 +400,7 @@ class FloatingWidget:
             points,
             fill=self.theme.popup_bg,
             outline=self.theme.popup_border,
-            width=1.5,
+            width=2.0,
         )
 
         # Content text (Icon + preview text)
@@ -471,7 +410,7 @@ class FloatingWidget:
             pop_h // 2,
             text=f"{item.icon}  {preview_text}",
             fill=self.theme.popup_text,
-            font=(self.theme.font_family, self.theme.font_size),
+            font=(self.theme.font_family, 11, "bold"),
         )
 
         # Apply shape mask to popup

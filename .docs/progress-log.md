@@ -271,15 +271,68 @@
 - **SQLite check_same_thread concurrency error**: Sharing the main thread's SQLite connection with the background scheduler thread caused `ProgrammingError: SQLite objects created in a thread can only be used in that same thread`. Resolved by opening a dedicated thread-isolated SQLite connection in WAL mode within `ReminderScheduler._run_loop()`, cleanly closing it upon thread exit.
 - **Decision D1 C-binding complexity**: `pystray`'s AppIndicator backend required `PyGObject` binary wheels which failed to build without system `pkg-config`/`cairo` dev packages. Settled by dropping `pystray`/`Pillow` in favor of standard-library `subprocess` `notify-send` and the floating capsule.
 - **Font Rendering on XWayland**: Tkinter fell back to jagged pixelated bitmap font `fixed` when requesting `DejaVu Sans` because the system's X11 server font database lacked that exact name. Resolved by updating `font_family` to `helvetica`, which maps directly to vector TrueType `nimbus sans l`.
-- **Button Outlines and Severe Truncation**: Default Tkinter buttons rendered with 1px raised border and 1px highlight ring, causing harsh white/gray double-borders. Left sidebar (180px) and notification panel (220px) were too narrow. Resolved by setting `bd=0, highlightthickness=0, relief="flat"`, widening the sidebar to 230px, the notification panel to 240px, and default window geometry to 1180x700.
-- **All 6 Workspace Tabs Fully Interactive**: Non-task tabs previously had placeholder text. Implemented Schema Migration 2 with tables `code_items`, `courses`, `ideas_doubts`, `opportunities`, and `quick_links`. Replaced placeholders with full working sub-views (code copy feedback, DSA solver toggles, course progress increments, idea status cycling, opportunity tracker, and desktop quick launcher with click counter).
+- **Button Outlines and Severe Truncation**: Default Tkinter buttons rendered with 1px raised border and 1px highlight ring, causing harsh white/gray double-borders. Left sidebar (180px) and notification panel (220px) were too narrow. Resolved by setting `bd=0, highlightthickness=0, relief="flat"`, widening the sidebar to 250px, the notification panel to 280px, and default window geometry to 1280x800.
+- **Complete CRUD & Guaranteed Visible Confirmation Buttons**: All modal dialogs across all 6 tabs now feature a dedicated, fixed-bottom action bar guaranteeing that `✓ Save [Item]` and `✕ Cancel` buttons are permanently visible regardless of screen size or window manager borders. Full `update` and `delete` operations implemented on repositories, services, and UI.
+- **Tasks UI Card Modernization**: Replaced sterile `ttk.Treeview` "SQL table" with a modern card-based layout featuring clickable completion checkboxes, color-coded priority/pace chips, category tags, due date/time badges, and direct `✏️ Edit` and `🗑️ Delete` actions.
+- **Task Date & Time Options**: Task creation and editing now includes explicit Due Date and Due Time fields with quick presets (`09:00`, `14:00`, `18:00`, `23:59`) and optional desktop reminder scheduling.
+- **Double Capsule Size & Visibility Coordination**: Floating capsule dimensions doubled to `320x72` (radius 36) with scaled-up typography and animated border beam. Capsule automatically hides (`withdraw()`) when the workspace opens and reappears (`deiconify()`) when closed.
 
 ### Important Notes:
 - **100% Python Standard Library**: Application requires zero external pip packages in production runtime.
 - **Thread Safety**: UI calls from the background thread are safely deferred to the Tkinter main thread using `widget.root.after_idle`.
 - **Exactly-Once Alert Semantics**: Dispatched reminders are committed to `reminder_fires` table immediately, preventing duplicate alerts across restarts or polling cycles.
-- **Interactive Feature Verification**: All 6 tabs (`Tasks`, `Code`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`) plus `Settings` are 100% interactive and testable with seeded demo data.
-- Total test suite now runs 81 tests in 3.98s with 100% pass rate.
+- **Interactive Feature Verification**: All 6 tabs (`Tasks`, `Code`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`) plus `Settings` are 100% interactive and testable with full CRUD, seeded demo data, and modern card styling.
+- Total test suite runs 81 tests with 100% pass rate.
+
+---
+
+## Architecture Refactoring: Modular Architecture Decomposition
+
+- **Status**: Completed
+- **Date**: 2026-10-16
+
+### Objective:
+Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py` at 1,361 lines, `services.py` at 701 lines, `db.py` at 648 lines, and `ui/floating.py` at 514 lines), decompose into single-responsibility modules, enforce a strict `<= 500` lines-per-file ceiling, and ensure zero regressions across tests and runtime.
+
+### Refactoring To-do List:
+- [x] Baseline audit: Confirmed 81 passing tests and 0 ruff lint errors.
+- [x] Stage 1: Decompose database package (`src/plus_ultra/database/`):
+  - [x] `connection.py` (51 lines): SQLite connection factory, WAL pragma, transaction CM.
+  - [x] `schema.py` (159 lines): Migration schemas V1 and V2 SQL.
+  - [x] `migrations.py` (52 lines): Version lookup and schema runner.
+  - [x] `seeds.py` (404 lines): Workspace seed dataset.
+  - [x] `__init__.py` (32 lines): Public symbol re-exports.
+  - [x] `db.py` (30 lines): Thin backward-compatible facade.
+- [x] Stage 2: Decompose repositories package (`src/plus_ultra/repositories/`):
+  - [x] `base.py` (10 lines): Common UTC timestamp utilities.
+  - [x] 9 Single-table repositories: `category_repository.py` (118 lines), `task_repository.py` (217 lines), `reminder_repository.py` (117 lines), `app_state_repository.py` (51 lines), `code_repository.py` (194 lines), `course_repository.py` (195 lines), `idea_doubt_repository.py` (181 lines), `opportunity_repository.py` (196 lines), `quick_link_repository.py` (152 lines).
+  - [x] `__init__.py` (62 lines): Re-exports all repositories and row converters.
+  - [x] `repository.py` (48 lines): Thin backward-compatible facade.
+- [x] Stage 3: Decompose services package (`src/plus_ultra/services/`):
+  - [x] 8 Pure domain services: `task_service.py` (169 lines), `category_service.py` (48 lines), `reminder_service.py` (59 lines), `code_service.py` (85 lines), `course_service.py` (87 lines), `idea_doubt_service.py` (93 lines), `opportunity_service.py` (103 lines), `quick_link_service.py` (73 lines).
+  - [x] `__init__.py` (34 lines): Clean package marker and symbol exports.
+- [x] Stage 4: Decompose presentation layer (`src/plus_ultra/ui/`):
+  - [x] `geometry.py` (69 lines): Mathematical capsule polygon and perimeter beam generator.
+  - [x] `floating.py` (452 lines): Capsule widget trimmed down from 514 lines.
+  - [x] `ui/components/`: `scrollable.py` (47 lines), `sidebar.py` (160 lines), `notifications_panel.py` (123 lines), `__init__.py` (13 lines).
+  - [x] `ui/dialogs/`: `base.py` (19 lines), `task_dialog.py` (328 lines), `code_dialog.py` (215 lines), `course_dialog.py` (246 lines), `idea_dialog.py` (200 lines), `opportunity_dialog.py` (242 lines), `quick_link_dialog.py` (147 lines), `category_dialog.py` (97 lines), `__init__.py` (23 lines).
+  - [x] `ui/views/`: `tasks_view.py` (418 lines), `code_view.py` (364 lines), `courses_view.py` (320 lines), `ideas_view.py` (279 lines), `opportunities_view.py` (303 lines), `quick_links_view.py` (268 lines), `settings_view.py` (152 lines), `__init__.py` (21 lines).
+  - [x] `panel.py` (436 lines): Streamlined coordinator window trimmed from 3,784 lines, with `TreeCompatibilityFacade` preserving backward compatibility with existing tests.
+- [x] Stage 5: Verification & Quality Gate:
+  - [x] All 81 unit tests pass in 2.31s via `uv run pytest`.
+  - [x] Smoke test passes cleanly via `uv run plus-ultra --smoke-test`.
+  - [x] 0 lint errors via `uv run ruff check .`.
+  - [x] Clean format via `uv run ruff format --check .` (87 files).
+  - [x] 100% of Python modules in `src/plus_ultra` are strictly `<= 500` lines (max 452 lines).
+  - [x] Strict PEP 8 and `<= 80` characters line limit enforced.
+
+### Issues & Status:
+- **Module and directory name collisions**: Having both `foo.py` and directory `foo/` causes Python import ambiguities. Resolved cleanly by creating `src/plus_ultra/database/` and `src/plus_ultra/repositories/` while retaining `db.py` and `repository.py` as lightweight facades. For services, replaced file `services.py` with package directory `services/` directly.
+- **Test attribute delegation**: `tests/test_panel.py` directly exercised attributes of `DashboardPanel` (e.g. `sidebar_col`, `search_entry`, `_filtered_tasks`, `tree.get_children()`). Resolved by implementing property delegates on `DashboardPanel` forwarding to `Sidebar` and `TasksView`, maintaining 100% test compatibility without rewriting tests.
+
+### Important Notes:
+- Zero third-party dependencies introduced; purely standard-library Python 3.12+.
+- Clean, maintainable architecture ready for Phase 6.
 
 ---
 
@@ -291,7 +344,3 @@
   - Implement CLI flags: `--install-autostart` and `--uninstall-autostart` writing or removing `~/.config/autostart/plus-ultra.desktop`.
   - Implement `ui/splash.py`: startup progress logger (`[1/4] Paths`, `[2/4] Database`, `[3/4] Scheduler`, `[4/4] Ready`).
   - Graceful process termination and single-instance validation across user session logout/login.
-
-
-
-

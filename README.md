@@ -30,19 +30,71 @@ plus-ultra/
 │       │   ├── default-settings.json # Shipped defaults
 │       │   └── metadata.json     # App metadata and versioning
 │       ├── desktop.py            # SingleInstanceLock (fcntl.flock), notifications
-│       ├── ui/                   # Presentation layer (zero direct DB queries)
-│       │   ├── __init__.py       # Package marker
-│       │   ├── floating.py       # Dynamic capsule with animated border beam
-│       │   ├── theme.py          # Geometry tokens and color palettes
-│       │   └── panel.py          # 3-column dashboard window with 6 tabs
 │       ├── notifications.py      # Capsule notification queue & width sizing
-│       ├── db.py                 # SQLite connection, WAL mode, transactions
-│       ├── models.py             # Domain models (Category, Task, Reminder)
-│       ├── repository.py         # Parameterized SQL CRUD & soft delete cascades
-│       ├── services.py           # Pure business logic (Task, Category, Reminder)
+│       ├── models.py             # Strongly typed domain entities
 │       ├── scheduler.py          # Background reminder evaluation thread
-│       └── sync.py               # [Phase 7] Cloud differential sync worker
-├── tests/                        # Automated test suites
+│       ├── sync.py               # [Phase 7] Cloud differential sync worker
+│       ├── db.py                 # Facade re-exporting plus_ultra.database
+│       ├── repository.py         # Facade re-exporting plus_ultra.repositories
+│       ├── database/             # SQLite connection, schema, migrations, seeds
+│       │   ├── __init__.py       # Package marker & public re-exports
+│       │   ├── connection.py     # Connection factory, WAL pragma, transaction CM
+│       │   ├── schema.py         # Schema v1 & v2 SQL statements
+│       │   ├── migrations.py     # Schema version discovery & runner
+│       │   └── seeds.py          # Rich demo seed dataset
+│       ├── repositories/         # Parameterized SQL repositories (1 table per repo)
+│       │   ├── __init__.py       # Package marker & re-exports
+│       │   ├── base.py           # Base helpers & converters
+│       │   ├── app_state_repository.py
+│       │   ├── category_repository.py
+│       │   ├── code_repository.py
+│       │   ├── course_repository.py
+│       │   ├── idea_doubt_repository.py
+│       │   ├── opportunity_repository.py
+│       │   ├── quick_link_repository.py
+│       │   ├── reminder_repository.py
+│       │   └── task_repository.py
+│       ├── services/             # Pure business logic services (decoupled)
+│       │   ├── __init__.py       # Package marker & re-exports
+│       │   ├── category_service.py
+│       │   ├── code_service.py
+│       │   ├── course_service.py
+│       │   ├── idea_doubt_service.py
+│       │   ├── opportunity_service.py
+│       │   ├── quick_link_service.py
+│       │   ├── reminder_service.py
+│       │   └── task_service.py
+│       └── ui/                   # Modular presentation layer (zero direct SQL)
+│           ├── __init__.py       # Package marker
+│           ├── theme.py          # Design tokens, color palettes, fonts
+│           ├── geometry.py       # Mathematical capsule perimeter generator
+│           ├── floating.py       # Dynamic capsule widget with animated beam
+│           ├── panel.py          # Dashboard coordinator window
+│           ├── components/       # Reusable UI widgets
+│           │   ├── __init__.py
+│           │   ├── scrollable.py # Scrollable canvas frame
+│           │   ├── sidebar.py    # Collapsible/tab navigation bar
+│           │   └── notifications_panel.py # Right-hand alert stream
+│           ├── dialogs/          # Modal forms with fixed bottom action bars
+│           │   ├── __init__.py
+│           │   ├── base.py       # Modal centering utility
+│           │   ├── task_dialog.py
+│           │   ├── code_dialog.py
+│           │   ├── course_dialog.py
+│           │   ├── idea_dialog.py
+│           │   ├── opportunity_dialog.py
+│           │   ├── quick_link_dialog.py
+│           │   └── category_dialog.py
+│           └── views/            # Specialized tab content views
+│               ├── __init__.py
+│               ├── tasks_view.py
+│               ├── code_view.py
+│               ├── courses_view.py
+│               ├── ideas_view.py
+│               ├── opportunities_view.py
+│               ├── quick_links_view.py
+│               └── settings_view.py
+├── tests/                        # Automated test suites (81 tests, 100% pass)
 │   ├── test_config.py            # XDG paths, fallback, permissions, metadata
 │   ├── test_settings.py          # Settings validation, atomic write, quarantine
 │   ├── test_desktop.py           # Advisory locking, notify-send, PID tracking

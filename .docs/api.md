@@ -235,27 +235,108 @@ This document records public APIs, module interfaces, and command-line entry poi
 - `CodeService`:
   - `list_items(category=None, search_query=None) -> list[CodeItem]`
   - `create_item(...) -> CodeItem`
+  - `update_code_item(item_id: str, ...) -> bool`
   - `toggle_done(item_id: str) -> bool`
   - `soft_delete_item(item_id: str) -> bool`
 - `CourseService`:
   - `list_courses(platform=None, search_query=None) -> list[Course]`
   - `create_course(...) -> Course`
+  - `update_course(course_id: str, ...) -> bool`
   - `increment_module(course_id: str) -> bool`
   - `soft_delete_course(course_id: str) -> bool`
 - `IdeaDoubtService`:
   - `list_items(kind=None, status=None, search_query=None) -> list[IdeaDoubt]`
   - `create_item(...) -> IdeaDoubt`
+  - `update_idea_doubt(item_id: str, ...) -> bool`
   - `advance_status(item_id: str) -> bool`: Cycles through standard stages or resolves doubts.
   - `soft_delete_item(item_id: str) -> bool`
 - `OpportunityService`:
   - `list_opportunities(kind=None, status=None, search_query=None) -> list[Opportunity]`
   - `create_opportunity(...) -> Opportunity`
+  - `update_opportunity(opp_id: str, ...) -> bool`
   - `advance_status(opp_id: str) -> bool`: Advances Saved -> Applied -> In Progress -> Accepted.
   - `soft_delete_opportunity(opp_id: str) -> bool`
 - `QuickLinkService`:
   - `list_links(category=None, search_query=None) -> list[QuickLink]`
   - `create_link(name: str, target_uri: str, category: str) -> QuickLink`
+  - `update_quick_link(link_id: str, ...) -> bool`
   - `record_click(link_id: str) -> bool`: Increments click count.
   - `soft_delete_link(link_id: str) -> bool`
 
+### `plus_ultra.ui`
+- `CapsuleGeometry`: Doubled dimensions `width=320, height=72, radius=36, top_offset=16`.
+- `FloatingWidget`: Double size with 56-point beam, orange bell indicator, and dynamic hide/show coordination.
+- `DashboardPanel`:
+  - Card-based modern UI replacing table views.
+  - Explicit Create, Edit, and Delete modal workflows with fixed-bottom confirmation action bars.
+  - Task date and time pickers with optional desktop notification scheduling.
+  - Visibility coordination (`on_open`, `on_close`) withdrawing floating pill while open and restoring on close.
+
+---
+
+## 9. Modular Architecture Subpackages (Architectural Refactoring)
+
+All core modules adhere strictly to single-responsibility decomposition with `<= 500` lines per file.
+
+### `plus_ultra.database`
+Subpackage encapsulating SQLite engine, migrations, and seed data:
+- `connection.py`:
+  - `get_connection(db_path: Path | None = None) -> sqlite3.Connection`: Configures WAL mode, 5s busy timeout, foreign keys, row factory.
+  - `transaction(conn: sqlite3.Connection) -> ContextManager[sqlite3.Cursor]`: ACID transaction manager with commit/rollback.
+- `schema.py`:
+  - `CURRENT_SCHEMA_VERSION: int = 2`
+  - `SCHEMA_V1_STATEMENTS: tuple[str, ...]`
+  - `SCHEMA_V2_STATEMENTS: tuple[str, ...]`
+- `migrations.py`:
+  - `get_schema_version(conn: sqlite3.Connection) -> int`
+  - `set_schema_version(conn: sqlite3.Connection, version: int) -> None`
+  - `init_db(conn: sqlite3.Connection) -> None`
+- `seeds.py`:
+  - `seed_demo_workspace_data(conn: sqlite3.Connection) -> None`
+- `db.py`: Backward-compatible facade re-exporting symbols from `plus_ultra.database`.
+
+### `plus_ultra.repositories`
+Subpackage containing isolated single-table data access repositories:
+- `base.py`: `_now_utc() -> str`
+- `CategoryRepository`: CRUD and soft-deletes for categories.
+- `TaskRepository`: CRUD, soft-deletes, and filter queries for tasks.
+- `ReminderRepository`: CRUD and due-reminder queries.
+- `AppStateRepository`: Runtime key-value state persistence (`get_state`, `set_state`).
+- `CodeRepository`: CRUD, language filter, and done-toggle for code items.
+- `CourseRepository`: CRUD, platform filter, and module progress increments.
+- `IdeaDoubtRepository`: CRUD, kind/status filters, and lifecycle advancement.
+- `OpportunityRepository`: CRUD, kind/status filters, and application pipeline advancement.
+- `QuickLinkRepository`: CRUD, category filter, and click count recording.
+- `repository.py`: Backward-compatible facade re-exporting all repositories and model mapping helpers.
+
+### `plus_ultra.services`
+Subpackage providing decoupled business logic:
+- `TaskService`: Validates constraints, status transitions, search queries.
+- `CategoryService`: Manages categories, cascades soft-delete task nullifications.
+- `ReminderService`: Enforces reminder creation constraints and atomic firing records.
+- `CodeService`: Code snippet search, category filtering, completion toggling.
+- `CourseService`: Course module progress incrementation and tracking.
+- `IdeaDoubtService`: Idea stage progression and doubt resolution.
+- `OpportunityService`: Application pipeline status progression.
+- `QuickLinkService`: Link registry and access count updates.
+
+### `plus_ultra.ui.components`
+Reusable presentation components:
+- `ScrollableFrame`: Canvas-backed scrollable container with mousewheel bindings.
+- `Sidebar`: 3-section tab navigation with active state styling.
+- `NotificationsPanel`: Collapsible right-hand notification stream with clear/read actions.
+
+### `plus_ultra.ui.dialogs`
+Centering modal dialogs with fixed bottom confirmation bars:
+- `center_modal(dialog: tk.Toplevel, parent: tk.Misc, width: int, height: int)`
+- `TaskDialog`, `CodeDialog`, `CourseDialog`, `IdeaDialog`, `OpportunityDialog`, `QuickLinkDialog`, `CategoryDialog`.
+
+### `plus_ultra.ui.views`
+Decoupled workspace tab views:
+- `TasksView`, `CodeView`, `CoursesView`, `IdeasView`, `OpportunitiesView`, `QuickLinksView`, `SettingsView`.
+
+### `plus_ultra.ui.geometry`
+Mathematical capsule coordinate calculations:
+- `generate_capsule_points(width, height, radius, steps_per_corner=12) -> list[int]`
+- `generate_perimeter_path(width, height, radius, total_points=56) -> list[tuple[float, float]]`
 

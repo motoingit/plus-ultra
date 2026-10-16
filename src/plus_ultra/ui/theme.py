@@ -12,12 +12,12 @@ from typing import NamedTuple
 class CapsuleGeometry(NamedTuple):
     """Dimensions for the top-center floating capsule."""
 
-    min_width: int = 160
-    width: int = 160
-    max_width: int = 440
-    height: int = 36
-    radius: int = 18
-    top_offset: int = 12
+    min_width: int = 320
+    width: int = 320
+    max_width: int = 880
+    height: int = 72
+    radius: int = 36
+    top_offset: int = 16
 
 
 class CapsuleTheme(NamedTuple):
@@ -43,7 +43,7 @@ class CapsuleTheme(NamedTuple):
     popup_border: str = "#2b3448"
     popup_text: str = "#f8fafc"
     font_family: str = "helvetica"
-    font_size: int = 9
+    font_size: int = 13
 
 
 GEOMETRY = CapsuleGeometry()

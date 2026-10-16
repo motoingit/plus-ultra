@@ -25,12 +25,12 @@ from plus_ultra.ui.theme import GEOMETRY, THEME
 
 def test_theme_and_geometry_defaults() -> None:
     """Verify default styling tokens for the floating capsule."""
-    assert GEOMETRY.min_width == 160
-    assert GEOMETRY.max_width == 440
-    assert GEOMETRY.width == 160
-    assert GEOMETRY.height == 36
-    assert GEOMETRY.radius == 18
-    assert GEOMETRY.top_offset == 12
+    assert GEOMETRY.min_width == 320
+    assert GEOMETRY.max_width == 880
+    assert GEOMETRY.width == 320
+    assert GEOMETRY.height == 72
+    assert GEOMETRY.radius == 36
+    assert GEOMETRY.top_offset == 16
 
     assert THEME.hover_border == "#00e5ff"
     assert THEME.idle_border == "#2b3448"
@@ -42,18 +42,18 @@ def test_theme_and_geometry_defaults() -> None:
 
 def test_capsule_points_and_perimeter_generators() -> None:
     """Verify mathematical capsule point and perimeter generation."""
-    points = generate_capsule_points(160, 36, 18, steps=16)
+    points = generate_capsule_points(320, 72, 36, steps=16)
     assert len(points) > 20
     xs = points[0::2]
     ys = points[1::2]
-    assert min(xs) >= 0.0 and max(xs) <= 160.0
-    assert min(ys) >= 0.0 and max(ys) <= 36.0
+    assert min(xs) >= 0.0 and max(xs) <= 320.0
+    assert min(ys) >= 0.0 and max(ys) <= 72.0
 
-    path = generate_perimeter_path(160, 36, 18)
+    path = generate_perimeter_path(320, 72, 36)
     assert len(path) > 50
     for px, py in path:
-        assert 0.0 <= px <= 160.0
-        assert 0.0 <= py <= 36.0
+        assert 0.0 <= px <= 320.0
+        assert 0.0 <= py <= 72.0
 
 
 def test_floating_widget_creation_and_click() -> None:

@@ -183,12 +183,15 @@ def main(argv: list[str] | None = None) -> int:
             task_service=task_service,
             category_service=cat_service,
             notification_queue=widget.notifications,
+            reminder_service=rem_service,
             code_service=code_service,
             course_service=course_service,
             idea_doubt_service=idea_service,
             opportunity_service=opp_service,
             quick_link_service=link_service,
             on_notifications_cleared=widget._update_bell_state,
+            on_open=widget.root.withdraw,
+            on_close=widget.root.deiconify,
         )
         widget.on_click_callback = dashboard.toggle
 
