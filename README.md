@@ -6,7 +6,7 @@ A user-facing floating desktop assistant for Ubuntu (GNOME on Wayland) engineere
 
 # Project Folder Structure
 
-PLUS-ULTRA enforces a strict 3-layer decoupled architecture (`ui/` -> `services/` -> `repository/`, `db.py`) to isolate presentation from business logic and SQLite persistence:
+PLUS-ULTRA enforces a strict 3-layer decoupled architecture (`ui/` -> `services/` -> `repositories/`, `database/`) to isolate presentation from business logic and SQLite persistence:
 
 ```text
 plus-ultra/
@@ -34,8 +34,6 @@ plus-ultra/
 │       ├── models.py             # Strongly typed domain entities
 │       ├── scheduler.py          # Background reminder evaluation thread
 │       ├── sync.py               # [Phase 7] Cloud differential sync worker
-│       ├── db.py                 # Facade re-exporting plus_ultra.database
-│       ├── repository.py         # Facade re-exporting plus_ultra.repositories
 │       ├── database/             # SQLite connection, schema, migrations, seeds
 │       │   ├── __init__.py       # Package marker & public re-exports
 │       │   ├── connection.py     # Connection factory, WAL pragma, transaction CM

@@ -293,7 +293,6 @@ Subpackage encapsulating SQLite engine, migrations, and seed data:
   - `init_db(conn: sqlite3.Connection) -> None`
 - `seeds.py`:
   - `seed_demo_workspace_data(conn: sqlite3.Connection) -> None`
-- `db.py`: Backward-compatible facade re-exporting symbols from `plus_ultra.database`.
 
 ### `plus_ultra.repositories`
 Subpackage containing isolated single-table data access repositories:
@@ -307,7 +306,6 @@ Subpackage containing isolated single-table data access repositories:
 - `IdeaDoubtRepository`: CRUD, kind/status filters, and lifecycle advancement.
 - `OpportunityRepository`: CRUD, kind/status filters, and application pipeline advancement.
 - `QuickLinkRepository`: CRUD, category filter, and click count recording.
-- `repository.py`: Backward-compatible facade re-exporting all repositories and model mapping helpers.
 
 ### `plus_ultra.services`
 Subpackage providing decoupled business logic:

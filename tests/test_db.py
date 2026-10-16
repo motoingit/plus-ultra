@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from plus_ultra.db import (
+from plus_ultra.database import (
     CURRENT_SCHEMA_VERSION,
     get_connection,
     get_schema_version,

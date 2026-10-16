@@ -302,12 +302,10 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
   - [x] `migrations.py` (52 lines): Version lookup and schema runner.
   - [x] `seeds.py` (404 lines): Workspace seed dataset.
   - [x] `__init__.py` (32 lines): Public symbol re-exports.
-  - [x] `db.py` (30 lines): Thin backward-compatible facade.
 - [x] Stage 2: Decompose repositories package (`src/plus_ultra/repositories/`):
   - [x] `base.py` (10 lines): Common UTC timestamp utilities.
   - [x] 9 Single-table repositories: `category_repository.py` (118 lines), `task_repository.py` (217 lines), `reminder_repository.py` (117 lines), `app_state_repository.py` (51 lines), `code_repository.py` (194 lines), `course_repository.py` (195 lines), `idea_doubt_repository.py` (181 lines), `opportunity_repository.py` (196 lines), `quick_link_repository.py` (152 lines).
   - [x] `__init__.py` (62 lines): Re-exports all repositories and row converters.
-  - [x] `repository.py` (48 lines): Thin backward-compatible facade.
 - [x] Stage 3: Decompose services package (`src/plus_ultra/services/`):
   - [x] 8 Pure domain services: `task_service.py` (169 lines), `category_service.py` (48 lines), `reminder_service.py` (59 lines), `code_service.py` (85 lines), `course_service.py` (87 lines), `idea_doubt_service.py` (93 lines), `opportunity_service.py` (103 lines), `quick_link_service.py` (73 lines).
   - [x] `__init__.py` (34 lines): Clean package marker and symbol exports.
@@ -327,7 +325,7 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
   - [x] Strict PEP 8 and `<= 80` characters line limit enforced.
 
 ### Issues & Status:
-- **Module and directory name collisions**: Having both `foo.py` and directory `foo/` causes Python import ambiguities. Resolved cleanly by creating `src/plus_ultra/database/` and `src/plus_ultra/repositories/` while retaining `db.py` and `repository.py` as lightweight facades. For services, replaced file `services.py` with package directory `services/` directly.
+- **Pre-release Clean Slate & Elimination of Facades**: Because PLUS-ULTRA is in pre-release development, maintaining backward-compatibility shims (`db.py` and `repository.py`) added unnecessary technical debt. Deleted both facades and converted all application modules (`main.py`, `scheduler.py`) and test suites to import directly from `plus_ultra.database` and `plus_ultra.repositories`.
 - **Test attribute delegation**: `tests/test_panel.py` directly exercised attributes of `DashboardPanel` (e.g. `sidebar_col`, `search_entry`, `_filtered_tasks`, `tree.get_children()`). Resolved by implementing property delegates on `DashboardPanel` forwarding to `Sidebar` and `TasksView`, maintaining 100% test compatibility without rewriting tests.
 
 ### Important Notes:

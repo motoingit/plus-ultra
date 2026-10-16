@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from plus_ultra.db import get_connection, init_db
-from plus_ultra.repository import (
+from plus_ultra.database import get_connection, init_db
+from plus_ultra.repositories import (
     CategoryRepository,
     ReminderRepository,
     TaskRepository,

@@ -24,14 +24,14 @@ from plus_ultra.config import (
     get_metadata,
     get_state_dir,
 )
-from plus_ultra.db import (
+from plus_ultra.database import (
     get_connection,
     init_db,
     seed_demo_workspace_data,
 )
 from plus_ultra.desktop import SingleInstanceLock
 from plus_ultra.models import Reminder, Task
-from plus_ultra.repository import (
+from plus_ultra.repositories import (
     AppStateRepository,
     CategoryRepository,
     CodeRepository,

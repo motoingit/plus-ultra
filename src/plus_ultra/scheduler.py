@@ -21,9 +21,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from plus_ultra import desktop, settings
-from plus_ultra.db import get_connection
+from plus_ultra.database import get_connection
 from plus_ultra.models import Reminder, Task
-from plus_ultra.repository import ReminderRepository, TaskRepository
+from plus_ultra.repositories import ReminderRepository, TaskRepository
 from plus_ultra.services import ReminderService
 
 logger = logging.getLogger(__name__)

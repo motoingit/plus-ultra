@@ -16,9 +16,9 @@ import tkinter as tk
 from pathlib import Path
 from typing import Any
 
-from plus_ultra.db import get_connection, init_db
+from plus_ultra.database import get_connection, init_db
 from plus_ultra.notifications import CapsuleNotificationQueue
-from plus_ultra.repository import (
+from plus_ultra.repositories import (
     CategoryRepository,
     CodeRepository,
     CourseRepository,
