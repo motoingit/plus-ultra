@@ -26,15 +26,18 @@ tail -f ~/.local/state/plus-ultra/launcher.log
 uv run pytest -v
 
 # Run targeted test suites
-uv run pytest tests/test_scheduler.py -v
-uv run pytest tests/test_services.py -v
-uv run pytest tests/test_panel.py -v
-uv run pytest tests/test_db.py -v
-uv run pytest tests/test_repository.py -v
-uv run pytest tests/test_desktop.py -v
-uv run pytest tests/test_ui.py -v
-uv run pytest tests/test_config.py -v
-uv run pytest tests/test_settings.py -v
+uv run pytest .tests/test_scheduler.py -v
+uv run pytest .tests/test_services.py -v
+uv run pytest .tests/test_panel.py -v
+uv run pytest .tests/test_db.py -v
+uv run pytest .tests/test_repository.py -v
+uv run pytest .tests/test_desktop.py -v
+uv run pytest .tests/test_ui.py -v
+uv run pytest .tests/test_config.py -v
+uv run pytest .tests/test_settings.py -v
+
+# Standalone demo data seeding
+uv run python .scripts/seeds.py
 ```
 
 ## CLI Test Flags & Headless Validation

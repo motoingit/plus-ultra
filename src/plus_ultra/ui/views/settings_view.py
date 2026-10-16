@@ -7,8 +7,8 @@ from collections.abc import Callable
 from tkinter import messagebox
 
 from plus_ultra import config
-from plus_ultra.database.connection import get_connection
-from plus_ultra.database.seeds import seed_demo_workspace_data
+from plus_ultra.database import get_connection, seed_demo_workspace_data
+from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
 
 
@@ -30,30 +30,42 @@ class SettingsView:
         self._build_ui()
 
     def _build_ui(self) -> None:
-        head_bar = tk.Frame(self.container, bg="#161922", padx=24, pady=20)
+        head_bar = tk.Frame(self.container, bg="#161922", padx=28, pady=24)
         head_bar.pack(fill="x")
 
-        tk.Label(
+        icon = get_icon("fallback", 24)
+        title_lbl = tk.Label(
             head_bar,
-            text="⚙️ Preferences & Diagnostics",
+            text=" Preferences & Diagnostics",
             bg="#161922",
             fg="#f8fafc",
-            font=(self.theme.font_family, 15, "bold"),
-        ).pack(side="left")
+            font=(self.theme.font_family, 16, "bold"),
+            image=icon,
+            compound="left",
+        )
+        title_lbl.image = icon  # type: ignore[attr-defined]
+        title_lbl.pack(side="left")
 
-        content = tk.Frame(self.container, bg="#161922", padx=24)
+        content = tk.Frame(self.container, bg="#161922", padx=28)
         content.pack(fill="both", expand=True)
 
-        card1 = tk.Frame(content, bg="#1c212c", padx=20, pady=16)
-        card1.pack(fill="x", pady=8)
+        card1 = tk.Frame(
+            content,
+            bg="#1c212c",
+            padx=24,
+            pady=20,
+            highlightbackground="#2b3448",
+            highlightthickness=1,
+        )
+        card1.pack(fill="x", pady=10)
 
         tk.Label(
             card1,
             text="Widget Behavior",
             bg="#1c212c",
             fg="#00e5ff",
-            font=(self.theme.font_family, 11, "bold"),
-        ).pack(anchor="w", pady=(0, 8))
+            font=(self.theme.font_family, 13, "bold"),
+        ).pack(anchor="w", pady=(0, 10))
 
         self.topmost_var = tk.BooleanVar(value=True)
         topmost_chk = tk.Checkbutton(
@@ -69,63 +81,78 @@ class SettingsView:
             bd=0,
             highlightthickness=0,
             command=self._toggle_topmost,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11),
         )
-        topmost_chk.pack(anchor="w", pady=2)
+        topmost_chk.pack(anchor="w", pady=4)
 
-        card2 = tk.Frame(content, bg="#1c212c", padx=20, pady=16)
-        card2.pack(fill="x", pady=8)
+        card2 = tk.Frame(
+            content,
+            bg="#1c212c",
+            padx=24,
+            pady=20,
+            highlightbackground="#2b3448",
+            highlightthickness=1,
+        )
+        card2.pack(fill="x", pady=10)
 
         tk.Label(
             card2,
             text="Local Database Status",
             bg="#1c212c",
             fg="#00e5ff",
-            font=(self.theme.font_family, 11, "bold"),
-        ).pack(anchor="w", pady=(0, 8))
+            font=(self.theme.font_family, 13, "bold"),
+        ).pack(anchor="w", pady=(0, 10))
 
         db_path = str(config.get_db_path())
         tk.Label(
             card2,
             text=f"SQLite Store: {db_path}",
             bg="#1c212c",
-            fg="#94a3b8",
-            font=("courier", 9),
+            fg="#cbd5e1",
+            font=("courier", 10),
             anchor="w",
-        ).pack(fill="x", pady=2)
+        ).pack(fill="x", pady=3)
 
         tk.Label(
             card2,
             text="Engine: SQLite 3.12+ WAL Mode (Advisory single-instance)",
             bg="#1c212c",
-            fg="#64748b",
-            font=(self.theme.font_family, 9),
+            fg="#94a3b8",
+            font=(self.theme.font_family, 10),
             anchor="w",
-        ).pack(fill="x", pady=2)
+        ).pack(fill="x", pady=3)
 
-        card3 = tk.Frame(content, bg="#1c212c", padx=20, pady=16)
-        card3.pack(fill="x", pady=8)
+        card3 = tk.Frame(
+            content,
+            bg="#1c212c",
+            padx=24,
+            pady=20,
+            highlightbackground="#2b3448",
+            highlightthickness=1,
+        )
+        card3.pack(fill="x", pady=10)
 
         tk.Label(
             card3,
             text="Developer / Maintenance Actions",
             bg="#1c212c",
             fg="#00e5ff",
-            font=(self.theme.font_family, 11, "bold"),
-        ).pack(anchor="w", pady=(0, 8))
+            font=(self.theme.font_family, 13, "bold"),
+        ).pack(anchor="w", pady=(0, 10))
 
         tk.Button(
             card3,
-            text="🔄 Reseed Demo Data",
+            text="Reseed Demo Data",
             bg="#2b3448",
             fg="#f8fafc",
+            activebackground="#3b475e",
             relief="flat",
             bd=0,
             highlightthickness=0,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11, "bold"),
             cursor="hand2",
-            padx=14,
-            pady=6,
+            padx=18,
+            pady=8,
             command=self.reseed_demo_data,
         ).pack(anchor="w")
 
@@ -148,5 +175,9 @@ class SettingsView:
             )
             if self.on_reseed:
                 self.on_reseed()
-        finally:
-            conn.close()
+        except Exception as exc:
+            messagebox.showerror(
+                "Reseed Error",
+                f"Failed to reseed workspace data: {exc}",
+                parent=self.parent_window,
+            )

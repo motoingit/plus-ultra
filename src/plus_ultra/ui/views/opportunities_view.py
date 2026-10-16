@@ -11,6 +11,7 @@ from plus_ultra.models import Opportunity
 from plus_ultra.services import OpportunityService
 from plus_ultra.ui.components.scrollable import ScrollableFrame
 from plus_ultra.ui.dialogs import OpportunityDialog
+from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
 
 
@@ -35,16 +36,21 @@ class OpportunitiesView:
         self._build_ui()
 
     def _build_ui(self) -> None:
-        head_bar = tk.Frame(self.container, bg="#161922", padx=24, pady=20)
+        head_bar = tk.Frame(self.container, bg="#161922", padx=28, pady=24)
         head_bar.pack(fill="x")
 
-        tk.Label(
+        icon = get_icon("fallback", 24)
+        title_lbl = tk.Label(
             head_bar,
-            text="🚀 Opportunities & Career",
+            text=" Opportunities & Pipeline",
             bg="#161922",
             fg="#f8fafc",
-            font=(self.theme.font_family, 15, "bold"),
-        ).pack(side="left")
+            font=(self.theme.font_family, 16, "bold"),
+            image=icon,
+            compound="left",
+        )
+        title_lbl.image = icon  # type: ignore[attr-defined]
+        title_lbl.pack(side="left")
 
         tk.Button(
             head_bar,
@@ -55,15 +61,15 @@ class OpportunitiesView:
             relief="flat",
             bd=0,
             highlightthickness=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self.open_create_opportunity,
             cursor="hand2",
-            padx=16,
-            pady=6,
+            padx=18,
+            pady=8,
         ).pack(side="right")
 
-        filter_bar = tk.Frame(self.container, bg="#161922", padx=24)
-        filter_bar.pack(fill="x", pady=(0, 12))
+        filter_bar = tk.Frame(self.container, bg="#161922", padx=28)
+        filter_bar.pack(fill="x", pady=(0, 16))
 
         for kind in [
             "All",
@@ -80,17 +86,17 @@ class OpportunitiesView:
                 relief="flat",
                 bd=0,
                 highlightthickness=0,
-                font=(self.theme.font_family, 9, "bold"),
+                font=(self.theme.font_family, 10, "bold"),
                 cursor="hand2",
-                padx=12,
-                pady=5,
+                padx=14,
+                pady=6,
                 command=lambda k=kind: self.set_opp_filter(k),
             )
-            btn.pack(side="left", padx=2)
+            btn.pack(side="left", padx=3)
             self.opp_filter_btns[kind] = btn
 
         self.opps_scroll = ScrollableFrame(self.container, bg="#161922")
-        self.opps_scroll.pack(fill="both", expand=True, padx=24, pady=(0, 16))
+        self.opps_scroll.pack(fill="both", expand=True, padx=28, pady=(0, 20))
 
     def set_opp_filter(self, kind: str) -> None:
         """Update active opportunity type filter and reload cards."""
@@ -117,136 +123,149 @@ class OpportunitiesView:
         opps = self.opportunity_service.list_opportunities(kind=kind)
 
         if not opps:
+            empty_frame = tk.Frame(parent, bg="#161922", pady=48)
+            empty_frame.pack(fill="x")
             tk.Label(
-                parent,
+                empty_frame,
                 text="No opportunities saved in this filter.",
                 bg="#161922",
                 fg="#64748b",
-                font=(self.theme.font_family, 11),
-                pady=40,
+                font=(self.theme.font_family, 12),
             ).pack()
             return
 
         for opp in opps:
-            card = tk.Frame(parent, bg="#1c212c", padx=16, pady=12)
-            card.pack(fill="x", pady=6)
+            self._render_card(parent, opp)
 
-            top = tk.Frame(card, bg="#1c212c")
-            top.pack(fill="x")
+    def _render_card(self, parent: tk.Widget, opp: Opportunity) -> None:
+        card = tk.Frame(
+            parent,
+            bg="#1c212c",
+            padx=24,
+            pady=18,
+            highlightbackground="#2b3448",
+            highlightthickness=1,
+        )
+        card.pack(fill="x", pady=8)
 
-            tk.Label(
-                top,
-                text=f"{opp.title}  •  {opp.organization}",
-                bg="#1c212c",
-                fg="#f8fafc",
-                font=(self.theme.font_family, 12, "bold"),
-                anchor="w",
-            ).pack(side="left", fill="x", expand=True)
+        top = tk.Frame(card, bg="#1c212c")
+        top.pack(fill="x")
 
-            acts = tk.Frame(top, bg="#1c212c")
-            acts.pack(side="right")
+        tk.Label(
+            top,
+            text=f"{opp.title}  |  {opp.organization}",
+            bg="#1c212c",
+            fg="#f8fafc",
+            font=(self.theme.font_family, 14, "bold"),
+            anchor="w",
+        ).pack(side="left", fill="x", expand=True)
 
-            st_colors = {
-                "Saved": ("#1e2433", "#94a3b8"),
-                "Applied": ("#1e2433", "#00e5ff"),
-                "In Progress": ("#452a10", "#fbbf24"),
-                "Accepted": ("#064e3b", "#34d399"),
-                "Rejected": ("#451a1a", "#f87171"),
-            }
-            bg_s, fg_s = st_colors.get(opp.status, ("#1e2433", "#94a3b8"))
+        acts = tk.Frame(top, bg="#1c212c")
+        acts.pack(side="right")
+
+        st_colors = {
+            "Saved": ("#1e2433", "#94a3b8"),
+            "Applied": ("#1e2433", "#00e5ff"),
+            "In Progress": ("#452a10", "#fbbf24"),
+            "Accepted": ("#064e3b", "#34d399"),
+            "Rejected": ("#451a1a", "#f87171"),
+        }
+        bg_s, fg_s = st_colors.get(opp.status, ("#1e2433", "#94a3b8"))
+        tk.Button(
+            acts,
+            text=f"[{opp.status}]",
+            bg=bg_s,
+            fg=fg_s,
+            activebackground="#2b3448",
+            relief="flat",
+            bd=0,
+            font=(self.theme.font_family, 10, "bold"),
+            cursor="hand2",
+            padx=12,
+            pady=5,
+            command=lambda oid=opp.id: self.advance_opp(oid),
+        ).pack(side="left", padx=4)
+
+        if opp.url:
             tk.Button(
                 acts,
-                text=f"[{opp.status}]",
-                bg=bg_s,
-                fg=fg_s,
-                activebackground="#2b3448",
+                text="Apply Link",
+                bg="#00e5ff",
+                fg="#0a0e17",
+                activebackground="#00b4d8",
                 relief="flat",
                 bd=0,
-                font=(self.theme.font_family, 9, "bold"),
+                font=(self.theme.font_family, 10, "bold"),
                 cursor="hand2",
-                padx=10,
-                pady=3,
-                command=lambda oid=opp.id: self.advance_opp(oid),
-            ).pack(side="left", padx=3)
+                padx=12,
+                pady=5,
+                command=lambda u=opp.url: webbrowser.open(u),
+            ).pack(side="left", padx=4)
 
-            if opp.url:
-                tk.Button(
-                    acts,
-                    text="🔗 Apply",
-                    bg="#00e5ff",
-                    fg="#0a0e17",
-                    relief="flat",
-                    bd=0,
-                    font=(self.theme.font_family, 9, "bold"),
-                    cursor="hand2",
-                    padx=10,
-                    pady=3,
-                    command=lambda u=opp.url: webbrowser.open(u),
-                ).pack(side="left", padx=3)
+        tk.Button(
+            acts,
+            text="Edit",
+            bg="#2b3448",
+            fg="#e2e8f0",
+            activebackground="#3b475e",
+            relief="flat",
+            bd=0,
+            font=(self.theme.font_family, 10),
+            cursor="hand2",
+            padx=12,
+            pady=5,
+            command=lambda o=opp: self.open_edit_opportunity(o),
+        ).pack(side="left", padx=4)
 
-            tk.Button(
-                acts,
-                text="✏️ Edit",
-                bg="#2b3448",
-                fg="#e2e8f0",
-                activebackground="#3b475e",
-                relief="flat",
-                bd=0,
-                font=(self.theme.font_family, 9),
-                cursor="hand2",
-                padx=10,
-                pady=3,
-                command=lambda o=opp: self.open_edit_opportunity(o),
-            ).pack(side="left", padx=3)
+        tk.Button(
+            acts,
+            text="Delete",
+            bg="#3f1d24",
+            fg="#fca5a5",
+            activebackground="#5c2630",
+            relief="flat",
+            bd=0,
+            font=(self.theme.font_family, 10),
+            cursor="hand2",
+            padx=12,
+            pady=5,
+            command=lambda oid=opp.id: self.delete_opp(oid),
+        ).pack(side="left", padx=4)
 
-            tk.Button(
-                acts,
-                text="🗑️ Delete",
-                bg="#3f1d24",
-                fg="#fca5a5",
-                activebackground="#5c2630",
-                relief="flat",
-                bd=0,
-                font=(self.theme.font_family, 9),
-                cursor="hand2",
-                padx=10,
-                pady=3,
-                command=lambda oid=opp.id: self.delete_opp(oid),
-            ).pack(side="left", padx=3)
+        meta_row = tk.Frame(card, bg="#1c212c")
+        meta_row.pack(fill="x", pady=(10, 0))
 
-            meta_row = tk.Frame(card, bg="#1c212c")
-            meta_row.pack(fill="x", pady=(6, 0))
+        tk.Label(
+            meta_row,
+            text=f"[{opp.kind}]",
+            bg="#083344",
+            fg="#22d3ee",
+            font=(self.theme.font_family, 9, "bold"),
+            padx=8,
+            pady=2,
+        ).pack(side="left", padx=(0, 6))
 
+        if opp.deadline:
             tk.Label(
                 meta_row,
-                text=f"🎯 {opp.kind}",
-                bg="#083344",
-                fg="#22d3ee",
-                font=(self.theme.font_family, 8, "bold"),
-                padx=6,
-                pady=1,
-            ).pack(side="left", padx=(0, 6))
+                text=f"Deadline: {opp.deadline}",
+                bg="#1e2433",
+                fg="#fbbf24",
+                font=(self.theme.font_family, 9, "bold"),
+                padx=8,
+                pady=2,
+            ).pack(side="left", padx=4)
 
-            if opp.deadline:
-                tk.Label(
-                    meta_row,
-                    text=f"⏰ Deadline: {opp.deadline}",
-                    bg="#1e2433",
-                    fg="#fbbf24",
-                    font=(self.theme.font_family, 9),
-                    padx=6,
-                    pady=1,
-                ).pack(side="left", padx=6)
-
-            if opp.notes:
-                tk.Label(
-                    card,
-                    text=opp.notes,
-                    bg="#1c212c",
-                    fg="#94a3b8",
-                    font=(self.theme.font_family, 10),
-                    anchor="w",
-                ).pack(fill="x", pady=(4, 0))
+        if opp.notes:
+            tk.Label(
+                card,
+                text=opp.notes,
+                bg="#1c212c",
+                fg="#cbd5e1",
+                font=(self.theme.font_family, 11),
+                anchor="w",
+                justify="left",
+            ).pack(fill="x", pady=(8, 0))
 
     def advance_opp(self, opp_id: str) -> None:
         """Advance opportunity status along its pipeline."""

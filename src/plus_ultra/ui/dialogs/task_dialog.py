@@ -1,20 +1,22 @@
-"""Modal dialog for creating or editing tasks with Date & Time options."""
+"""Modal dialog for creating or editing tasks with interactive Date & Time."""
 
 from __future__ import annotations
 
-import datetime
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import messagebox, ttk
 from typing import Any
 
 from plus_ultra.models import Category, Task
+from plus_ultra.services import CategoryService
+from plus_ultra.ui.components.datetime_picker import DateTimePicker
 from plus_ultra.ui.dialogs.base import center_modal
+from plus_ultra.ui.dialogs.category_dialog import CategoryDialog
 from plus_ultra.ui.theme import THEME, CapsuleTheme
 
 
 class TaskDialog(tk.Toplevel):
-    """Modal dialog for creating or editing tasks with Date & Time options."""
+    """Modal dialog for creating or editing tasks with interactive Date/Time."""
 
     def __init__(
         self,
@@ -23,30 +25,42 @@ class TaskDialog(tk.Toplevel):
         task: Task | None = None,
         on_save: Callable[[dict[str, Any]], None] | None = None,
         theme: CapsuleTheme = THEME,
+        category_service: CategoryService | None = None,
     ) -> None:
         super().__init__(parent)
         self.task = task
-        self.categories = categories
+        self.categories = list(categories)
         self.on_save = on_save
         self.theme = theme
+        self.category_service = category_service
 
         self.title("Edit Task" if task else "Create New Task")
-        self.geometry("560x580")
-        self.minsize(500, 520)
+        self.geometry("680x720")
+        self.minsize(600, 640)
         self.transient(parent)
         self.grab_set()
 
         self._build_ui()
         center_modal(self, parent)
 
+    @property
+    def due_entry(self) -> tk.Entry:
+        """Compatibility property for test assertions."""
+        return self.datetime_picker.entry
+
+    @property
+    def time_entry(self) -> tk.Entry:
+        """Compatibility property for test assertions."""
+        return self.datetime_picker.entry
+
     def _build_ui(self) -> None:
         self.configure(bg="#12151c")
 
-        # 1. FIXED BOTTOM ACTION BAR (Guaranteed Visible)
-        footer = tk.Frame(self, bg="#0d1117", padx=24, pady=16)
+        # 1. FIXED BOTTOM ACTION BAR
+        footer = tk.Frame(self, bg="#0d1117", padx=28, pady=18)
         footer.pack(side="bottom", fill="x")
 
-        save_label = "✓ Update Task" if self.task else "✓ Create Task"
+        save_label = "Update Task" if self.task else "Create Task"
         save_btn = tk.Button(
             footer,
             text=save_label,
@@ -56,23 +70,23 @@ class TaskDialog(tk.Toplevel):
             relief="flat",
             bd=0,
             highlightthickness=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self._handle_save,
             cursor="hand2",
-            padx=18,
-            pady=8,
+            padx=20,
+            pady=10,
         )
         save_btn.pack(side="right", padx=(10, 0))
 
         cancel_btn = tk.Button(
             footer,
-            text="✕ Cancel",
+            text="Cancel",
             bg="#2b3448",
             fg="#e2e8f0",
             relief="flat",
             bd=0,
             highlightthickness=0,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11),
             command=self.destroy,
             cursor="hand2",
             padx=14,
@@ -117,9 +131,14 @@ class TaskDialog(tk.Toplevel):
             fg="#94a3b8",
             font=(self.theme.font_family, 10),
         ).pack(anchor="w")
-        cat_names = [c.name for c in self.categories] or ["General"]
+
+        cat_input_row = tk.Frame(cat_box, bg="#12151c")
+        cat_input_row.pack(fill="x", pady=(4, 0))
+
         self.cat_combo = ttk.Combobox(
-            cat_box, values=cat_names, state="readonly"
+            cat_input_row,
+            values=self._get_cat_values(),
+            state="readonly",
         )
         cur_cat = "General"
         if self.task and self.task.category_id:
@@ -128,7 +147,25 @@ class TaskDialog(tk.Toplevel):
                     cur_cat = c.name
                     break
         self.cat_combo.set(cur_cat)
-        self.cat_combo.pack(fill="x", pady=(4, 0))
+        self.cat_combo.pack(side="left", fill="x", expand=True)
+        self.cat_combo.bind("<<ComboboxSelected>>", self._on_cat_selected)
+
+        # Quick inline add category button
+        add_cat_btn = tk.Button(
+            cat_input_row,
+            text="+",
+            bg="#1e2433",
+            fg="#00e5ff",
+            activebackground="#2b3448",
+            relief="flat",
+            bd=0,
+            font=(self.theme.font_family, 10, "bold"),
+            cursor="hand2",
+            padx=8,
+            pady=2,
+            command=self._prompt_new_category,
+        )
+        add_cat_btn.pack(side="left", padx=(6, 0))
 
         prio_box = tk.Frame(r1, bg="#12151c")
         prio_box.pack(side="right", fill="x", expand=True, padx=(8, 0))
@@ -145,7 +182,7 @@ class TaskDialog(tk.Toplevel):
         self.prio_combo.set(self.task.critical_level if self.task else "Medium")
         self.prio_combo.pack(fill="x", pady=(4, 0))
 
-        # Row 2: Pace & Due Date
+        # Row 2: Pace
         r2 = tk.Frame(body, bg="#12151c")
         r2.pack(fill="x", pady=(0, 12))
 
@@ -164,94 +201,34 @@ class TaskDialog(tk.Toplevel):
         self.pace_combo.set(self.task.pace_level if self.task else "Short-term")
         self.pace_combo.pack(fill="x", pady=(4, 0))
 
-        due_box = tk.Frame(r2, bg="#12151c")
-        due_box.pack(side="right", fill="x", expand=True, padx=(8, 0))
+        # Row 3: Interactive Date & Time Picker
+        due_section = tk.Frame(body, bg="#12151c")
+        due_section.pack(fill="x", pady=(0, 12))
+
         tk.Label(
-            due_box,
-            text="Due Date (YYYY-MM-DD)",
+            due_section,
+            text="Due Date & Time (Interactive Presets & 'Now')",
             bg="#12151c",
             fg="#94a3b8",
             font=(self.theme.font_family, 10),
         ).pack(anchor="w")
-        self.due_entry = tk.Entry(
-            due_box,
-            bg="#1c212c",
-            fg="#f8fafc",
-            relief="flat",
-            font=(self.theme.font_family, 11),
-        )
-        self.due_entry.pack(fill="x", pady=(4, 0), ipady=4)
 
-        # Parse existing due date and time
-        existing_date = ""
-        existing_time = ""
+        init_due = ""
         if self.task and self.task.due_date:
-            parts = self.task.due_date.strip().split()
-            existing_date = parts[0]
-            if len(parts) > 1:
-                existing_time = parts[1]
-            self.due_entry.insert(0, existing_date)
-
-        # Row 3: Due Time Option & Quick Presets
-        r3 = tk.Frame(body, bg="#12151c")
-        r3.pack(fill="x", pady=(0, 12))
-
-        time_box = tk.Frame(r3, bg="#12151c")
-        time_box.pack(side="left", fill="x", expand=True, padx=(0, 8))
-        tk.Label(
-            time_box,
-            text="Due Time (HH:MM optional)",
-            bg="#12151c",
-            fg="#94a3b8",
-            font=(self.theme.font_family, 10),
-        ).pack(anchor="w")
-        self.time_entry = tk.Entry(
-            time_box,
-            bg="#1c212c",
-            fg="#f8fafc",
-            relief="flat",
-            font=(self.theme.font_family, 11),
+            init_due = self.task.due_date
+        self.datetime_picker = DateTimePicker(
+            due_section,
+            initial_value=init_due,
+            include_time=True,
+            theme=self.theme,
         )
-        self.time_entry.pack(fill="x", pady=(4, 0), ipady=4)
-        if existing_time:
-            self.time_entry.insert(0, existing_time)
-
-        quick_box = tk.Frame(r3, bg="#12151c")
-        quick_box.pack(side="right", fill="x", expand=True, padx=(8, 0))
-        tk.Label(
-            quick_box,
-            text="Quick Time Presets",
-            bg="#12151c",
-            fg="#64748b",
-            font=(self.theme.font_family, 9),
-        ).pack(anchor="w")
-        preset_row = tk.Frame(quick_box, bg="#12151c")
-        preset_row.pack(fill="x", pady=(4, 0))
-        for p_label, p_time in [
-            ("09:00", "09:00"),
-            ("14:00", "14:00"),
-            ("18:00", "18:00"),
-            ("23:59", "23:59"),
-        ]:
-            tk.Button(
-                preset_row,
-                text=p_label,
-                bg="#1c212c",
-                fg="#94a3b8",
-                relief="flat",
-                bd=0,
-                font=(self.theme.font_family, 8),
-                cursor="hand2",
-                padx=6,
-                pady=2,
-                command=lambda t=p_time: self._set_quick_time(t),
-            ).pack(side="left", padx=2)
+        self.datetime_picker.pack(fill="x", pady=(4, 0))
 
         # Row 4: Reminder Checkbox
         self.remind_var = tk.BooleanVar(value=True)
         rem_chk = tk.Checkbutton(
             body,
-            text="⏰ Schedule desktop notification at Due Date/Time",
+            text="Schedule desktop notification at Due Date/Time",
             variable=self.remind_var,
             bg="#12151c",
             fg="#f8fafc",
@@ -284,13 +261,36 @@ class TaskDialog(tk.Toplevel):
         if self.task and self.task.description:
             self.desc_text.insert("1.0", self.task.description)
 
-    def _set_quick_time(self, time_str: str) -> None:
-        self.time_entry.delete(0, tk.END)
-        self.time_entry.insert(0, time_str)
-        # If date is empty, default to today
-        if not self.due_entry.get().strip():
-            today_str = datetime.date.today().isoformat()
-            self.due_entry.insert(0, today_str)
+    def _get_cat_values(self) -> list[str]:
+        names = [c.name for c in self.categories] or ["General"]
+        return names + ["+ Add New Category..."]
+
+    def _on_cat_selected(self, _event: tk.Event) -> None:
+        if self.cat_combo.get() == "+ Add New Category...":
+            self._prompt_new_category()
+
+    def _prompt_new_category(self) -> None:
+        if self.category_service:
+            CategoryDialog(
+                self,
+                category_service=self.category_service,
+                on_success=self._on_category_created,
+                theme=self.theme,
+            )
+        else:
+            messagebox.showinfo(
+                "Category Service",
+                "Category service unavailable.",
+                parent=self,
+            )
+
+    def _on_category_created(self) -> None:
+        if self.category_service:
+            self.categories = self.category_service.list_categories()
+            new_vals = self._get_cat_values()
+            self.cat_combo.configure(values=new_vals)
+            if self.categories:
+                self.cat_combo.set(self.categories[-1].name)
 
     def _handle_save(self) -> None:
         title = self.title_entry.get().strip()
@@ -307,11 +307,7 @@ class TaskDialog(tk.Toplevel):
                 cat_id = c.id
                 break
 
-        due_date_val = self.due_entry.get().strip()
-        due_time_val = self.time_entry.get().strip()
-        full_due_str = due_date_val
-        if due_date_val and due_time_val:
-            full_due_str = f"{due_date_val} {due_time_val}"
+        full_due_str = self.datetime_picker.get_value()
 
         payload = {
             "title": title,

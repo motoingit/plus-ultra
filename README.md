@@ -18,6 +18,9 @@ plus-ultra/
 │   ├── features.md               # 6-tab workspace & sub-section specs
 │   └── progress-log.md           # Chronological development log
 ├── .env.sample                   # Sample secrets template (Supabase public key)
+├── .scripts/                      # Standalone maintenance and seed utilities
+│   ├── __init__.py               # Scripts package marker
+│   └── seeds.py                  # Demo seed dataset & standalone CLI
 ├── pyproject.toml                # Project packaging, CLI script, ruff & pytest
 ├── README.md                     # Overview, structure, tech stack, and deps
 ├── src/
@@ -26,20 +29,24 @@ plus-ultra/
 │       ├── config.py             # XDG base directories, mode 0o700 permissions
 │       ├── main.py               # Bootstrap, logging, locks, signal handling
 │       ├── settings.py           # Atomic JSON settings engine (mode 0o600)
-│       ├── resources/            # Packaged read-only static resources
-│       │   ├── default-settings.json # Shipped defaults
-│       │   └── metadata.json     # App metadata and versioning
+│       ├── resources/            # Packaged static assets
+│       │   ├── data/             # Packaged metadata and default configurations
+│       │   │   ├── default-settings.json # Shipped defaults
+│       │   │   └── metadata.json # App metadata and versioning
+│       │   └── icons/            # Packaged raster/vector iconography
+│       │       ├── fallback.png  # Master raster icon asset
+│       │       └── fallback.svg  # Master vector artwork
 │       ├── desktop.py            # SingleInstanceLock (fcntl.flock), notifications
+│       ├── network.py            # Thread-safe connectivity probe & status monitor
 │       ├── notifications.py      # Capsule notification queue & width sizing
 │       ├── models.py             # Strongly typed domain entities
 │       ├── scheduler.py          # Background reminder evaluation thread
 │       ├── sync.py               # [Phase 7] Cloud differential sync worker
-│       ├── database/             # SQLite connection, schema, migrations, seeds
+│       ├── database/             # SQLite connection, schema, migrations
 │       │   ├── __init__.py       # Package marker & public re-exports
 │       │   ├── connection.py     # Connection factory, WAL pragma, transaction CM
 │       │   ├── schema.py         # Schema v1 & v2 SQL statements
-│       │   ├── migrations.py     # Schema version discovery & runner
-│       │   └── seeds.py          # Rich demo seed dataset
+│       │   └── migrations.py     # Schema version discovery & runner
 │       ├── repositories/         # Parameterized SQL repositories (1 table per repo)
 │       │   ├── __init__.py       # Package marker & re-exports
 │       │   ├── base.py           # Base helpers & converters
@@ -64,36 +71,40 @@ plus-ultra/
 │       │   └── task_service.py
 │       └── ui/                   # Modular presentation layer (zero direct SQL)
 │           ├── __init__.py       # Package marker
+│           ├── icons.py          # Pure Tkinter PhotoImage caching & scaling
 │           ├── theme.py          # Design tokens, color palettes, fonts
 │           ├── geometry.py       # Mathematical capsule perimeter generator
-│           ├── floating.py       # Dynamic capsule widget with animated beam
-│           ├── panel.py          # Dashboard coordinator window
+│           ├── floating.py       # Dynamic capsule widget with auto-expansion
+│           ├── panel.py          # Dashboard coordinator window with PanedWindow
 │           ├── components/       # Reusable UI widgets
 │           │   ├── __init__.py
+│           │   ├── datetime_picker.py # Interactive DateTimePicker with Now & presets
 │           │   ├── scrollable.py # Scrollable canvas frame
-│           │   ├── sidebar.py    # Collapsible/tab navigation bar
-│           │   └── notifications_panel.py # Right-hand alert stream
-│           ├── dialogs/          # Modal forms with fixed bottom action bars
+│           │   ├── sidebar.py    # Draggable tab navigation bar with network badge
+│           │   └── notifications_panel.py # Right drawer (Alerts & Network status)
+│           ├── dialogs/          # Modal forms with generous dimensions
 │           │   ├── __init__.py
 │           │   ├── base.py       # Modal centering utility
-│           │   ├── task_dialog.py
-│           │   ├── code_dialog.py
+│           │   ├── task_dialog.py # Interactive DateTimePicker & inline categories
+│           │   ├── code_dialog.py # Predefined language dropdown
 │           │   ├── course_dialog.py
 │           │   ├── idea_dialog.py
-│           │   ├── opportunity_dialog.py
+│           │   ├── opportunity_dialog.py # Reusable DateTimePicker deadline
 │           │   ├── quick_link_dialog.py
 │           │   └── category_dialog.py
-│           └── views/            # Specialized tab content views
+│           └── views/            # Specialized tab content views (2x cards)
 │               ├── __init__.py
-│               ├── tasks_view.py
-│               ├── code_view.py
+│               ├── tasks_view.py # Tasks view
+│               ├── code_view.py  # Code c-p workspace
+│               ├── dsa_view.py   # Dedicated DSA Problem Tracker view
 │               ├── courses_view.py
-│               ├── ideas_view.py
+│               ├── ideas_view.py # PS/I dual subtabs (Ideas & Doubts)
 │               ├── opportunities_view.py
 │               ├── quick_links_view.py
 │               └── settings_view.py
-├── tests/                        # Automated test suites (81 tests, 100% pass)
+├── .tests/                       # Automated test suites (88 tests, 100% pass)
 │   ├── test_config.py            # XDG paths, fallback, permissions, metadata
+│   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, dynamic capsule
 │   ├── test_settings.py          # Settings validation, atomic write, quarantine
 │   ├── test_desktop.py           # Advisory locking, notify-send, PID tracking
 │   ├── test_notifications.py     # Queue management and popup sizing

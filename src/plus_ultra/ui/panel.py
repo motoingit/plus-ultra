@@ -42,6 +42,7 @@ from plus_ultra.ui.theme import THEME, CapsuleTheme
 from plus_ultra.ui.views import (
     CodeView,
     CoursesView,
+    DSAView,
     IdeasView,
     OpportunitiesView,
     QuickLinksView,
@@ -55,6 +56,7 @@ __all__ = [
     "CategoryDialog",
     "CodeDialog",
     "CourseDialog",
+    "DSAView",
     "DashboardPanel",
     "IdeaDialog",
     "OpportunityDialog",
@@ -117,8 +119,8 @@ class DashboardPanel(tk.Toplevel):
         self.tree = TreeCompatibilityFacade(self)
 
         self.title("PLUS-ULTRA Workspace")
-        self.geometry("1280x800")
-        self.minsize(1060, 680)
+        self.geometry("1380x840")
+        self.minsize(1000, 640)
         self.configure(bg="#0f1218")
         self.protocol("WM_DELETE_WINDOW", self.hide)
         self.bind("<Escape>", lambda _e: self.hide())
@@ -145,29 +147,35 @@ class DashboardPanel(tk.Toplevel):
         self.main_container = tk.Frame(self, bg="#0f1218")
         self.main_container.pack(fill="both", expand=True)
 
-        # 1. Left Sidebar (250px)
-        self.sidebar_col = tk.Frame(
-            self.main_container, bg="#12151c", width=250
+        self.paned_window = tk.PanedWindow(
+            self.main_container,
+            orient="horizontal",
+            bg="#2b3448",
+            sashrelief="ridge",
+            sashwidth=6,
+            bd=0,
         )
-        self.sidebar_col.pack(side="left", fill="y")
-        self.sidebar_col.pack_propagate(False)
+        self.paned_window.pack(fill="both", expand=True)
+
+        # 1. Left Sidebar (Adjustable with minsize=180)
+        self.sidebar_col = tk.Frame(self.paned_window, bg="#12151c", width=280)
         self.sidebar = Sidebar(
             self.sidebar_col,
             self.theme,
             on_switch_tab=self._switch_tab,
             on_close=self.hide,
         )
+        self.paned_window.add(self.sidebar_col, minsize=180, width=280)
 
-        # 2. Right Notification Stream (280px)
-        self.notif_col = tk.Frame(self.main_container, bg="#12151c", width=280)
-        self.notif_col.pack(side="right", fill="y")
-        self.notif_col.pack_propagate(False)
-        self._build_notifications_panel()
-
-        # 3. Center Workspace Area
-        self.center_col = tk.Frame(self.main_container, bg="#161922")
-        self.center_col.pack(side="left", fill="both", expand=True)
+        # 2. Center Workspace Area (Adjustable with minsize=400)
+        self.center_col = tk.Frame(self.paned_window, bg="#161922")
         self._build_all_tab_containers()
+        self.paned_window.add(self.center_col, minsize=400)
+
+        # 3. Right Notification Stream (Adjustable with minsize=100)
+        self.notif_col = tk.Frame(self.paned_window, bg="#12151c", width=280)
+        self._build_notifications_panel()
+        self.paned_window.add(self.notif_col, minsize=100, width=280)
 
     @property
     def tab_buttons(self) -> dict[str, tk.Button]:
@@ -199,35 +207,42 @@ class DashboardPanel(tk.Toplevel):
         )
         self.tab_containers["Code"] = self.code_container
 
-        # 3. Courses
+        # 3. DSA Problem Tracker
+        self.dsa_container = tk.Frame(self.center_col, bg="#161922")
+        self.dsa_view = DSAView(
+            self.dsa_container, self, self.code_service, self.theme
+        )
+        self.tab_containers["DSA"] = self.dsa_container
+
+        # 4. Courses
         self.courses_container = tk.Frame(self.center_col, bg="#161922")
         self.courses_view = CoursesView(
             self.courses_container, self, self.course_service, self.theme
         )
         self.tab_containers["Courses"] = self.courses_container
 
-        # 4. Ideas-Doubt
+        # 5. Ideas-Doubt
         self.ideas_container = tk.Frame(self.center_col, bg="#161922")
         self.ideas_view = IdeasView(
             self.ideas_container, self, self.idea_doubt_service, self.theme
         )
         self.tab_containers["Ideas-Doubt"] = self.ideas_container
 
-        # 5. Opportunities
+        # 6. Opportunities
         self.opps_container = tk.Frame(self.center_col, bg="#161922")
         self.opps_view = OpportunitiesView(
             self.opps_container, self, self.opportunity_service, self.theme
         )
         self.tab_containers["Opportunities"] = self.opps_container
 
-        # 6. Quick Links
+        # 7. Quick Links
         self.links_container = tk.Frame(self.center_col, bg="#161922")
         self.links_view = QuickLinksView(
             self.links_container, self, self.quick_link_service, self.theme
         )
         self.tab_containers["Quick Links"] = self.links_container
 
-        # 7. Settings
+        # 8. Settings
         self.settings_container = tk.Frame(self.center_col, bg="#161922")
         self.settings_view = SettingsView(
             self.settings_container,
@@ -245,6 +260,8 @@ class DashboardPanel(tk.Toplevel):
             self.notification_queue,
             self.theme,
             self.on_notifications_cleared,
+            code_service=self.code_service,
+            parent_window=self,
         )
 
     # -------------------------------------------------------------------------
@@ -291,7 +308,10 @@ class DashboardPanel(tk.Toplevel):
         self.code_view.refresh()
 
     def _toggle_dsa_done(self, item_id: str) -> None:
-        self.code_view.toggle_dsa_done(item_id)
+        self.dsa_view.toggle_dsa_done(item_id)
+
+    def _refresh_dsa(self) -> None:
+        self.dsa_view.refresh()
 
     def _copy_to_clipboard(self, text: str, btn: tk.Button) -> None:
         self.code_view.copy_to_clipboard(text, btn)
@@ -369,6 +389,12 @@ class DashboardPanel(tk.Toplevel):
             if self.code_service:
                 self.code_container.pack(fill="both", expand=True)
                 self._refresh_code()
+            else:
+                self.placeholder_container.pack(fill="both", expand=True)
+        elif tab_name == "DSA":
+            if self.code_service:
+                self.dsa_container.pack(fill="both", expand=True)
+                self._refresh_dsa()
             else:
                 self.placeholder_container.pack(fill="both", expand=True)
         elif tab_name == "Courses":

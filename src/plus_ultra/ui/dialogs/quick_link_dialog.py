@@ -28,8 +28,8 @@ class QuickLinkDialog(tk.Toplevel):
         self.theme = theme
 
         self.title("Edit Shortcut" if link else "Add Quick Link")
-        self.geometry("520x420")
-        self.minsize(460, 380)
+        self.geometry("600x480")
+        self.minsize(520, 420)
         self.transient(parent)
         self.grab_set()
 
@@ -39,10 +39,10 @@ class QuickLinkDialog(tk.Toplevel):
     def _build_ui(self) -> None:
         self.configure(bg="#12151c")
 
-        footer = tk.Frame(self, bg="#0d1117", padx=24, pady=16)
+        footer = tk.Frame(self, bg="#0d1117", padx=28, pady=18)
         footer.pack(side="bottom", fill="x")
 
-        save_label = "✓ Update Shortcut" if self.link else "✓ Create Shortcut"
+        save_label = "Update Shortcut" if self.link else "Create Shortcut"
         tk.Button(
             footer,
             text=save_label,
@@ -51,25 +51,25 @@ class QuickLinkDialog(tk.Toplevel):
             activebackground="#00b4d8",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self._handle_save,
             cursor="hand2",
-            padx=18,
-            pady=8,
+            padx=20,
+            pady=10,
         ).pack(side="right", padx=(10, 0))
 
         tk.Button(
             footer,
-            text="✕ Cancel",
+            text="Cancel",
             bg="#2b3448",
             fg="#e2e8f0",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11),
             command=self.destroy,
             cursor="hand2",
-            padx=14,
-            pady=8,
+            padx=16,
+            pady=10,
         ).pack(side="right")
 
         body = tk.Frame(self, bg="#12151c", padx=24, pady=20)

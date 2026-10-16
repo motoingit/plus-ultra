@@ -318,20 +318,39 @@ Subpackage providing decoupled business logic:
 - `OpportunityService`: Application pipeline status progression.
 - `QuickLinkService`: Link registry and access count updates.
 
+### `plus_ultra.network`
+Lightweight network status detection and non-blocking probe utility:
+- `is_network_online(host: str = "1.1.1.1", port: int = 53, timeout: float = 1.0) -> bool`: Probes Cloudflare/Google public DNS via lightweight socket connection with zero external dependencies.
+- `NetworkStatusMonitor`: Thread-safe background connectivity probe engine using pure Python FIFO queue (`probe_async()`, `get_result() -> bool | None`).
+
+### `plus_ultra.ui.icons`
+Pure Tkinter image caching and downsampling utility:
+- `find_icon_path(icon_name: str) -> Path | None`: Discovers asset files across `resources/icons`, `resources/base`, `resources/folders`, and `resources/tabs`.
+- `get_icon(icon_name: str = "fallback", size: int = 24, master: tk.Misc | None = None) -> tk.PhotoImage | None`: Returns a cached, subsampled `PhotoImage` tied to the active interpreter root with zero third-party dependencies.
+- `clear_icon_cache() -> None`: Clears in-memory image references.
+
 ### `plus_ultra.ui.components`
 Reusable presentation components:
+- `DateTimePicker`: Interactive date and time picker featuring `⚡ Now` automatic timestamp insertion, date presets (`Today`, `Tomorrow`, `+3 Days`, `+1 Wk`), time presets (`09:00`, `12:00`, `15:00`, `18:00`, `21:00`, `23:59`), and step adjusters (`-1d`, `+1d`).
 - `ScrollableFrame`: Canvas-backed scrollable container with mousewheel bindings.
-- `Sidebar`: 3-section tab navigation with active state styling.
-- `NotificationsPanel`: Collapsible right-hand notification stream with clear/read actions.
+- `Sidebar`: Draggable navigation sidebar supporting manual cursor drag-and-drop tab reordering, icon-only Settings button on bottom-left, live network status indicator, and renamed tabs (`Tasks`, `Code c-p`, `DSA Tracker`, `Courses`, `PS/I`, `Opportunities`, `Quick Links`).
+- `NotificationsPanel`: Focused notification alerts stream with Mark All Read, Clear, and bottom Network Status monitor card with live probe trigger.
 
 ### `plus_ultra.ui.dialogs`
-Centering modal dialogs with fixed bottom confirmation bars:
+Centering modal dialogs with generous dimensions (`680x720`, `680x680`, `640x620`):
 - `center_modal(dialog: tk.Toplevel, parent: tk.Misc, width: int, height: int)`
-- `TaskDialog`, `CodeDialog`, `CourseDialog`, `IdeaDialog`, `OpportunityDialog`, `QuickLinkDialog`, `CategoryDialog`.
+- `TaskDialog`: Supports interactive `DateTimePicker`, priority/pace selectors, and inline category creation directly inside the category dropdown (`+ Add New Category...` and `+` button).
+- `OpportunityDialog`: Supports interactive `DateTimePicker` in date-only mode for deadlines.
+- `CodeDialog`: Offers predefined language combobox selections (`Python`, `JavaScript`, `TypeScript`, `C`, `C++`, `Java`, `Rust`, `Go`, `Bash`, `SQL`, etc.).
+- `CourseDialog`, `IdeaDialog`, `QuickLinkDialog`, `CategoryDialog`.
 
 ### `plus_ultra.ui.views`
-Decoupled workspace tab views:
-- `TasksView`, `CodeView`, `CoursesView`, `IdeasView`, `OpportunitiesView`, `QuickLinksView`, `SettingsView`.
+Decoupled workspace tab views with 2x card sizing and clean badges:
+- `TasksView` (`Tasks`): Streamlined view with category filters, priority filters, search bar, and full CRUD.
+- `CodeView` (`Code c-p`): Code snippets workspace with language filters and one-click clipboard copy.
+- `DSAView` (`DSA Tracker`): Dedicated DSA Problem Tracker view in the main workspace.
+- `IdeasView` (`PS/I`): Dual-subtab view featuring dedicated `[ Project Ideas ]` and `[ Concept Doubts ]` tables, each with contextual creation actions (`+ Add Idea` / `+ Add Doubt`).
+- `CoursesView`, `OpportunitiesView`, `QuickLinksView`, `SettingsView`.
 
 ### `plus_ultra.ui.geometry`
 Mathematical capsule coordinate calculations:

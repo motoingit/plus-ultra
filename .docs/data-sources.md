@@ -5,3 +5,7 @@
 | `$XDG_CONFIG_HOME` | `~/.config`        | User-specific application settings and configuration files                                                  | A settings handbook          |
 | `$XDG_CACHE_HOME`  | `~/.cache`         | Rebuildable data that can be regenerated: cached images, downloaded metadata, temporary computation results | A scratchpad                 |
 | `$XDG_RUNTIME_DIR` | `/run/user/1000`\* | Temporary runtime objects for the current login session: sockets, lock files, and other IPC files           | A whiteboard wiped at logout |
+|`$XDG_STATE_HOME`| `/plus-ultra/plus-ultra.lock.` | For Lock by storing pid, single instance |
+|`log`| `|`$XDG_STATE_HOME`| `~/.local/state/plus-ultra/launcher.log` | For logs realtime |
+
+| `resoucr for internal` | `src/resources` | for internal data |

@@ -28,21 +28,26 @@ class CodeDialog(tk.Toplevel):
         self.theme = theme
 
         self.title("Edit Code Item" if item else "Add Code Item")
-        self.geometry("580x580")
-        self.minsize(500, 500)
+        self.geometry("680x680")
+        self.minsize(580, 580)
         self.transient(parent)
         self.grab_set()
 
         self._build_ui()
         center_modal(self, parent)
 
+    @property
+    def lang_entry(self) -> ttk.Combobox:
+        """Compatibility property for test assertions."""
+        return self.lang_combo
+
     def _build_ui(self) -> None:
         self.configure(bg="#12151c")
 
-        footer = tk.Frame(self, bg="#0d1117", padx=24, pady=16)
+        footer = tk.Frame(self, bg="#0d1117", padx=28, pady=18)
         footer.pack(side="bottom", fill="x")
 
-        save_label = "✓ Update Item" if self.item else "✓ Create Item"
+        save_label = "Update Item" if self.item else "Create Item"
         tk.Button(
             footer,
             text=save_label,
@@ -51,25 +56,25 @@ class CodeDialog(tk.Toplevel):
             activebackground="#00b4d8",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self._handle_save,
             cursor="hand2",
-            padx=18,
-            pady=8,
+            padx=20,
+            pady=10,
         ).pack(side="right", padx=(10, 0))
 
         tk.Button(
             footer,
-            text="✕ Cancel",
+            text="Cancel",
             bg="#2b3448",
             fg="#e2e8f0",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11),
             command=self.destroy,
             cursor="hand2",
-            padx=14,
-            pady=8,
+            padx=16,
+            pady=10,
         ).pack(side="right")
 
         body = tk.Frame(self, bg="#12151c", padx=24, pady=20)
@@ -127,15 +132,32 @@ class CodeDialog(tk.Toplevel):
             fg="#94a3b8",
             font=(self.theme.font_family, 10),
         ).pack(anchor="w")
-        self.lang_entry = tk.Entry(
+        predefined_langs = [
+            "Python",
+            "JavaScript",
+            "TypeScript",
+            "C",
+            "C++",
+            "Java",
+            "Rust",
+            "Go",
+            "Bash",
+            "SQL",
+            "HTML/CSS",
+            "JSON",
+            "Markdown",
+            "Other",
+        ]
+        self.lang_combo = ttk.Combobox(
             lang_box,
-            bg="#1c212c",
-            fg="#f8fafc",
-            relief="flat",
-            font=(self.theme.font_family, 11),
+            values=predefined_langs,
+            state="normal",
         )
-        self.lang_entry.insert(0, self.item.language if self.item else "python")
-        self.lang_entry.pack(fill="x", pady=(4, 0), ipady=4)
+        init_lang = (
+            self.item.language if self.item and self.item.language else "Python"
+        )
+        self.lang_combo.set(init_lang)
+        self.lang_combo.pack(fill="x", pady=(4, 0))
 
         r2 = tk.Frame(body, bg="#12151c")
         r2.pack(fill="x", pady=(0, 12))
@@ -205,7 +227,7 @@ class CodeDialog(tk.Toplevel):
         payload = {
             "title": title,
             "category": self.cat_combo.get(),
-            "language": self.lang_entry.get().strip() or "python",
+            "language": self.lang_combo.get().strip() or "Python",
             "difficulty": self.diff_combo.get(),
             "url": self.url_entry.get().strip(),
             "content": self.code_text.get("1.0", "end-1c").strip(),

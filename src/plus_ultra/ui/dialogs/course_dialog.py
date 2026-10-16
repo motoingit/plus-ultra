@@ -28,8 +28,8 @@ class CourseDialog(tk.Toplevel):
         self.theme = theme
 
         self.title("Edit Course" if course else "Add Course")
-        self.geometry("540x520")
-        self.minsize(480, 480)
+        self.geometry("640x580")
+        self.minsize(560, 520)
         self.transient(parent)
         self.grab_set()
 
@@ -39,10 +39,10 @@ class CourseDialog(tk.Toplevel):
     def _build_ui(self) -> None:
         self.configure(bg="#12151c")
 
-        footer = tk.Frame(self, bg="#0d1117", padx=24, pady=16)
+        footer = tk.Frame(self, bg="#0d1117", padx=28, pady=18)
         footer.pack(side="bottom", fill="x")
 
-        save_label = "✓ Update Course" if self.course else "✓ Create Course"
+        save_label = "Update Course" if self.course else "Create Course"
         tk.Button(
             footer,
             text=save_label,
@@ -51,28 +51,28 @@ class CourseDialog(tk.Toplevel):
             activebackground="#00b4d8",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self._handle_save,
             cursor="hand2",
-            padx=18,
-            pady=8,
+            padx=20,
+            pady=10,
         ).pack(side="right", padx=(10, 0))
 
         tk.Button(
             footer,
-            text="✕ Cancel",
+            text="Cancel",
             bg="#2b3448",
             fg="#e2e8f0",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11),
             command=self.destroy,
             cursor="hand2",
-            padx=14,
-            pady=8,
+            padx=16,
+            pady=10,
         ).pack(side="right")
 
-        body = tk.Frame(self, bg="#12151c", padx=24, pady=20)
+        body = tk.Frame(self, bg="#12151c", padx=28, pady=24)
         body.pack(side="top", fill="both", expand=True)
 
         tk.Label(
@@ -107,10 +107,12 @@ class CourseDialog(tk.Toplevel):
         ).pack(anchor="w")
         self.plat_combo = ttk.Combobox(
             plat_box,
-            values=["Coursera", "NPTEL", "University", "YouTube", "Self-Paced"],
+            values=["University", "YouTube", "Independent", "Book", "Other"],
             state="readonly",
         )
-        self.plat_combo.set(self.course.platform if self.course else "Coursera")
+        self.plat_combo.set(
+            self.course.platform if self.course else "University"
+        )
         self.plat_combo.pack(fill="x", pady=(4, 0))
 
         inst_box = tk.Frame(r1, bg="#12151c")

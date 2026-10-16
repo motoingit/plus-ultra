@@ -25,7 +25,7 @@ class CapsuleNotification:
     id: str
     title: str
     message: str = ""
-    icon: str = "🔔"
+    icon: str = ""
     is_read: bool = False
     created_at: str = ""
 
@@ -48,7 +48,7 @@ class CapsuleNotificationQueue:
         self,
         title: str,
         message: str = "",
-        icon: str = "🔔",
+        icon: str = "",
         notification_id: str | None = None,
     ) -> CapsuleNotification:
         """Add or update an active notification in the queue."""

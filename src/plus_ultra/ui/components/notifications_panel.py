@@ -1,16 +1,20 @@
-"""Notification stream component for the right-hand dashboard drawer."""
+"""Right drawer component with Notifications and Network Status."""
 
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
 from collections.abc import Callable
 
+from plus_ultra.network import NetworkStatusMonitor
 from plus_ultra.notifications import CapsuleNotificationQueue
+from plus_ultra.services import CodeService
+from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
 
 
 class NotificationsPanel:
-    """Notification stream drawer displaying recent alerts and actions."""
+    """Right-hand panel containing Notifications and Network Status monitor."""
 
     def __init__(
         self,
@@ -18,25 +22,36 @@ class NotificationsPanel:
         notification_queue: CapsuleNotificationQueue,
         theme: CapsuleTheme = THEME,
         on_notifications_cleared: Callable[[], None] | None = None,
+        code_service: CodeService | None = None,
+        parent_window: tk.Tk | tk.Toplevel | None = None,
     ) -> None:
         self.container = container
         self.notification_queue = notification_queue
         self.theme = theme
         self.on_notifications_cleared = on_notifications_cleared
+        self.code_service = code_service
+        self.parent_window = parent_window
 
+        self.active_tab: str = "Notifications"
         self._build_ui()
 
     def _build_ui(self) -> None:
-        head_bar = tk.Frame(self.container, bg="#12151c", padx=16, pady=20)
+        # 1. Main Header Bar
+        head_bar = tk.Frame(self.container, bg="#12151c", padx=16, pady=16)
         head_bar.pack(fill="x")
 
-        tk.Label(
+        icon = get_icon("fallback", 18)
+        title_lbl = tk.Label(
             head_bar,
-            text="Notifications",
+            text=" Recent Alerts",
             bg="#12151c",
             fg="#f8fafc",
             font=(self.theme.font_family, 13, "bold"),
-        ).pack(anchor="w")
+            image=icon,
+            compound="left",
+        )
+        title_lbl.image = icon  # type: ignore[attr-defined]
+        title_lbl.pack(anchor="w")
 
         btn_box = tk.Frame(head_bar, bg="#12151c")
         btn_box.pack(fill="x", pady=(10, 0))
@@ -49,13 +64,12 @@ class NotificationsPanel:
             activebackground="#2b3448",
             relief="flat",
             bd=0,
-            highlightthickness=0,
             font=(self.theme.font_family, 9, "bold"),
             cursor="hand2",
-            padx=8,
-            pady=4,
+            padx=10,
+            pady=5,
             command=self.mark_all_read,
-        ).pack(side="left", padx=(0, 4))
+        ).pack(side="left", padx=(0, 6))
 
         tk.Button(
             btn_box,
@@ -65,16 +79,16 @@ class NotificationsPanel:
             activebackground="#2b3448",
             relief="flat",
             bd=0,
-            highlightthickness=0,
             font=(self.theme.font_family, 9),
             cursor="hand2",
-            padx=8,
-            pady=4,
+            padx=10,
+            pady=5,
             command=self.clear_all,
         ).pack(side="left")
 
+        # 2. Notifications Listbox
         list_box_frame = tk.Frame(self.container, bg="#12151c", padx=16)
-        list_box_frame.pack(fill="both", expand=True, pady=(0, 16))
+        list_box_frame.pack(fill="both", expand=True, pady=(6, 12))
 
         self.notif_listbox = tk.Listbox(
             list_box_frame,
@@ -85,10 +99,85 @@ class NotificationsPanel:
             relief="flat",
             bd=0,
             highlightthickness=0,
-            font=(self.theme.font_family, 9),
+            font=(self.theme.font_family, 11),
         )
         self.notif_listbox.pack(fill="both", expand=True)
+
+        # 3. Bottom Network Status Monitor Card
+        net_card = tk.Frame(
+            self.container,
+            bg="#161922",
+            padx=14,
+            pady=12,
+            highlightbackground="#2b3448",
+            highlightthickness=1,
+        )
+        net_card.pack(fill="x", padx=16, pady=(0, 16))
+
+        net_top = tk.Frame(net_card, bg="#161922")
+        net_top.pack(fill="x")
+
+        tk.Label(
+            net_top,
+            text="Network Status",
+            bg="#161922",
+            fg="#94a3b8",
+            font=(self.theme.font_family, 10, "bold"),
+        ).pack(side="left")
+
+        tk.Button(
+            net_top,
+            text="Probe",
+            bg="#1e2433",
+            fg="#00e5ff",
+            activebackground="#2b3448",
+            relief="flat",
+            bd=0,
+            font=(self.theme.font_family, 8),
+            cursor="hand2",
+            padx=6,
+            pady=2,
+            command=self.probe_network,
+        ).pack(side="right")
+
+        self.net_status_label = tk.Label(
+            net_card,
+            text="● Probing connectivity...",
+            bg="#161922",
+            fg="#64748b",
+            font=(self.theme.font_family, 10, "bold"),
+            anchor="w",
+        )
+        self.net_status_label.pack(fill="x", pady=(6, 0))
+
         self.refresh()
+        self._net_monitor = NetworkStatusMonitor()
+        self.probe_network()
+
+    def probe_network(self) -> None:
+        """Trigger asynchronous non-blocking network probe."""
+        self.net_status_label.configure(
+            text="● Checking connection...", fg="#eab308"
+        )
+        self._net_monitor.probe_async()
+        self.container.after(300, self._poll_network)
+
+    def _poll_network(self) -> None:
+        """Poll network monitor result queue on main Tk thread."""
+        with contextlib.suppress(Exception):
+            if not self.container.winfo_exists():
+                return
+            res = self._net_monitor.get_result()
+            if res is not None:
+                color = "#10b981" if res else "#ef4444"
+                text = "● Online (Connected)" if res else "● Offline (No Route)"
+                if (
+                    hasattr(self, "net_status_label")
+                    and self.net_status_label.winfo_exists()
+                ):
+                    self.net_status_label.configure(text=text, fg=color)
+            else:
+                self.container.after(300, self._poll_network)
 
     def refresh(self) -> None:
         """Update notification items displayed in the listbox."""
@@ -100,13 +189,16 @@ class NotificationsPanel:
             return
 
         for idx, item in enumerate(all_notifs):
-            prefix = "• " if item.is_read else "★ "
-            line = f"{prefix}{item.icon} {item.title}"
+            prefix = "[Read] " if item.is_read else "[New] "
+            line = f"{prefix}{item.title}"
             self.notif_listbox.insert(tk.END, line)
             if not item.is_read:
                 self.notif_listbox.itemconfig(idx, fg="#00e5ff")
             else:
                 self.notif_listbox.itemconfig(idx, fg="#94a3b8")
+
+    def refresh_dsa(self) -> None:
+        """Compatibility no-op method for DSA tab removal."""
 
     def mark_all_read(self) -> None:
         """Mark all notifications as read and fire callback."""
@@ -116,7 +208,7 @@ class NotificationsPanel:
             self.on_notifications_cleared()
 
     def clear_all(self) -> None:
-        """Clear all notifications and fire callback."""
+        """Clear all notifications from queue and fire callback."""
         self.notification_queue.clear()
         self.refresh()
         if self.on_notifications_cleared:

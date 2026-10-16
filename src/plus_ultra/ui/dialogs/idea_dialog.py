@@ -21,15 +21,17 @@ class IdeaDialog(tk.Toplevel):
         item: IdeaDoubt | None = None,
         on_save: Callable[[dict[str, Any]], None] | None = None,
         theme: CapsuleTheme = THEME,
+        default_kind: str = "Idea",
     ) -> None:
         super().__init__(parent)
         self.item = item
         self.on_save = on_save
         self.theme = theme
+        self.default_kind = default_kind
 
         self.title("Edit Entry" if item else "Add Idea / Doubt")
-        self.geometry("540x520")
-        self.minsize(480, 480)
+        self.geometry("640x620")
+        self.minsize(560, 540)
         self.transient(parent)
         self.grab_set()
 
@@ -39,10 +41,10 @@ class IdeaDialog(tk.Toplevel):
     def _build_ui(self) -> None:
         self.configure(bg="#12151c")
 
-        footer = tk.Frame(self, bg="#0d1117", padx=24, pady=16)
+        footer = tk.Frame(self, bg="#0d1117", padx=28, pady=18)
         footer.pack(side="bottom", fill="x")
 
-        save_label = "✓ Update Entry" if self.item else "✓ Create Entry"
+        save_label = "Update Entry" if self.item else "Create Entry"
         tk.Button(
             footer,
             text=save_label,
@@ -51,25 +53,25 @@ class IdeaDialog(tk.Toplevel):
             activebackground="#00b4d8",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self._handle_save,
             cursor="hand2",
-            padx=18,
-            pady=8,
+            padx=20,
+            pady=10,
         ).pack(side="right", padx=(10, 0))
 
         tk.Button(
             footer,
-            text="✕ Cancel",
+            text="Cancel",
             bg="#2b3448",
             fg="#e2e8f0",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11),
             command=self.destroy,
             cursor="hand2",
-            padx=14,
-            pady=8,
+            padx=16,
+            pady=10,
         ).pack(side="right")
 
         body = tk.Frame(self, bg="#12151c", padx=24, pady=20)
@@ -108,7 +110,7 @@ class IdeaDialog(tk.Toplevel):
         self.kind_combo = ttk.Combobox(
             kind_box, values=["Idea", "Doubt"], state="readonly"
         )
-        self.kind_combo.set(self.item.kind if self.item else "Idea")
+        self.kind_combo.set(self.item.kind if self.item else self.default_kind)
         self.kind_combo.pack(fill="x", pady=(4, 0))
         self.kind_combo.bind("<<ComboboxSelected>>", self._on_kind_change)
 

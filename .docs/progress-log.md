@@ -334,6 +334,75 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
+## Testing Experience Review & UX Refinements
+
+- **Status**: Completed
+- **Date**: 2026-10-16
+
+### Phase To-do List:
+- [x] Adjustable window dividers (`tk.PanedWindow`) for left-main and main-right sashes with explicit minsize constraints (`sidebar_col >= 180`, `center_col >= 400`, `notif_col >= 100`).
+- [x] Tab customizability via manual cursor drag-and-drop in left sidebar (`Sidebar`).
+- [x] Clean, enlarged left sidebar tabs (3x box padding `pady=16, padx=20`, 2x font size `13pt bold`), removed useless bottom-left close button.
+- [x] Quick Links first-class tab in left navigation with full CRUD.
+- [x] Separated DSA Problem Tracker into dedicated sub-tab in right drawer alongside Notifications, plus dedicated center view `DSAView`.
+- [x] Removed "DSA Problem Tracker" from `Code Lab` view to eliminate mismatch with code workspace.
+- [x] Eliminated hardcoded emojis across all views, cards, buttons, dialogs, and capsule; introduced `src/plus_ultra/ui/icons.py` with Tkinter `PhotoImage.subsample()` scaling from `fallback.png`.
+- [x] Deleted `Coursera`, `NPTEL`, and `Self-Paced` options from Courses view and dialogs.
+- [x] Generous dialog sizing across all modal dialogs in `src/plus_ultra/ui/dialogs/` (`680x700`, `680x680`, `640x620`, etc.).
+- [x] 2x card sizing (double padding, larger fonts, clean action buttons) across all content views.
+- [x] Adapted to user-moved `default-settings.json` and `metadata.json` in `src/plus_ultra/resources/data/`.
+- [x] Relocated `seeds.py` out of `src/` to `.scripts/seeds.py` with standalone CLI execution.
+- [x] Renamed `tests/` directory to `.tests/` and updated `pyproject.toml`.
+- [x] Quality Gate: All 81 unit tests pass (`uv run pytest`), 0 ruff lint errors (`uv run ruff check .`), smoke test passes cleanly (`uv run plus-ultra --smoke-test`).
+
+### Issues & Solutions:
+- **TclError: image "pyimage2" does not exist in multi-root pytest runs**: `PhotoImage` objects are tied to a specific Tcl interpreter. When pytest destroyed a root window and created a new one, module-level icon caches held stale references. Resolved by keying the icon cache by `(id(active_root), icon_name, size)` and verifying `active_root.tk.call("image", "type", ...)` before returning cached images.
+- **SIM114 & Line Length in DSA Filters**: Long chained `if ... or ...` expressions generated line length and ruff violations. Extracted clean predicate methods `_matches_dsa_filter()` and `_matches_filter()` respecting strict `<= 80` character limits.
+- **ScrollableFrame attribute consistency**: Fixed view components accessing `.scrollable_frame` to use the canonical `ScrollableFrame.interior` widget.
+
+---
+
+## Interactive UI & Component Refinements
+
+- **Status**: Completed
+- **Date**: 2026-10-17
+
+### Phase To-do List:
+- [x] Settings button: Converted to compact icon-only square button on bottom-left with fallback to `fallback.png`.
+- [x] Sidebar tab renamings:
+  - `"Tasks & Deadlines"` -> `"Tasks"`
+  - `"Ideas & Doubts"` -> `"PS/I"`
+  - `"Code Lab"` -> `"Code c-p"`
+- [x] Right Drawer cleaned: Removed DSA Tracker from right drawer (DSA is a dedicated view `DSAView` on the left sidebar).
+- [x] Network Status:
+  - Created `src/plus_ultra/network.py` with `is_network_online` and thread-safe `NetworkStatusMonitor` using a pure Python FIFO queue (zero Tcl cross-threading).
+  - Added live network status indicators to left sidebar bottom and right drawer bottom with a manual probe button.
+- [x] Dynamic Floating Capsule:
+  - Implemented `_update_capsule_geometry()` to auto-adjust capsule width dynamically when unread notifications arrive/clear.
+  - Implemented 3-second transient popup capsule pill positioned directly below the main capsule emphasizing notification titles.
+- [x] Interactive DateTimePicker:
+  - Created reusable component `src/plus_ultra/ui/components/datetime_picker.py` with `⚡ Now` button, date presets (`Today`, `Tomorrow`, `+3 Days`, `+1 Wk`), time shortcuts, and day steppers (`-1d`, `+1d`).
+  - Refactored `TaskDialog` and `OpportunityDialog` to use this single shared component without code duplication.
+- [x] Tasks inline category creation:
+  - Removed `+ Category` button from top of Tasks view.
+  - Added inline category creation directly inside `TaskDialog` via `"+ Add New Category..."` combobox item and `+` button.
+- [x] Code Dialog predefined languages:
+  - Added predefined languages combobox (`Python`, `JavaScript`, `TypeScript`, `C`, `C++`, `Java`, `Rust`, `Go`, `Bash`, `SQL`, etc.).
+- [x] PS/I Ideas view:
+  - Replaced filter buttons with two distinct sub-tabs: `[ Project Ideas ]` and `[ Concept Doubts ]`.
+  - Added contextual creation actions (`+ Add Idea` on Ideas subtab, `+ Add Doubt` on Doubts subtab).
+- [x] Validation:
+  - Full suite of 88 unit tests passing via `uv run pytest -v`.
+  - 0 ruff lint errors via `uv run ruff check .`.
+  - Clean format via `uv run ruff format --check .`.
+  - Smoke test passing via `uv run plus-ultra --smoke-test`.
+
+### Issues & Solutions:
+- **Segmentation fault from background thread Tkinter calls**: Calling `after_idle` or `configure` on Tkinter widgets from a secondary background thread during test teardown caused Tcl interpreter memory corruption. Resolved by introducing `NetworkStatusMonitor` with pure Python `queue.Queue`. The background worker thread only communicates via the queue, and the main thread safely polls the queue using `container.after()`.
+- **Due entry test compatibility**: Tests in `test_panel.py` directly addressed `dialog.due_entry.insert()`. Resolved by exposing `@property def due_entry` on `TaskDialog` and `OpportunityDialog` delegating directly to `DateTimePicker.entry`.
+
+---
+
 ## Next: Phase 6: Robustness, Startup, and Autostart
 
 - **Status**: Ready for Planning

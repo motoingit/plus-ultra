@@ -27,7 +27,8 @@ class CategoryDialog(tk.Toplevel):
         self.theme = theme
 
         self.title("Add Category")
-        self.geometry("440x240")
+        self.geometry("520x280")
+        self.minsize(440, 240)
         self.configure(bg="#12151c")
         self.transient(parent)
         self.grab_set()
@@ -36,10 +37,10 @@ class CategoryDialog(tk.Toplevel):
         center_modal(self, parent)
 
     def _build_ui(self) -> None:
-        footer = tk.Frame(self, bg="#0d1117", padx=20, pady=14)
+        footer = tk.Frame(self, bg="#0d1117", padx=24, pady=16)
         footer.pack(side="bottom", fill="x")
 
-        body = tk.Frame(self, bg="#12151c", padx=20, pady=16)
+        body = tk.Frame(self, bg="#12151c", padx=24, pady=20)
         body.pack(side="top", fill="both", expand=True)
 
         tk.Label(
@@ -47,43 +48,43 @@ class CategoryDialog(tk.Toplevel):
             text="Category Name *",
             bg="#12151c",
             fg="#94a3b8",
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
         ).pack(anchor="w")
         self.entry = tk.Entry(
             body,
             bg="#1c212c",
             fg="#f8fafc",
             relief="flat",
-            font=(self.theme.font_family, 11),
+            font=(self.theme.font_family, 12),
         )
-        self.entry.pack(fill="x", pady=(4, 0), ipady=5)
+        self.entry.pack(fill="x", pady=(6, 0), ipady=6)
 
         tk.Button(
             footer,
-            text="✓ Save Category",
+            text="Save Category",
             bg="#00e5ff",
             fg="#0a0e17",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self._save,
             cursor="hand2",
-            padx=16,
-            pady=6,
+            padx=18,
+            pady=8,
         ).pack(side="right", padx=(8, 0))
 
         tk.Button(
             footer,
-            text="✕ Cancel",
+            text="Cancel",
             bg="#2b3448",
             fg="#e2e8f0",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11),
             command=self.destroy,
             cursor="hand2",
-            padx=12,
-            pady=6,
+            padx=14,
+            pady=8,
         ).pack(side="right")
 
     def _save(self) -> None:

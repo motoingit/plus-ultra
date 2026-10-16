@@ -1,4 +1,7 @@
-"""Initial demo dataset for workspace modules and tasks."""
+"""Initial demo dataset for workspace modules and tasks.
+
+Lives in .scripts/ outside the primary package src tree.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +10,7 @@ import uuid
 from datetime import UTC, datetime
 
 from plus_ultra import config
-from plus_ultra.database.connection import transaction
+from plus_ultra.database.connection import get_connection, transaction
 
 
 def seed_demo_workspace_data(conn: sqlite3.Connection) -> None:
@@ -138,11 +141,11 @@ def seed_demo_workspace_data(conn: sqlite3.Connection) -> None:
             (
                 uuid.uuid4().hex,
                 "Database Management Systems & Transactions",
-                "NPTEL",
+                "University Lab",
                 "Prof. Partha Pratim Das",
                 10,
                 6,
-                "https://nptel.ac.in",
+                "https://example.edu/dbms",
                 "Relational algebra, B+ Trees, ACID, WAL logging.",
                 now,
                 now,
@@ -151,7 +154,7 @@ def seed_demo_workspace_data(conn: sqlite3.Connection) -> None:
             (
                 uuid.uuid4().hex,
                 "Modern Python Software Architecture",
-                "Self-Paced",
+                "Open Courseware",
                 "ArjanCodes",
                 8,
                 5,
@@ -402,3 +405,15 @@ def seed_demo_workspace_data(conn: sqlite3.Connection) -> None:
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                 demo_tasks,
             )
+
+
+def main() -> None:
+    """CLI script entrypoint to seed database with demo data."""
+    conn = get_connection()
+    print("Seeding demo workspace data...")
+    seed_demo_workspace_data(conn)
+    print("Seeding complete.")
+
+
+if __name__ == "__main__":
+    main()

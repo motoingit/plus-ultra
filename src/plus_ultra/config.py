@@ -99,8 +99,9 @@ def get_app_version() -> str:
 
 def get_metadata() -> dict[str, Any]:
     """Load static application metadata from packaged resources."""
-    ref = importlib.resources.files("plus_ultra.resources").joinpath(
-        "metadata.json"
-    )
+    resources = importlib.resources.files("plus_ultra.resources")
+    ref = resources.joinpath("data", "metadata.json")
+    if not ref.is_file():
+        ref = resources.joinpath("metadata.json")
     with ref.open("r", encoding="utf-8") as f:
         return json.load(f)

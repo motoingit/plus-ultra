@@ -11,6 +11,7 @@ from plus_ultra.models import Course
 from plus_ultra.services import CourseService
 from plus_ultra.ui.components.scrollable import ScrollableFrame
 from plus_ultra.ui.dialogs import CourseDialog
+from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
 
 
@@ -35,16 +36,22 @@ class CoursesView:
         self._build_ui()
 
     def _build_ui(self) -> None:
-        head_bar = tk.Frame(self.container, bg="#161922", padx=24, pady=20)
+        head_bar = tk.Frame(self.container, bg="#161922", padx=28, pady=24)
         head_bar.pack(fill="x")
 
-        tk.Label(
+        icon = get_icon("fallback", 24)
+        title_lbl = tk.Label(
             head_bar,
-            text="🎓 Courses & Certifications",
+            text="Courses & Certifications",
             bg="#161922",
             fg="#f8fafc",
-            font=(self.theme.font_family, 15, "bold"),
-        ).pack(side="left")
+            font=(self.theme.font_family, 16, "bold"),
+            image=icon,
+            compound="left",
+            padx=10,
+        )
+        title_lbl.image = icon  # type: ignore[attr-defined]
+        title_lbl.pack(side="left")
 
         tk.Button(
             head_bar,
@@ -55,24 +62,23 @@ class CoursesView:
             relief="flat",
             bd=0,
             highlightthickness=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self.open_create_course,
             cursor="hand2",
-            padx=16,
-            pady=6,
+            padx=20,
+            pady=8,
         ).pack(side="right")
 
         # Platform Filter Pills
-        filter_bar = tk.Frame(self.container, bg="#161922", padx=24)
-        filter_bar.pack(fill="x", pady=(0, 12))
+        filter_bar = tk.Frame(self.container, bg="#161922", padx=28)
+        filter_bar.pack(fill="x", pady=(0, 16))
 
         for plat in [
             "All",
-            "Coursera",
-            "NPTEL",
             "University",
             "YouTube",
-            "Self-Paced",
+            "Independent",
+            "Book",
         ]:
             btn = tk.Button(
                 filter_bar,
@@ -82,18 +88,18 @@ class CoursesView:
                 relief="flat",
                 bd=0,
                 highlightthickness=0,
-                font=(self.theme.font_family, 9, "bold"),
+                font=(self.theme.font_family, 11, "bold"),
                 cursor="hand2",
-                padx=12,
-                pady=5,
+                padx=16,
+                pady=8,
                 command=lambda p=plat: self.set_course_filter(p),
             )
-            btn.pack(side="left", padx=2)
+            btn.pack(side="left", padx=4)
             self.course_filter_btns[plat] = btn
 
         self.courses_scroll = ScrollableFrame(self.container, bg="#161922")
         self.courses_scroll.pack(
-            fill="both", expand=True, padx=24, pady=(0, 16)
+            fill="both", expand=True, padx=28, pady=(0, 20)
         )
 
     def set_course_filter(self, platform: str) -> None:
@@ -134,8 +140,8 @@ class CoursesView:
             return
 
         for c in courses:
-            card = tk.Frame(parent, bg="#1c212c", padx=16, pady=12)
-            card.pack(fill="x", pady=6)
+            card = tk.Frame(parent, bg="#1c212c", padx=28, pady=20)
+            card.pack(fill="x", pady=10)
 
             top = tk.Frame(card, bg="#1c212c")
             top.pack(fill="x")
@@ -145,7 +151,7 @@ class CoursesView:
                 text=f"{c.title}",
                 bg="#1c212c",
                 fg="#f8fafc",
-                font=(self.theme.font_family, 12, "bold"),
+                font=(self.theme.font_family, 15, "bold"),
                 anchor="w",
             ).pack(side="left", fill="x", expand=True)
 
@@ -160,71 +166,71 @@ class CoursesView:
                 activebackground="#00b4d8",
                 relief="flat",
                 bd=0,
-                font=(self.theme.font_family, 9, "bold"),
+                font=(self.theme.font_family, 11, "bold"),
                 cursor="hand2",
-                padx=10,
-                pady=3,
+                padx=12,
+                pady=4,
                 command=lambda cid=c.id: self.inc_course(cid),
-            ).pack(side="left", padx=3)
+            ).pack(side="left", padx=4)
 
             if c.url:
                 tk.Button(
                     acts,
-                    text="🔗 Open",
+                    text="Open",
                     bg="#1e2433",
                     fg="#cbd5e1",
                     relief="flat",
                     bd=0,
-                    font=(self.theme.font_family, 9),
+                    font=(self.theme.font_family, 11),
                     cursor="hand2",
-                    padx=8,
-                    pady=3,
+                    padx=12,
+                    pady=4,
                     command=lambda u=c.url: webbrowser.open(u),
-                ).pack(side="left", padx=3)
+                ).pack(side="left", padx=4)
 
             tk.Button(
                 acts,
-                text="✏️ Edit",
+                text="Edit",
                 bg="#2b3448",
                 fg="#e2e8f0",
                 activebackground="#3b475e",
                 relief="flat",
                 bd=0,
-                font=(self.theme.font_family, 9),
+                font=(self.theme.font_family, 11),
                 cursor="hand2",
-                padx=10,
-                pady=3,
+                padx=12,
+                pady=4,
                 command=lambda crs=c: self.open_edit_course(crs),
-            ).pack(side="left", padx=3)
+            ).pack(side="left", padx=4)
 
             tk.Button(
                 acts,
-                text="🗑️ Delete",
+                text="Delete",
                 bg="#3f1d24",
                 fg="#fca5a5",
                 activebackground="#5c2630",
                 relief="flat",
                 bd=0,
-                font=(self.theme.font_family, 9),
+                font=(self.theme.font_family, 11),
                 cursor="hand2",
-                padx=10,
-                pady=3,
+                padx=12,
+                pady=4,
                 command=lambda cid=c.id: self.delete_course(cid),
-            ).pack(side="left", padx=3)
+            ).pack(side="left", padx=4)
 
             # Platform Tag
             meta_box = tk.Frame(card, bg="#1c212c")
-            meta_box.pack(fill="x", pady=(6, 0))
+            meta_box.pack(fill="x", pady=(10, 0))
 
             tk.Label(
                 meta_box,
-                text=f"🏛️ {c.platform}",
+                text=f"[{c.platform}]",
                 bg="#083344",
                 fg="#22d3ee",
-                font=(self.theme.font_family, 8, "bold"),
-                padx=6,
-                pady=1,
-            ).pack(side="left", padx=(0, 6))
+                font=(self.theme.font_family, 11, "bold"),
+                padx=10,
+                pady=3,
+            ).pack(side="left", padx=(0, 8))
 
             if c.instructor:
                 tk.Label(
@@ -232,7 +238,7 @@ class CoursesView:
                     text=f"Instructor: {c.instructor}",
                     bg="#1c212c",
                     fg="#94a3b8",
-                    font=(self.theme.font_family, 9),
+                    font=(self.theme.font_family, 11),
                 ).pack(side="left")
 
             # Progress Bar & Percentage
@@ -246,13 +252,13 @@ class CoursesView:
                 text=bar_text,
                 bg="#1c212c",
                 fg="#94a3b8",
-                font=(self.theme.font_family, 9),
+                font=(self.theme.font_family, 11),
                 anchor="w",
-            ).pack(fill="x", pady=(8, 2))
+            ).pack(fill="x", pady=(10, 4))
 
-            prog_bg = tk.Frame(card, bg="#12151c", height=8)
-            prog_bg.pack(fill="x", pady=(2, 6))
-            fill_frame = tk.Frame(prog_bg, bg="#00e5ff", height=8)
+            prog_bg = tk.Frame(card, bg="#12151c", height=10)
+            prog_bg.pack(fill="x", pady=(2, 8))
+            fill_frame = tk.Frame(prog_bg, bg="#00e5ff", height=10)
             fill_frame.place(relx=0, rely=0, relwidth=min(1.0, pct / 100))
 
             if c.notes:
@@ -260,10 +266,10 @@ class CoursesView:
                     card,
                     text=f"Note: {c.notes}",
                     bg="#1c212c",
-                    fg="#64748b",
-                    font=(self.theme.font_family, 9),
+                    fg="#94a3b8",
+                    font=(self.theme.font_family, 12),
                     anchor="w",
-                ).pack(fill="x")
+                ).pack(fill="x", pady=(4, 0))
 
     def inc_course(self, course_id: str) -> None:
         """Increment completed module count for course."""

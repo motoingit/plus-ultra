@@ -109,6 +109,11 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Launch floating widget, wait briefly, and exit cleanly.",
     )
+    parser.add_argument(
+        "--seed",
+        action="store_true",
+        help="Seed or reseed demo workspace data from .scripts/seeds.py.",
+    )
     return parser.parse_args(args)
 
 
@@ -204,7 +209,6 @@ def main(argv: list[str] | None = None) -> int:
                         title=f"Due: {task.title}",
                         message=task.description
                         or f"Priority: {task.critical_level}",
-                        icon="⏰",
                     )
                     if dashboard.winfo_exists():
                         dashboard._refresh_tasks()

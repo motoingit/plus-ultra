@@ -32,9 +32,12 @@ _cached_effective: dict[str, Any] | None = None
 
 def load_default_settings() -> dict[str, Any]:
     """Load default settings packaged with the application."""
-    ref = importlib.resources.files("plus_ultra.resources").joinpath(
-        "default-settings.json"
-    )
+    res = importlib.resources.files("plus_ultra.resources")
+    data_ref = res.joinpath("data", "default-settings.json")
+    if data_ref.is_file():
+        ref = data_ref
+    else:
+        ref = res.joinpath("default-settings.json")
     with ref.open("r", encoding="utf-8") as f:
         data: dict[str, Any] = json.load(f)
         return data

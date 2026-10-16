@@ -20,32 +20,6 @@ The sidebar arranges main workspace tabs alphabetically by default, supporting d
 
 ---
 
-## 2. Tab Navigation & UX Behavior
-- **Default Order**: Alphabetical (`Code` -> `Courses` -> `Ideas-Doubt` -> `Opportunities` -> `Quick Links` -> `Tasks`).
-- **Interactive Drag Reordering**: Tabs in the sidebar can be grabbed and dragged to customize order, persisting order in `app_state`.
-- **Settings & Account**: Pinned separately at the bottom of the sidebar or as an avatar action button in the top-right header.
-
----
-
-## 3. Database Architecture (Local-First + Cloud Sync)
-
-### Unified SQLite Local Store & Cache
-All features share the single, ultra-fast local SQLite database (`$XDG_DATA_HOME/plus-ultra/plus-ultra.sqlite3`):
-- **Zero latency**: Instant reads/writes in 1 millisecond.
-- **100% Offline capability**: Works completely offline; local database acts as the offline cache and primary source of truth for the UI.
-- **ACID Transactions**: Atomic updates and WAL journal mode (`PRAGMA journal_mode = WAL;`).
-
-### Remote Cloud Store (Phase 7)
-- **Supabase (PostgreSQL)** serves as the cloud backup and sync destination.
-- Background sync worker compares local `updated_at > last_synced_at` to push/pull differential mutations.
-
-### Schema Evolution: Pattern A (Versioned Migrations)
-- Uses SQLite `PRAGMA user_version`.
-- Phase 3 implements Migration 1 (`tasks`, `categories`, `reminders`, `reminder_fires`, `app_state`).
-- Future columns and feature tables are added via incremental versioned migrations using `ALTER TABLE ADD COLUMN` or `CREATE TABLE`, guaranteeing zero data loss.
-
----
-
 ## 4. Dashboard Window Layout (3-Column Architecture)
 
 Phase 4 implements a structured 3-column desktop layout:
@@ -78,3 +52,15 @@ Phase 4 implements a structured 3-column desktop layout:
 └─────────────────┴───────────────────────────────┴──────────────────────┘
 
 ```
+
+# Futuere Scope and Improvements
+- use better tech stack
+- make app for large audience
+
+- using online drive for sync
+
+- ai integraton
+- gogole task integratioin
+- googole drive integration
+- installaton and unstallation window
+- mobile app syncable

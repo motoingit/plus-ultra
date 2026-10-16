@@ -13,6 +13,7 @@ from plus_ultra.models import QuickLink
 from plus_ultra.services import QuickLinkService
 from plus_ultra.ui.components.scrollable import ScrollableFrame
 from plus_ultra.ui.dialogs import QuickLinkDialog
+from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
 
 
@@ -37,16 +38,21 @@ class QuickLinksView:
         self._build_ui()
 
     def _build_ui(self) -> None:
-        head_bar = tk.Frame(self.container, bg="#161922", padx=24, pady=20)
+        head_bar = tk.Frame(self.container, bg="#161922", padx=28, pady=24)
         head_bar.pack(fill="x")
 
-        tk.Label(
+        icon = get_icon("fallback", 24)
+        title_lbl = tk.Label(
             head_bar,
-            text="⚡ Quick Links & Launcher Shortcuts",
+            text=" Quick Links & Shortcuts",
             bg="#161922",
             fg="#f8fafc",
-            font=(self.theme.font_family, 15, "bold"),
-        ).pack(side="left")
+            font=(self.theme.font_family, 16, "bold"),
+            image=icon,
+            compound="left",
+        )
+        title_lbl.image = icon  # type: ignore[attr-defined]
+        title_lbl.pack(side="left")
 
         tk.Button(
             head_bar,
@@ -57,15 +63,15 @@ class QuickLinksView:
             relief="flat",
             bd=0,
             highlightthickness=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self.open_create_link,
             cursor="hand2",
-            padx=16,
-            pady=6,
+            padx=18,
+            pady=8,
         ).pack(side="right")
 
-        filter_bar = tk.Frame(self.container, bg="#161922", padx=24)
-        filter_bar.pack(fill="x", pady=(0, 12))
+        filter_bar = tk.Frame(self.container, bg="#161922", padx=28)
+        filter_bar.pack(fill="x", pady=(0, 16))
 
         for cat in ["All", "Web", "Local Folder", "Local File", "Tool"]:
             btn = tk.Button(
@@ -76,17 +82,17 @@ class QuickLinksView:
                 relief="flat",
                 bd=0,
                 highlightthickness=0,
-                font=(self.theme.font_family, 9, "bold"),
+                font=(self.theme.font_family, 10, "bold"),
                 cursor="hand2",
-                padx=12,
-                pady=5,
+                padx=14,
+                pady=6,
                 command=lambda c=cat: self.set_link_filter(c),
             )
-            btn.pack(side="left", padx=2)
+            btn.pack(side="left", padx=3)
             self.link_filter_btns[cat] = btn
 
         self.links_scroll = ScrollableFrame(self.container, bg="#161922")
-        self.links_scroll.pack(fill="both", expand=True, padx=24, pady=(0, 16))
+        self.links_scroll.pack(fill="both", expand=True, padx=28, pady=(0, 20))
 
     def set_link_filter(self, category: str) -> None:
         """Update active shortcut category filter and reload cards."""
@@ -115,104 +121,117 @@ class QuickLinksView:
         links = self.quick_link_service.list_links(category=cat)
 
         if not links:
+            empty_frame = tk.Frame(parent, bg="#161922", pady=48)
+            empty_frame.pack(fill="x")
             tk.Label(
-                parent,
+                empty_frame,
                 text="No quick links found in this category.",
                 bg="#161922",
                 fg="#64748b",
-                font=(self.theme.font_family, 11),
-                pady=40,
+                font=(self.theme.font_family, 12),
             ).pack()
             return
 
-        icons = {
-            "Web": "🌐",
-            "Local Folder": "📁",
-            "Local File": "📄",
-            "Tool": "🛠️",
-        }
-
         for link in links:
-            card = tk.Frame(parent, bg="#1c212c", padx=16, pady=12)
-            card.pack(fill="x", pady=6)
+            self._render_card(parent, link)
 
-            top = tk.Frame(card, bg="#1c212c")
-            top.pack(fill="x")
+    def _render_card(self, parent: tk.Widget, link: QuickLink) -> None:
+        card = tk.Frame(
+            parent,
+            bg="#1c212c",
+            padx=24,
+            pady=18,
+            highlightbackground="#2b3448",
+            highlightthickness=1,
+        )
+        card.pack(fill="x", pady=8)
 
-            ic = icons.get(link.category, "⚡")
-            tk.Label(
-                top,
-                text=f"{ic}  {link.name}",
-                bg="#1c212c",
-                fg="#f8fafc",
-                font=(self.theme.font_family, 12, "bold"),
-                anchor="w",
-            ).pack(side="left", fill="x", expand=True)
+        top = tk.Frame(card, bg="#1c212c")
+        top.pack(fill="x")
 
-            acts = tk.Frame(top, bg="#1c212c")
-            acts.pack(side="right")
+        tk.Label(
+            top,
+            text=f"[{link.category}]",
+            bg="#083344",
+            fg="#22d3ee",
+            font=(self.theme.font_family, 10, "bold"),
+            padx=8,
+            pady=3,
+        ).pack(side="left", padx=(0, 10))
 
-            tk.Label(
-                acts,
-                text=f"Clicks: {link.click_count}",
-                bg="#1c212c",
-                fg="#64748b",
-                font=(self.theme.font_family, 9),
-            ).pack(side="left", padx=8)
+        tk.Label(
+            top,
+            text=link.name,
+            bg="#1c212c",
+            fg="#f8fafc",
+            font=(self.theme.font_family, 14, "bold"),
+            anchor="w",
+        ).pack(side="left", fill="x", expand=True)
 
-            tk.Button(
-                acts,
-                text="🚀 Open",
-                bg="#00e5ff",
-                fg="#0a0e17",
-                activebackground="#00b4d8",
-                relief="flat",
-                bd=0,
-                font=(self.theme.font_family, 9, "bold"),
-                cursor="hand2",
-                padx=12,
-                pady=3,
-                command=lambda lnk=link: self.launch_quick_link(lnk),
-            ).pack(side="left", padx=3)
+        acts = tk.Frame(top, bg="#1c212c")
+        acts.pack(side="right")
 
-            tk.Button(
-                acts,
-                text="✏️ Edit",
-                bg="#2b3448",
-                fg="#e2e8f0",
-                activebackground="#3b475e",
-                relief="flat",
-                bd=0,
-                font=(self.theme.font_family, 9),
-                cursor="hand2",
-                padx=10,
-                pady=3,
-                command=lambda lnk=link: self.open_edit_link(lnk),
-            ).pack(side="left", padx=3)
+        tk.Label(
+            acts,
+            text=f"Clicks: {link.click_count}",
+            bg="#1c212c",
+            fg="#94a3b8",
+            font=(self.theme.font_family, 10),
+        ).pack(side="left", padx=10)
 
-            tk.Button(
-                acts,
-                text="🗑️ Delete",
-                bg="#3f1d24",
-                fg="#fca5a5",
-                activebackground="#5c2630",
-                relief="flat",
-                bd=0,
-                font=(self.theme.font_family, 9),
-                cursor="hand2",
-                padx=10,
-                pady=3,
-                command=lambda lid=link.id: self.delete_link(lid),
-            ).pack(side="left", padx=3)
+        tk.Button(
+            acts,
+            text="Open",
+            bg="#00e5ff",
+            fg="#0a0e17",
+            activebackground="#00b4d8",
+            relief="flat",
+            bd=0,
+            font=(self.theme.font_family, 10, "bold"),
+            cursor="hand2",
+            padx=14,
+            pady=5,
+            command=lambda lnk=link: self.launch_quick_link(lnk),
+        ).pack(side="left", padx=4)
 
-            tk.Label(
-                card,
-                text=link.target_uri,
-                bg="#1c212c",
-                fg="#64748b",
-                font=("courier", 9),
-                anchor="w",
-            ).pack(fill="x", pady=(4, 0))
+        tk.Button(
+            acts,
+            text="Edit",
+            bg="#2b3448",
+            fg="#e2e8f0",
+            activebackground="#3b475e",
+            relief="flat",
+            bd=0,
+            font=(self.theme.font_family, 10),
+            cursor="hand2",
+            padx=12,
+            pady=5,
+            command=lambda lnk=link: self.open_edit_link(lnk),
+        ).pack(side="left", padx=4)
+
+        tk.Button(
+            acts,
+            text="Delete",
+            bg="#3f1d24",
+            fg="#fca5a5",
+            activebackground="#5c2630",
+            relief="flat",
+            bd=0,
+            font=(self.theme.font_family, 10),
+            cursor="hand2",
+            padx=12,
+            pady=5,
+            command=lambda lid=link.id: self.delete_link(lid),
+        ).pack(side="left", padx=4)
+
+        tk.Label(
+            card,
+            text=link.target_uri,
+            bg="#1c212c",
+            fg="#94a3b8",
+            font=("courier", 10),
+            anchor="w",
+        ).pack(fill="x", pady=(8, 0))
 
     def launch_quick_link(self, link: QuickLink) -> None:
         """Launch web link or open local file/folder via xdg-open."""

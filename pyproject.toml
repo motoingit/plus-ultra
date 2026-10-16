@@ -16,13 +16,13 @@ build-backend = "hatchling.build"
 [tool.ruff]
 line-length = 80
 target-version = "py312"
-src = ["src", "tests"]
+src = ["src", ".tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = [".tests"]
 
 [dependency-groups]
 dev = [

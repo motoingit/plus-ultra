@@ -69,7 +69,7 @@ def test_dashboard_panel_layout_and_tabs(tmp_path: Path) -> None:
         assert panel.sidebar_col is not None
         assert panel.center_col is not None
         assert panel.notif_col is not None
-        assert len(panel.tab_buttons) == 6
+        assert len(panel.tab_buttons) == 7
 
         # Default tab is Tasks
         assert panel.active_tab == "Tasks"
@@ -345,6 +345,7 @@ def test_dashboard_all_feature_tabs_render_and_switch(
         for tab_name in [
             "Tasks",
             "Code",
+            "DSA",
             "Courses",
             "Ideas-Doubt",
             "Opportunities",
@@ -404,9 +405,9 @@ def test_dashboard_code_copy_and_dsa_toggle(tmp_path: Path) -> None:
         assert updated.is_done == 1
 
         # Test clipboard copy feedback
-        dummy_btn = tk.Button(panel, text="📋 Copy")
+        dummy_btn = tk.Button(panel, text="Copy")
         panel._copy_to_clipboard("test_code_snippet()", dummy_btn)
-        assert dummy_btn.cget("text") == "✓ Copied!"
+        assert dummy_btn.cget("text") == "Copied!"
 
         panel.destroy()
     finally:

@@ -29,6 +29,7 @@ from plus_ultra.ui.geometry import (
     generate_capsule_points,
     generate_perimeter_path,
 )
+from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import GEOMETRY, THEME, CapsuleGeometry, CapsuleTheme
 
 logger = logging.getLogger(__name__)
@@ -154,13 +155,12 @@ class FloatingWidget:
             capstyle="round",
         )
 
-        # 3. Content items: Orange Bell indicator + PLUS-ULTRA text
-        self.bell_id = self.canvas.create_text(
+        # 3. Content items: Alert indicator icon + PLUS-ULTRA text
+        self._bell_icon = get_icon("fallback", 18)
+        self.bell_id = self.canvas.create_image(
             52,
             h // 2,
-            text="🔔",
-            fill=self.theme.bell_orange,
-            font=(self.theme.font_family, self.theme.font_size + 6),
+            image=self._bell_icon,
             state="hidden",
         )
 
@@ -294,7 +294,7 @@ class FloatingWidget:
         self,
         title: str,
         message: str = "",
-        icon: str = "🔔",
+        icon: str = "",
         notification_id: str | None = None,
     ) -> str:
         """Add notification: shows 3s popup below and displays orange bell."""
@@ -330,10 +330,43 @@ class FloatingWidget:
         self._update_bell_state()
         self._spawn_popup_pill(item)
 
+    def _update_capsule_geometry(self) -> None:
+        """Dynamically adjust capsule width based on unread notifications."""
+        if self._closed:
+            return
+
+        target_w = self.geometry.width
+        if self.notifications.has_unread:
+            target_w = self.geometry.width + 48
+
+        if target_w != self.width:
+            old_w = self.width
+            self.width = target_w
+            cur_x = self.root.winfo_x()
+            cur_y = self.root.winfo_y()
+            new_x = cur_x - (target_w - old_w) // 2
+            self.root.geometry(f"{self.width}x{self.height}+{new_x}+{cur_y}")
+            self.canvas.config(width=self.width)
+
+            points = generate_capsule_points(
+                self.width, self.height, self.radius
+            )
+            self.canvas.coords(self.capsule_id, *points)
+            self._perimeter_path = generate_perimeter_path(
+                self.width, self.height, self.radius
+            )
+
+            self.root.update_idletasks()
+            apply_window_shape_mask(
+                self.root.winfo_id(), self.width, self.height, self.radius
+            )
+
     def _update_bell_state(self) -> None:
         """Show orange bell if unread notifications exist, else center text."""
         if self._closed:
             return
+
+        self._update_capsule_geometry()
 
         w = self.width
         h = self.height
@@ -341,7 +374,8 @@ class FloatingWidget:
         if self.notifications.has_unread:
             # Orange bell visible on left; text offset right
             self.canvas.itemconfig(self.bell_id, state="normal")
-            self.canvas.coords(self.idle_text_id, (w // 2) + 10, h // 2)
+            self.canvas.coords(self.bell_id, 48, h // 2)
+            self.canvas.coords(self.idle_text_id, (w // 2) + 12, h // 2)
         else:
             # All read: bell hidden, text perfectly centered
             self.canvas.itemconfig(self.bell_id, state="hidden")
@@ -405,10 +439,13 @@ class FloatingWidget:
 
         # Content text (Icon + preview text)
         preview_text = self.notifications.format_popup_text(item)
+        content_str = (
+            f"{item.icon}  {preview_text}" if item.icon else preview_text
+        )
         canvas.create_text(
             pop_w // 2,
             pop_h // 2,
-            text=f"{item.icon}  {preview_text}",
+            text=content_str,
             fill=self.theme.popup_text,
             font=(self.theme.font_family, 11, "bold"),
         )

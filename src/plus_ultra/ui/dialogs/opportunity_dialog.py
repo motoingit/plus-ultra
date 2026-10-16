@@ -8,6 +8,7 @@ from tkinter import messagebox, ttk
 from typing import Any
 
 from plus_ultra.models import Opportunity
+from plus_ultra.ui.components.datetime_picker import DateTimePicker
 from plus_ultra.ui.dialogs.base import center_modal
 from plus_ultra.ui.theme import THEME, CapsuleTheme
 
@@ -28,23 +29,26 @@ class OpportunityDialog(tk.Toplevel):
         self.theme = theme
 
         self.title("Edit Opportunity" if item else "Add Opportunity")
-        self.geometry("540x540")
-        self.minsize(480, 480)
+        self.geometry("640x640")
+        self.minsize(560, 560)
         self.transient(parent)
         self.grab_set()
 
         self._build_ui()
         center_modal(self, parent)
 
+    @property
+    def dead_entry(self) -> tk.Entry:
+        """Compatibility property for test assertions."""
+        return self.datetime_picker.entry
+
     def _build_ui(self) -> None:
         self.configure(bg="#12151c")
 
-        footer = tk.Frame(self, bg="#0d1117", padx=24, pady=16)
+        footer = tk.Frame(self, bg="#0d1117", padx=28, pady=18)
         footer.pack(side="bottom", fill="x")
 
-        save_label = (
-            "✓ Update Opportunity" if self.item else "✓ Create Opportunity"
-        )
+        save_label = "Update Opportunity" if self.item else "Create Opportunity"
         tk.Button(
             footer,
             text=save_label,
@@ -53,25 +57,25 @@ class OpportunityDialog(tk.Toplevel):
             activebackground="#00b4d8",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10, "bold"),
+            font=(self.theme.font_family, 11, "bold"),
             command=self._handle_save,
             cursor="hand2",
-            padx=18,
-            pady=8,
+            padx=20,
+            pady=10,
         ).pack(side="right", padx=(10, 0))
 
         tk.Button(
             footer,
-            text="✕ Cancel",
+            text="Cancel",
             bg="#2b3448",
             fg="#e2e8f0",
             relief="flat",
             bd=0,
-            font=(self.theme.font_family, 10),
+            font=(self.theme.font_family, 11),
             command=self.destroy,
             cursor="hand2",
-            padx=14,
-            pady=8,
+            padx=16,
+            pady=10,
         ).pack(side="right")
 
         body = tk.Frame(self, bg="#12151c", padx=24, pady=20)
@@ -163,21 +167,21 @@ class OpportunityDialog(tk.Toplevel):
         dead_box.pack(side="left", fill="x", expand=True, padx=(0, 8))
         tk.Label(
             dead_box,
-            text="Deadline (YYYY-MM-DD)",
+            text="Deadline (Presets & 'Now')",
             bg="#12151c",
             fg="#94a3b8",
             font=(self.theme.font_family, 10),
         ).pack(anchor="w")
-        self.dead_entry = tk.Entry(
-            dead_box,
-            bg="#1c212c",
-            fg="#f8fafc",
-            relief="flat",
-            font=(self.theme.font_family, 11),
-        )
+        init_dead = ""
         if self.item and self.item.deadline:
-            self.dead_entry.insert(0, self.item.deadline)
-        self.dead_entry.pack(fill="x", pady=(4, 0), ipady=4)
+            init_dead = self.item.deadline
+        self.datetime_picker = DateTimePicker(
+            dead_box,
+            initial_value=init_dead,
+            include_time=False,
+            theme=self.theme,
+        )
+        self.datetime_picker.pack(fill="x", pady=(4, 0))
 
         url_box = tk.Frame(r2, bg="#12151c")
         url_box.pack(side="right", fill="x", expand=True, padx=(8, 0))
@@ -233,7 +237,7 @@ class OpportunityDialog(tk.Toplevel):
             "organization": org,
             "kind": self.kind_combo.get(),
             "status": self.status_combo.get(),
-            "deadline": self.dead_entry.get().strip(),
+            "deadline": self.datetime_picker.get_value(),
             "url": self.url_entry.get().strip(),
             "notes": self.notes_entry.get().strip(),
         }
