@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import contextlib
 import datetime
+import logging
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Any
@@ -14,6 +14,8 @@ from plus_ultra.ui.components.scrollable import ScrollableFrame
 from plus_ultra.ui.dialogs import CategoryDialog, TaskDialog
 from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
+
+logger = logging.getLogger(__name__)
 
 
 class TasksView:
@@ -367,6 +369,12 @@ class TasksView:
         cats = self.category_service.list_categories()
 
         def _on_save(data: dict[str, Any]) -> None:
+            logger.info(
+                "TasksView: Creating task '%s' [due=%s, schedule_reminder=%s]",
+                data.get("title"),
+                data.get("due_date"),
+                data.get("schedule_reminder"),
+            )
             new_task = self.task_service.create_task(
                 title=data["title"],
                 category_id=data["category_id"],
@@ -380,9 +388,21 @@ class TasksView:
                 and data["due_date"]
                 and self.reminder_service
             ):
-                with contextlib.suppress(Exception):
-                    self.reminder_service.create_reminder(
+                try:
+                    rem = self.reminder_service.create_reminder(
                         new_task.id, data["due_date"]
+                    )
+                    logger.info(
+                        "TasksView: Scheduled reminder %s for task %s at %s",
+                        rem.id,
+                        new_task.id,
+                        data["due_date"],
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "TasksView: Failed to schedule reminder for %s: %s",
+                        new_task.id,
+                        exc,
                     )
             self.refresh()
 
@@ -398,6 +418,12 @@ class TasksView:
         cats = self.category_service.list_categories()
 
         def _on_save(data: dict[str, Any]) -> None:
+            logger.info(
+                "TasksView: Updating task %s '%s' [due=%s]",
+                task.id,
+                data.get("title"),
+                data.get("due_date"),
+            )
             self.task_service.update_task(
                 task_id=task.id,
                 title=data["title"],
@@ -412,9 +438,21 @@ class TasksView:
                 and data["due_date"]
                 and self.reminder_service
             ):
-                with contextlib.suppress(Exception):
-                    self.reminder_service.create_reminder(
+                try:
+                    rem = self.reminder_service.create_reminder(
                         task.id, data["due_date"]
+                    )
+                    logger.info(
+                        "TasksView: Scheduled reminder %s for task %s at %s",
+                        rem.id,
+                        task.id,
+                        data["due_date"],
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "TasksView: Failed to schedule reminder for %s: %s",
+                        task.id,
+                        exc,
                     )
             self.refresh()
 

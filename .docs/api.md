@@ -329,12 +329,20 @@ Pure Tkinter image caching and downsampling utility:
 - `get_icon(icon_name: str = "fallback", size: int = 24, master: tk.Misc | None = None) -> tk.PhotoImage | None`: Returns a cached, subsampled `PhotoImage` tied to the active interpreter root with zero third-party dependencies.
 - `clear_icon_cache() -> None`: Clears in-memory image references.
 
+### `plus_ultra.datetime_utils`
+Timezone-aware datetime parsing utility:
+- `parse_flexible_datetime(val: str | datetime) -> datetime`: Parses naive local datetimes, ISO 8601 with Z or timezone offsets, space-separated dates (`"YYYY-MM-DD HH:MM"`), and date-only strings into timezone-aware datetimes for reliable scheduling comparisons.
+
 ### `plus_ultra.ui.components`
 Reusable presentation components:
 - `DateTimePicker`: Interactive date and time picker featuring `⚡ Now` automatic timestamp insertion, date presets (`Today`, `Tomorrow`, `+3 Days`, `+1 Wk`), time presets (`09:00`, `12:00`, `15:00`, `18:00`, `21:00`, `23:59`), and step adjusters (`-1d`, `+1d`).
 - `ScrollableFrame`: Canvas-backed scrollable container with mousewheel bindings.
-- `Sidebar`: Draggable navigation sidebar supporting manual cursor drag-and-drop tab reordering, icon-only Settings button on bottom-left, live network status indicator, and renamed tabs (`Tasks`, `Code c-p`, `DSA Tracker`, `Courses`, `PS/I`, `Opportunities`, `Quick Links`).
-- `NotificationsPanel`: Focused notification alerts stream with Mark All Read, Clear, and bottom Network Status monitor card with live probe trigger.
+- `Sidebar`: Draggable navigation sidebar supporting manual cursor drag-and-drop tab reordering, 80px enlarged Settings button on bottom-left, and renamed tabs (`Tasks`, `Code c-p`, `DSA Tracker`, `Courses`, `PS/I`, `Opportunities`, `Quick Links`).
+- `NotificationsPanel`: Focused notification alerts stream with Mark All Read, Clear, and clean unread status list.
+
+### `plus_ultra.ui.floating`
+Floating capsule presence:
+- `FloatingWidget`: Top-center hovering presence with trailing hover beam, dynamic width expansion on unread alerts, 3-second popup notification pill, and right-side network status indicator dot (`#10b981` online, `#ef4444` offline, toggleable via settings).
 
 ### `plus_ultra.ui.dialogs`
 Centering modal dialogs with generous dimensions (`680x720`, `680x680`, `640x620`):
@@ -342,7 +350,8 @@ Centering modal dialogs with generous dimensions (`680x720`, `680x680`, `640x620
 - `TaskDialog`: Supports interactive `DateTimePicker`, priority/pace selectors, and inline category creation directly inside the category dropdown (`+ Add New Category...` and `+` button).
 - `OpportunityDialog`: Supports interactive `DateTimePicker` in date-only mode for deadlines.
 - `CodeDialog`: Offers predefined language combobox selections (`Python`, `JavaScript`, `TypeScript`, `C`, `C++`, `Java`, `Rust`, `Go`, `Bash`, `SQL`, etc.).
-- `CourseDialog`, `IdeaDialog`, `QuickLinkDialog`, `CategoryDialog`.
+- `CourseDialog`: Course editor with cleaned platform options (`University`, `YouTube`, `Other`).
+- `IdeaDialog`, `QuickLinkDialog`, `CategoryDialog`.
 
 ### `plus_ultra.ui.views`
 Decoupled workspace tab views with 2x card sizing and clean badges:
@@ -350,7 +359,9 @@ Decoupled workspace tab views with 2x card sizing and clean badges:
 - `CodeView` (`Code c-p`): Code snippets workspace with language filters and one-click clipboard copy.
 - `DSAView` (`DSA Tracker`): Dedicated DSA Problem Tracker view in the main workspace.
 - `IdeasView` (`PS/I`): Dual-subtab view featuring dedicated `[ Project Ideas ]` and `[ Concept Doubts ]` tables, each with contextual creation actions (`+ Add Idea` / `+ Add Doubt`).
-- `CoursesView`, `OpportunitiesView`, `QuickLinksView`, `SettingsView`.
+- `CoursesView` (`Courses`): Platform filter buttons (`All`, `University`, `YouTube`, `Other`).
+- `OpportunitiesView`, `QuickLinksView`.
+- `SettingsView`: Preferences & diagnostics with Always-on-top toggle, Network status indicator toggle, and demo data reseed.
 
 ### `plus_ultra.ui.geometry`
 Mathematical capsule coordinate calculations:

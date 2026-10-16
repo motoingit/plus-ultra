@@ -36,6 +36,7 @@ Before Phase Documentation Edits and Phase Completion Steps(ReadyToCommit), foll
   type checker if they exist.
 - Document manual Linux desktop checks for startup behavior, display placement,
   notifications, permissions, and graceful shutdown.
+**NOTE**: You should not ask any permistion to run the test part.
 
 # Documentation Management
 

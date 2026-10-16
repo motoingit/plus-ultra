@@ -65,7 +65,7 @@ class TaskService:
             if not cat or cat.is_deleted:
                 raise ValueError(f"Category '{category_id}' does not exist.")
 
-        return self.task_repo.create(
+        created = self.task_repo.create(
             title=clean_title,
             category_id=category_id,
             description=description.strip(),
@@ -76,6 +76,15 @@ class TaskService:
             pace_level=pace_level,
             is_google_task=is_google_task,
         )
+        logger.info(
+            "Task created: '%s' [id=%s, prio=%s, pace=%s, due=%s]",
+            created.title,
+            created.id,
+            created.critical_level,
+            created.pace_level,
+            created.due_date or "None",
+        )
+        return created
 
     def get_task(self, task_id: str) -> Task | None:
         """Fetch task by ID if not deleted."""
@@ -117,7 +126,7 @@ class TaskService:
             if not cat or cat.is_deleted:
                 raise ValueError(f"Category '{category_id}' does not exist.")
 
-        return self.task_repo.update(
+        updated = self.task_repo.update(
             task_id=task_id,
             title=clean_title,
             category_id=category_id,
@@ -129,6 +138,15 @@ class TaskService:
             pace_level=pace_level,
             is_google_task=is_google_task,
         )
+        if updated:
+            logger.info(
+                "Task updated: '%s' [id=%s, status=%s, due=%s]",
+                updated.title,
+                updated.id,
+                updated.status,
+                updated.due_date or "None",
+            )
+        return updated
 
     def toggle_status(self, task_id: str) -> Task | None:
         """Toggle task status between Pending and Completed."""
@@ -137,11 +155,19 @@ class TaskService:
             return None
 
         new_status = "Pending" if task.status == "Completed" else "Completed"
+        logger.info(
+            "Toggling status for task '%s' [id=%s] to %s",
+            task.title,
+            task_id,
+            new_status,
+        )
         return self.update_task(task_id, status=new_status)
 
     def soft_delete_task(self, task_id: str) -> bool:
         """Soft delete a task and cascade to its reminders."""
-        return self.task_repo.soft_delete(task_id)
+        deleted = self.task_repo.soft_delete(task_id)
+        logger.info("Task deleted: [id=%s, success=%s]", task_id, deleted)
+        return deleted
 
     def list_tasks(
         self,

@@ -17,7 +17,7 @@ import logging
 import sqlite3
 import threading
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 from plus_ultra import desktop, settings
@@ -28,7 +28,7 @@ from plus_ultra.services import ReminderService
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_POLL_INTERVAL_S: float = 10.0  # 10,000 ms
+DEFAULT_POLL_INTERVAL_S: float = 2.0  # 2,000 ms responsiveness
 
 
 class ReminderScheduler:
@@ -82,7 +82,7 @@ class ReminderScheduler:
         elif self.now_provider is not None:
             now = self.now_provider()
         else:
-            now = datetime.now(UTC).isoformat()
+            now = datetime.now().astimezone().isoformat()
 
         due_items = active_service.get_due_reminders(now)
         fired: list[tuple[Reminder, Task]] = []

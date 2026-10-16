@@ -168,3 +168,39 @@ def test_scheduler_thread_lifecycle(
     # Clean stop
     scheduler.stop(timeout=1.0)
     assert not scheduler.is_running
+
+
+def test_scheduler_evaluates_local_time_and_space_format(
+    test_setup: tuple[TaskService, ReminderService],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify reminders in UI format ('YYYY-MM-DD HH:MM') fire correctly."""
+    task_svc, rem_svc = test_setup
+    task = task_svc.create_task("Local Time Lab", critical_level="High")
+
+    # Schedule with UI picker format: YYYY-MM-DD HH:MM
+    r_due = rem_svc.create_reminder(task.id, "2026-10-17 01:20")
+    r_future = rem_svc.create_reminder(task.id, "2026-10-17 01:50")
+
+    mock_notify = MagicMock()
+    monkeypatch.setattr(
+        "plus_ultra.desktop.send_desktop_notification", mock_notify
+    )
+    mock_cb = MagicMock()
+
+    scheduler = ReminderScheduler(
+        reminder_service=rem_svc,
+        on_reminder_due=mock_cb,
+        desktop_notify=True,
+    )
+
+    # Evaluate with local time string
+    fired = scheduler.tick(now_iso="2026-10-17 01:25")
+    assert len(fired) == 1
+    assert fired[0][0].id == r_due.id
+    assert fired[0][1].id == task.id
+
+    mock_notify.assert_called_once()
+    mock_cb.assert_called_once_with(task, r_due)
+    assert rem_svc.is_fired(r_due.id) is True
+    assert rem_svc.is_fired(r_future.id) is False

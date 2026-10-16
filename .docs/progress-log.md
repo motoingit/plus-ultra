@@ -403,6 +403,42 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
+## UI Polish, Reminder Reliability & Diagnostics
+
+- **Status**: Completed
+- **Date**: 2026-10-17
+
+### Phase To-do List:
+- [x] Fix Reminder Scheduling & Evaluation:
+  - Created `src/plus_ultra/datetime_utils.py` with `parse_flexible_datetime()`.
+  - Resolved root cause of reminder non-dispatch: replaced fragile SQLite ASCII string comparison (`r.remind_at <= ?`) with timezone-aware datetime comparison handling local naive strings (`"YYYY-MM-DD HH:MM"`), ISO-8601 with `"Z"`, and offset-aware datetimes.
+  - Reduced scheduler poll interval from 10.0s to 2.0s for immediate alert responsiveness.
+  - Removed silent `contextlib.suppress(Exception)` in `TasksView` and added explicit logging and error visibility.
+- [x] Network Status Capsule Dot & Setting Toggle:
+  - Deleted network status division from Left Sidebar (`Sidebar`) and Right Drawer (`NotificationsPanel`).
+  - Added small, clean network status indicator dot (`net_dot_id`) on the right side of the floating capsule.
+  - Added `"network_monitor_enabled": true` to `src/plus_ultra/resources/data/default-settings.json`.
+  - Added toggle checkbox in `SettingsView` under "Widget Behavior" to enable/disable network monitoring and capsule dot.
+- [x] 5x Settings Icon in Left Sidebar:
+  - Enlarged settings icon button in `Sidebar` to 80px (`get_icon("settings", 80) or get_icon("fallback", 80)`), providing an easily accessible, prominent button in the bottom-left corner.
+- [x] Cleaned Course Platform Categories:
+  - Removed `"Independent"` and `"Book"` tags from `CoursesView` filter buttons (`["All", "University", "YouTube", "Other"]`).
+  - Removed `"Independent"` and `"Book"` options from `CourseDialog` platform dropdown.
+- [x] Comprehensive Debug Logging:
+  - Fixed logging configuration in `src/plus_ultra/main.py`: attached stream and file handlers to the root logger and `plus_ultra` namespace so all module logs appear in console stdout and write to `launcher.log`.
+  - Added detailed, structured `logger.info()` logging across task creation, task updates, status toggles, task deletions, reminder scheduling, and scheduler firing across `task_service.py`, `reminder_service.py`, `tasks_view.py`, `course_service.py`, and `code_service.py`.
+- [x] Quality Gates & Test Suite:
+  - All 95 unit tests passing (`uv run pytest -v`).
+  - Zero lint errors with strict ruff checks (`uv run ruff check .`).
+  - Code fully formatted (`uv run ruff format --check .`).
+  - Strict compliance with line constraints: all files strictly <= 500 lines, all lines <= 80 characters.
+
+### Issues & Solutions:
+- **Reminder non-firing on user test**: The background scheduler evaluated `now` using `datetime.now(UTC).isoformat()`. Because user input was stored in local system time (IST +05:30), ASCII string comparison against UTC time from the previous day evaluated to `False`, delaying alerts by 5.5 hours. Furthermore, difference in separators (`' '` vs `'T'`) broke string inequality. Solved by creating `parse_flexible_datetime` to parse both naive local time and UTC formats and evaluate aware datetimes in Python.
+- **Unprinted module logs**: `configure_logging()` previously configured only logger named `"plus-ultra"` (hyphenated `APP_NAME`), while all Python submodules used standard `logger = logging.getLogger(__name__)` (underscored package `"plus_ultra"`). Logs were silently dropped. Solved by configuring the root logger and `"plus_ultra"` logger hierarchy.
+
+---
+
 ## Next: Phase 6: Robustness, Startup, and Autostart
 
 - **Status**: Ready for Planning
@@ -411,3 +447,4 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
   - Implement CLI flags: `--install-autostart` and `--uninstall-autostart` writing or removing `~/.config/autostart/plus-ultra.desktop`.
   - Implement `ui/splash.py`: startup progress logger (`[1/4] Paths`, `[2/4] Database`, `[3/4] Scheduler`, `[4/4] Ready`).
   - Graceful process termination and single-instance validation across user session logout/login.
+

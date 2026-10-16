@@ -30,6 +30,7 @@ plus-ultra/
 │       │   └── icons/            # Packaged raster/vector iconography
 │       │       ├── fallback.png  # High-resolution master icon asset
 │       │       └── fallback.svg  # Master vector artwork
+│       ├── datetime_utils.py     # Timezone-aware datetime parsing for reminders
 │       ├── desktop.py            # Single-instance lock (fcntl.flock), notifications
 │       ├── network.py            # Thread-safe connectivity probe & status monitor
 │       ├── notifications.py      # Capsule notification queue & width sizing
@@ -68,36 +69,37 @@ plus-ultra/
 │           ├── icons.py          # Pure Tkinter PhotoImage caching & scaling
 │           ├── theme.py          # Design tokens, color palettes, fonts
 │           ├── geometry.py       # Mathematical capsule perimeter generator
-│           ├── floating.py       # Dynamic capsule widget with auto-expansion
+│           ├── floating.py       # Dynamic capsule widget with auto-expansion & net dot
 │           ├── panel.py          # Dashboard coordinator window with PanedWindow
 │           ├── components/       # Reusable UI widgets
 │           │   ├── __init__.py
 │           │   ├── datetime_picker.py # Interactive DateTimePicker with Now & presets
 │           │   ├── scrollable.py # Scrollable canvas frame
-│           │   ├── sidebar.py    # Draggable tab navigation bar with network badge
-│           │   └── notifications_panel.py # Right drawer (Alerts & Network status)
+│           │   ├── sidebar.py    # Draggable tab navigation bar with 80px settings icon
+│           │   └── notifications_panel.py # Right drawer (Alerts stream)
 │           ├── dialogs/          # Modal forms with generous dimensions
 │           │   ├── __init__.py
 │           │   ├── base.py       # Modal centering utility
 │           │   ├── task_dialog.py # Interactive DateTimePicker & inline categories
 │           │   ├── code_dialog.py # Predefined language dropdown
-│           │   ├── course_dialog.py
+│           │   ├── course_dialog.py # Cleaned course platform options
 │           │   ├── idea_dialog.py
 │           │   ├── opportunity_dialog.py # Reusable DateTimePicker deadline
 │           │   ├── quick_link_dialog.py
 │           │   └── category_dialog.py
 │           └── views/            # Specialized tab content views (2x cards)
 │               ├── __init__.py
-│               ├── tasks_view.py # Tasks view
+│               ├── tasks_view.py # Tasks view with rich logging & CRUD
 │               ├── code_view.py  # Code c-p workspace
 │               ├── dsa_view.py   # Dedicated DSA Problem Tracker view
-│               ├── courses_view.py
+│               ├── courses_view.py # Courses view (University, YouTube, Other)
 │               ├── ideas_view.py # PS/I dual subtabs (Ideas & Doubts)
 │               ├── opportunities_view.py
 │               ├── quick_links_view.py
-│               └── settings_view.py
-├── .tests/                       # Comprehensive test suite (88 tests, 100% pass)
+│               └── settings_view.py # Preferences & network monitor toggle
+├── .tests/                       # Comprehensive test suite (95 tests, 100% pass)
 │   ├── test_config.py            # XDG paths, fallback logic, mode 0o700, logging tests
+│   ├── test_datetime_utils.py    # Timezone-aware, ISO, and space-separated date parsing
 │   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, dynamic capsule
 │   ├── test_settings.py          # Settings validation, type safety, corrupt file quarantine
 │   ├── test_desktop.py           # Advisory locking, notify-send, and process contention

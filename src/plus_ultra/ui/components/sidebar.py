@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import contextlib
 import tkinter as tk
 from collections.abc import Callable
 
-from plus_ultra.network import NetworkStatusMonitor
 from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
 
@@ -78,12 +76,12 @@ class Sidebar:
 
         self._render_tabs()
 
-        # Bottom section: Icon-only Settings on left, Network status on right
+        # Bottom section: 5x Enlarge Icon-only Settings button on bottom-left
         bottom_frame = tk.Frame(self.container, bg="#12151c", padx=16, pady=16)
         bottom_frame.pack(side="bottom", fill="x")
 
-        # Fallback to fallback icon if settings icon is missing
-        settings_icon = get_icon("settings", 24) or get_icon("fallback", 24)
+        # Fallback to fallback icon if settings icon is missing (5x scale)
+        settings_icon = get_icon("settings", 80) or get_icon("fallback", 80)
         self.settings_btn = tk.Button(
             bottom_frame,
             image=settings_icon,
@@ -93,25 +91,12 @@ class Sidebar:
             bd=0,
             highlightthickness=0,
             cursor="hand2",
-            padx=8,
-            pady=8,
+            padx=12,
+            pady=12,
             command=lambda: self._on_tab_click("Settings"),
         )
         self.settings_btn.image = settings_icon  # type: ignore[attr-defined]
         self.settings_btn.pack(side="left")
-
-        self.net_status_lbl = tk.Label(
-            bottom_frame,
-            text="● Online",
-            bg="#12151c",
-            fg="#10b981",
-            font=(self.theme.font_family, 9, "bold"),
-        )
-        self.net_status_lbl.pack(side="right", padx=(0, 4))
-
-        self._net_monitor = NetworkStatusMonitor()
-        self._net_monitor.probe_async()
-        self.container.after(300, self._poll_network_status)
 
     def _render_tabs(self) -> None:
         """Render navigation tab buttons in current order."""
@@ -204,23 +189,6 @@ class Sidebar:
         self.highlight_tab(tab_id)
         if self.on_switch_tab:
             self.on_switch_tab(tab_id)
-
-    def _poll_network_status(self) -> None:
-        """Poll network monitor result queue on main Tk thread."""
-        with contextlib.suppress(Exception):
-            if not self.container.winfo_exists():
-                return
-            res = self._net_monitor.get_result()
-            if res is not None:
-                color = "#10b981" if res else "#ef4444"
-                text = "● Online" if res else "● Offline"
-                if (
-                    hasattr(self, "net_status_lbl")
-                    and self.net_status_lbl.winfo_exists()
-                ):
-                    self.net_status_lbl.configure(text=text, fg=color)
-            else:
-                self.container.after(300, self._poll_network_status)
 
     def highlight_tab(self, active_tab: str) -> None:
         """Update active button styling across navigation items."""

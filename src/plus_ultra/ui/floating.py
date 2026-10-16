@@ -1,15 +1,4 @@
-"""Floating desktop capsule widget for PLUS-ULTRA.
-
-Applies OS and UI concepts:
-- Compact Main Capsule: Top-center hovering presence with unread bell indicator.
-- Orbiting Beam on Hover: Trailing animated border beam runs exclusively
-  when mouse cursor hovers over the capsule contour.
-- Transient Popup Capsule: 3-second temporary notification pill positioned
-  directly below the main capsule.
-- Unread Persistence: Orange bell remains visible on the main capsule as long
-  as unread notifications exist.
-- XWayland Shape Masking: Hardware clipping to eliminate rectangular corners.
-"""
+"""Floating desktop capsule widget for PLUS-ULTRA."""
 
 from __future__ import annotations
 
@@ -21,6 +10,7 @@ from typing import Any
 
 from plus_ultra import settings
 from plus_ultra.desktop import apply_window_shape_mask
+from plus_ultra.network import NetworkStatusMonitor
 from plus_ultra.notifications import (
     CapsuleNotification,
     CapsuleNotificationQueue,
@@ -62,30 +52,25 @@ class FloatingWidget:
             max_width=self.geometry.max_width,
         )
 
-        # Fixed Compact Capsule Dimensions
-        self.width: int = self.geometry.width
-        self.height: int = self.geometry.height
-        self.radius: int = self.geometry.radius
+        self.width = self.geometry.width
+        self.height = self.geometry.height
+        self.radius = self.geometry.radius
 
-        # Mouse & State Flags
-        self._drag_start_x: int = 0
-        self._drag_start_y: int = 0
-        self._dragged: bool = False
-        self._is_hovered: bool = False
-        self._active_toggle: bool = False
-        self._beam_idx: int = 0
-        self._beam_length: int = 56
+        self._drag_start_x = self._drag_start_y = self._beam_idx = 0
+        self._dragged = self._is_hovered = self._active_toggle = False
+        self._closed = False
+        self._beam_length = 56
         self._beam_timer_id: str | None = None
-        self._closed: bool = False
-
-        # Popup window reference and dismiss timer
         self._popup_window: tk.Toplevel | None = None
         self._popup_dismiss_timer_id: str | None = None
+        self._net_monitor = NetworkStatusMonitor()
+        self._net_poll_timer_id: str | None = None
 
         self._load_preferences()
         self._setup_window()
         self._build_canvas()
         self._bind_events()
+        self.root.after(400, self._poll_network_status)
 
     def _load_preferences(self) -> None:
         """Load user preferences for window stacking and animations."""
@@ -172,6 +157,17 @@ class FloatingWidget:
             font=(self.theme.font_family, self.theme.font_size, "bold"),
         )
 
+        # 4. Small network status indicator dot on right side of capsule
+        self.net_dot_id = self.canvas.create_oval(
+            w - 28,
+            (h // 2) - 4,
+            w - 20,
+            (h // 2) + 4,
+            fill="#10b981",
+            outline="",
+            state="hidden",
+        )
+
         # Apply initial XWayland shape mask to eliminate square corners
         self.root.update_idletasks()
         apply_window_shape_mask(self.root.winfo_id(), w, h, r)
@@ -197,15 +193,13 @@ class FloatingWidget:
         self._is_hovered = False
         self.canvas.itemconfig(self.idle_text_id, fill=self.theme.idle_text)
         self._stop_beam()
-        idle_border = (
+        border = (
             self.theme.hover_border
             if self._active_toggle
             else self.theme.idle_border
         )
         self.canvas.itemconfig(
-            self.capsule_id,
-            fill=self.theme.idle_fill,
-            outline=idle_border,
+            self.capsule_id, fill=self.theme.idle_fill, outline=border
         )
 
     def _start_beam(self) -> None:
@@ -219,8 +213,6 @@ class FloatingWidget:
             with contextlib.suppress(Exception):
                 self.root.after_cancel(self._beam_timer_id)
             self._beam_timer_id = None
-
-        # Hide beam segments
         self.canvas.coords(self.beam_body_id, 0, 0, 0, 0)
         self.canvas.coords(self.beam_head_id, 0, 0, 0, 0)
 
@@ -232,31 +224,27 @@ class FloatingWidget:
         total_pts = len(self._perimeter_path)
         if total_pts > 0 and self.glow_enabled:
             self._beam_idx = (self._beam_idx + 2) % total_pts
-
-            # Body coordinates (trailing tail)
-            body_coords: list[float] = []
-            for k in range(self._beam_length):
-                idx = (self._beam_idx - k) % total_pts
-                body_coords.extend(self._perimeter_path[idx])
+            body_coords = [
+                c
+                for k in range(self._beam_length)
+                for c in self._perimeter_path[(self._beam_idx - k) % total_pts]
+            ]
             self.canvas.coords(self.beam_body_id, *body_coords)
-
-            # Head coordinates (bright leading tip)
-            head_coords: list[float] = []
-            for k in range(6):
-                idx = (self._beam_idx - k) % total_pts
-                head_coords.extend(self._perimeter_path[idx])
+            head_coords = [
+                c
+                for k in range(6)
+                for c in self._perimeter_path[(self._beam_idx - k) % total_pts]
+            ]
             self.canvas.coords(self.beam_head_id, *head_coords)
 
         self._beam_timer_id = self.root.after(25, self._tick_beam)
 
     def _on_button_press(self, event: tk.Event[Any]) -> None:
-        """Record initial mouse coordinates on click."""
         self._drag_start_x = event.x_root - self.root.winfo_x()
         self._drag_start_y = event.y_root - self.root.winfo_y()
         self._dragged = False
 
     def _on_motion(self, event: tk.Event[Any]) -> None:
-        """Track mouse dragging and update window coordinates."""
         dx = abs(event.x_root - (self._drag_start_x + self.root.winfo_x()))
         dy = abs(event.y_root - (self._drag_start_y + self.root.winfo_y()))
         if dx > 2 or dy > 2:
@@ -264,10 +252,8 @@ class FloatingWidget:
 
         new_x = event.x_root - self._drag_start_x
         new_y = event.y_root - self._drag_start_y
-
         self.root.geometry(f"{self.width}x{self.height}+{new_x}+{new_y}")
 
-        # If popup is visible, keep it anchored below main capsule
         if self._popup_window and self._popup_window.winfo_exists():
             pop_w = self._popup_window.winfo_width()
             pop_x = new_x + (self.width - pop_w) // 2
@@ -275,7 +261,6 @@ class FloatingWidget:
             self._popup_window.geometry(f"+{pop_x}+{pop_y}")
 
     def _on_button_release(self, _event: tk.Event[Any]) -> None:
-        """Handle click when mouse was released without dragging."""
         if not self._dragged:
             self._on_click()
         elif self.on_position_change:
@@ -308,17 +293,14 @@ class FloatingWidget:
         return item.id
 
     def mark_all_read(self) -> None:
-        """Mark all notifications read and hide orange bell indicator."""
         self.notifications.mark_all_read()
         self.root.after_idle(self._update_bell_state)
 
     def mark_read(self, notification_id: str) -> None:
-        """Mark single notification read and update bell indicator."""
         self.notifications.mark_read(notification_id)
         self.root.after_idle(self._update_bell_state)
 
     def clear_notifications(self) -> None:
-        """Clear all notifications and hide bell indicator."""
         self.notifications.clear()
         self.root.after_idle(self._update_bell_state)
 
@@ -360,6 +342,14 @@ class FloatingWidget:
             apply_window_shape_mask(
                 self.root.winfo_id(), self.width, self.height, self.radius
             )
+            if hasattr(self, "net_dot_id"):
+                self.canvas.coords(
+                    self.net_dot_id,
+                    self.width - 28,
+                    (self.height // 2) - 4,
+                    self.width - 20,
+                    (self.height // 2) + 4,
+                )
 
     def _update_bell_state(self) -> None:
         """Show orange bell if unread notifications exist, else center text."""
@@ -385,24 +375,17 @@ class FloatingWidget:
         """Display 3s popup capsule directly below main capsule."""
         if self._closed:
             return
-
-        # Cancel any pending dismiss timer for existing popup
         if self._popup_dismiss_timer_id is not None:
             with contextlib.suppress(Exception):
                 self.root.after_cancel(self._popup_dismiss_timer_id)
             self._popup_dismiss_timer_id = None
 
         pop_w = max(320, self.notifications.compute_popup_width(item))
-        pop_h = 52
-        pop_r = 26
-
-        # Position below main capsule
-        main_x = self.root.winfo_x()
-        main_y = self.root.winfo_y()
+        pop_h, pop_r = 52, 26
+        main_x, main_y = self.root.winfo_x(), self.root.winfo_y()
         pop_x = main_x + (self.width - pop_w) // 2
         pop_y = main_y + self.height + 10
 
-        # Create or update popup window
         if not self._popup_window or not self._popup_window.winfo_exists():
             popup = tk.Toplevel(self.root)
             popup.overrideredirect(True)
@@ -414,8 +397,6 @@ class FloatingWidget:
             popup = self._popup_window
 
         popup.geometry(f"{pop_w}x{pop_h}+{pop_x}+{pop_y}")
-
-        # Clear canvas
         for child in popup.winfo_children():
             child.destroy()
 
@@ -427,17 +408,13 @@ class FloatingWidget:
             highlightthickness=0,
         )
         canvas.pack(fill=tk.BOTH, expand=True)
-
-        # Capsule contour
-        points = generate_capsule_points(pop_w, pop_h, pop_r)
+        pts = generate_capsule_points(pop_w, pop_h, pop_r)
         canvas.create_polygon(
-            points,
+            pts,
             fill=self.theme.popup_bg,
             outline=self.theme.popup_border,
             width=2.0,
         )
-
-        # Content text (Icon + preview text)
         preview_text = self.notifications.format_popup_text(item)
         content_str = (
             f"{item.icon}  {preview_text}" if item.icon else preview_text
@@ -449,12 +426,8 @@ class FloatingWidget:
             fill=self.theme.popup_text,
             font=(self.theme.font_family, 11, "bold"),
         )
-
-        # Apply shape mask to popup
         popup.update_idletasks()
         apply_window_shape_mask(popup.winfo_id(), pop_w, pop_h, pop_r)
-
-        # Auto-dismiss strictly after 3000ms (3.0 seconds)
         self._popup_dismiss_timer_id = self.root.after(
             3000, self._dismiss_popup_pill
         )
@@ -467,6 +440,34 @@ class FloatingWidget:
                 self._popup_window.destroy()
         self._popup_window = None
 
+    def _poll_network_status(self) -> None:
+        """Poll network connectivity and update indicator dot on capsule."""
+        if self._closed:
+            return
+
+        eff = settings.load_effective_settings()
+        if not eff.get("network_monitor_enabled", True):
+            self.canvas.itemconfig(self.net_dot_id, state="hidden")
+        else:
+            self._net_monitor.probe_async()
+            res = self._net_monitor.get_result()
+            is_on = (
+                res if res is not None else self._net_monitor.status.is_online
+            )
+            color = "#10b981" if is_on else "#ef4444"
+            self.canvas.itemconfig(self.net_dot_id, fill=color, state="normal")
+            self.canvas.coords(
+                self.net_dot_id,
+                self.width - 28,
+                (self.height // 2) - 4,
+                self.width - 20,
+                (self.height // 2) + 4,
+            )
+
+        self._net_poll_timer_id = self.root.after(
+            5000, self._poll_network_status
+        )
+
     def close(self) -> None:
         """Destroy window and popup cleanly."""
         logger.info("Closing floating widget window.")
@@ -476,6 +477,11 @@ class FloatingWidget:
         if self._beam_timer_id is not None:
             with contextlib.suppress(Exception):
                 self.root.after_cancel(self._beam_timer_id)
+
+        if self._net_poll_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._net_poll_timer_id)
+            self._net_poll_timer_id = None
 
         if self.on_position_change:
             with contextlib.suppress(Exception):

@@ -6,6 +6,7 @@ import sqlite3
 import uuid
 
 from plus_ultra.database.connection import transaction
+from plus_ultra.datetime_utils import parse_flexible_datetime
 from plus_ultra.models import Reminder
 from plus_ultra.repositories.base import _now_utc
 
@@ -65,6 +66,7 @@ class ReminderRepository:
         - reminder is_deleted = 0.
         - linked task is_deleted = 0 (excludes reminders of deleted tasks).
         - reminder has not already fired (not in reminder_fires table).
+        - evaluates due status using aware datetime comparison.
         """
         cur = self.conn.execute(
             """
@@ -72,15 +74,23 @@ class ReminderRepository:
             JOIN tasks t ON r.task_id = t.id
             WHERE r.is_deleted = 0
               AND t.is_deleted = 0
-              AND r.remind_at <= ?
               AND NOT EXISTS (
                   SELECT 1 FROM reminder_fires rf WHERE rf.reminder_id = r.id
               )
             ORDER BY r.remind_at ASC
-            """,
-            (before_timestamp,),
+            """
         )
-        return [_row_to_reminder(row) for row in cur.fetchall()]
+        cutoff = parse_flexible_datetime(before_timestamp)
+        due_list: list[Reminder] = []
+        for row in cur.fetchall():
+            rem = _row_to_reminder(row)
+            try:
+                rem_dt = parse_flexible_datetime(rem.remind_at)
+                if rem_dt <= cutoff:
+                    due_list.append(rem)
+            except Exception:
+                continue
+        return due_list
 
     def mark_fired(self, reminder_id: str) -> None:
         """Record that a reminder alert has been dispatched on this device."""

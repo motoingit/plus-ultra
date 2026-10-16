@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 from plus_ultra.models import CodeItem
 from plus_ultra.repositories import CodeRepository
+
+logger = logging.getLogger(__name__)
 
 
 class CodeService:
@@ -39,7 +43,7 @@ class CodeService:
         clean_title = title.strip()
         if not clean_title:
             raise ValueError("Title cannot be empty.")
-        return self.code_repo.create(
+        item = self.code_repo.create(
             category=category,
             title=clean_title,
             content=content,
@@ -49,6 +53,13 @@ class CodeService:
             url=url,
             notes=notes,
         )
+        logger.info(
+            "Code item created: '%s' [id=%s, cat=%s]",
+            item.title,
+            item.id,
+            item.category,
+        )
+        return item
 
     def toggle_done(self, item_id: str) -> bool:
         """Toggle DSA problem solved status."""

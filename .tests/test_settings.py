@@ -39,12 +39,14 @@ def test_default_settings_keys_and_values() -> None:
     assert defaults["glow_enabled"] is True
     assert defaults["glow_pulse_period_ms"] == 3000
     assert defaults["reminders_enabled"] is True
+    assert defaults["network_monitor_enabled"] is True
     assert set(defaults.keys()) == {
         "settings_version",
         "always_on_top",
         "glow_enabled",
         "glow_pulse_period_ms",
         "reminders_enabled",
+        "network_monitor_enabled",
     }
 
 

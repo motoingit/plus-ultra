@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 from plus_ultra.models import Reminder, Task
 from plus_ultra.repositories import ReminderRepository, TaskRepository
+
+logger = logging.getLogger(__name__)
 
 
 class ReminderService:
@@ -28,7 +32,14 @@ class ReminderService:
         if not clean_remind_at:
             raise ValueError("remind_at timestamp cannot be empty.")
 
-        return self.reminder_repo.create(clean_task_id, clean_remind_at)
+        rem = self.reminder_repo.create(clean_task_id, clean_remind_at)
+        logger.info(
+            "Reminder created: [id=%s, task_id=%s, remind_at=%s]",
+            rem.id,
+            clean_task_id,
+            clean_remind_at,
+        )
+        return rem
 
     def get_due_reminders(
         self, before_timestamp: str
@@ -49,6 +60,7 @@ class ReminderService:
     def mark_fired(self, reminder_id: str) -> None:
         """Record reminder dispatch in reminder_fires table."""
         self.reminder_repo.mark_fired(reminder_id)
+        logger.info("Reminder marked as fired: [id=%s]", reminder_id)
 
     def is_fired(self, reminder_id: str) -> bool:
         """Check if reminder was already dispatched on this device."""
@@ -56,4 +68,8 @@ class ReminderService:
 
     def soft_delete_reminder(self, reminder_id: str) -> bool:
         """Soft delete a reminder."""
-        return self.reminder_repo.soft_delete(reminder_id)
+        deleted = self.reminder_repo.soft_delete(reminder_id)
+        logger.info(
+            "Reminder deleted: [id=%s, success=%s]", reminder_id, deleted
+        )
+        return deleted

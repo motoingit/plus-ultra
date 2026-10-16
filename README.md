@@ -80,30 +80,31 @@ plus-ultra/
 │           │   ├── __init__.py
 │           │   ├── datetime_picker.py # Interactive DateTimePicker with Now & presets
 │           │   ├── scrollable.py # Scrollable canvas frame
-│           │   ├── sidebar.py    # Draggable tab navigation bar with network badge
-│           │   └── notifications_panel.py # Right drawer (Alerts & Network status)
+│           │   ├── sidebar.py    # Draggable tab navigation bar with 80px settings icon
+│           │   └── notifications_panel.py # Right drawer (Alerts stream)
 │           ├── dialogs/          # Modal forms with generous dimensions
 │           │   ├── __init__.py
 │           │   ├── base.py       # Modal centering utility
 │           │   ├── task_dialog.py # Interactive DateTimePicker & inline categories
 │           │   ├── code_dialog.py # Predefined language dropdown
-│           │   ├── course_dialog.py
+│           │   ├── course_dialog.py # Cleaned course platform options
 │           │   ├── idea_dialog.py
 │           │   ├── opportunity_dialog.py # Reusable DateTimePicker deadline
 │           │   ├── quick_link_dialog.py
 │           │   └── category_dialog.py
 │           └── views/            # Specialized tab content views (2x cards)
 │               ├── __init__.py
-│               ├── tasks_view.py # Tasks view
+│               ├── tasks_view.py # Tasks view with rich debug logging
 │               ├── code_view.py  # Code c-p workspace
 │               ├── dsa_view.py   # Dedicated DSA Problem Tracker view
-│               ├── courses_view.py
+│               ├── courses_view.py # Courses view (University, YouTube, Other)
 │               ├── ideas_view.py # PS/I dual subtabs (Ideas & Doubts)
 │               ├── opportunities_view.py
 │               ├── quick_links_view.py
-│               └── settings_view.py
-├── .tests/                       # Automated test suites (88 tests, 100% pass)
+│               └── settings_view.py # Preferences & network monitor toggle
+├── .tests/                       # Automated test suites (95 tests, 100% pass)
 │   ├── test_config.py            # XDG paths, fallback, permissions, metadata
+│   ├── test_datetime_utils.py    # Timezone-aware date parsing and formatting
 │   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, dynamic capsule
 │   ├── test_settings.py          # Settings validation, atomic write, quarantine
 │   ├── test_desktop.py           # Advisory locking, notify-send, PID tracking

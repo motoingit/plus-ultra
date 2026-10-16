@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 from plus_ultra.models import Course
 from plus_ultra.repositories import CourseRepository
+
+logger = logging.getLogger(__name__)
 
 
 class CourseService:
@@ -40,7 +44,7 @@ class CourseService:
             raise ValueError("Course title cannot be empty.")
         if total_modules < 1:
             raise ValueError("Total modules must be at least 1.")
-        return self.course_repo.create(
+        course = self.course_repo.create(
             title=clean_title,
             platform=platform,
             instructor=instructor,
@@ -49,6 +53,13 @@ class CourseService:
             url=url,
             notes=notes,
         )
+        logger.info(
+            "Course created: '%s' [id=%s, platform=%s]",
+            course.title,
+            course.id,
+            course.platform,
+        )
+        return course
 
     def increment_module(self, course_id: str) -> bool:
         """Increment completed module count."""

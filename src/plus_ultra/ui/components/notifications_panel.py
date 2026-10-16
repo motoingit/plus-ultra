@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import contextlib
 import tkinter as tk
 from collections.abc import Callable
 
-from plus_ultra.network import NetworkStatusMonitor
 from plus_ultra.notifications import CapsuleNotificationQueue
 from plus_ultra.services import CodeService
 from plus_ultra.ui.icons import get_icon
@@ -103,81 +101,7 @@ class NotificationsPanel:
         )
         self.notif_listbox.pack(fill="both", expand=True)
 
-        # 3. Bottom Network Status Monitor Card
-        net_card = tk.Frame(
-            self.container,
-            bg="#161922",
-            padx=14,
-            pady=12,
-            highlightbackground="#2b3448",
-            highlightthickness=1,
-        )
-        net_card.pack(fill="x", padx=16, pady=(0, 16))
-
-        net_top = tk.Frame(net_card, bg="#161922")
-        net_top.pack(fill="x")
-
-        tk.Label(
-            net_top,
-            text="Network Status",
-            bg="#161922",
-            fg="#94a3b8",
-            font=(self.theme.font_family, 10, "bold"),
-        ).pack(side="left")
-
-        tk.Button(
-            net_top,
-            text="Probe",
-            bg="#1e2433",
-            fg="#00e5ff",
-            activebackground="#2b3448",
-            relief="flat",
-            bd=0,
-            font=(self.theme.font_family, 8),
-            cursor="hand2",
-            padx=6,
-            pady=2,
-            command=self.probe_network,
-        ).pack(side="right")
-
-        self.net_status_label = tk.Label(
-            net_card,
-            text="● Probing connectivity...",
-            bg="#161922",
-            fg="#64748b",
-            font=(self.theme.font_family, 10, "bold"),
-            anchor="w",
-        )
-        self.net_status_label.pack(fill="x", pady=(6, 0))
-
         self.refresh()
-        self._net_monitor = NetworkStatusMonitor()
-        self.probe_network()
-
-    def probe_network(self) -> None:
-        """Trigger asynchronous non-blocking network probe."""
-        self.net_status_label.configure(
-            text="● Checking connection...", fg="#eab308"
-        )
-        self._net_monitor.probe_async()
-        self.container.after(300, self._poll_network)
-
-    def _poll_network(self) -> None:
-        """Poll network monitor result queue on main Tk thread."""
-        with contextlib.suppress(Exception):
-            if not self.container.winfo_exists():
-                return
-            res = self._net_monitor.get_result()
-            if res is not None:
-                color = "#10b981" if res else "#ef4444"
-                text = "● Online (Connected)" if res else "● Offline (No Route)"
-                if (
-                    hasattr(self, "net_status_label")
-                    and self.net_status_label.winfo_exists()
-                ):
-                    self.net_status_label.configure(text=text, fg=color)
-            else:
-                self.container.after(300, self._poll_network)
 
     def refresh(self) -> None:
         """Update notification items displayed in the listbox."""

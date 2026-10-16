@@ -70,21 +70,25 @@ def configure_logging() -> Path:
         datefmt="%Y-%m-%dT%H:%M:%S",
     )
 
-    app_logger = logging.getLogger(APP_NAME)
-    app_logger.setLevel(logging.INFO)
-    app_logger.handlers.clear()
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.handlers.clear()
 
     # File handler (persistent record in XDG state directory)
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
-    app_logger.addHandler(file_handler)
+    root_logger.addHandler(file_handler)
 
     # Console stream handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
-    app_logger.addHandler(console_handler)
+    root_logger.addHandler(console_handler)
+
+    for name in ("plus_ultra", APP_NAME):
+        lgr = logging.getLogger(name)
+        lgr.setLevel(logging.INFO)
 
     return log_file
 
@@ -202,6 +206,11 @@ def main(argv: list[str] | None = None) -> int:
 
         def _handle_reminder_due(task: Task, _rem: Reminder) -> None:
             """Safely enqueue reminder alert to Tkinter main thread."""
+            logger.info(
+                "Reminder triggered for task '%s' [id=%s]. Alerting UI.",
+                task.title,
+                task.id,
+            )
 
             def _ui_action() -> None:
                 if not widget._closed:

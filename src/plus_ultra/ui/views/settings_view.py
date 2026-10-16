@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import messagebox
 
-from plus_ultra import config
+from plus_ultra import config, settings
 from plus_ultra.database import get_connection, seed_demo_workspace_data
 from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import THEME, CapsuleTheme
+
+logger = logging.getLogger(__name__)
 
 
 class SettingsView:
@@ -26,6 +29,12 @@ class SettingsView:
         self.parent_window = parent_window
         self.theme = theme
         self.on_reseed = on_reseed
+
+        eff = settings.load_effective_settings()
+        self.topmost_var = tk.BooleanVar(value=eff.get("always_on_top", True))
+        self.net_monitor_var = tk.BooleanVar(
+            value=eff.get("network_monitor_enabled", True)
+        )
 
         self._build_ui()
 
@@ -67,7 +76,6 @@ class SettingsView:
             font=(self.theme.font_family, 13, "bold"),
         ).pack(anchor="w", pady=(0, 10))
 
-        self.topmost_var = tk.BooleanVar(value=True)
         topmost_chk = tk.Checkbutton(
             card1,
             text="Keep floating capsule always-on-top",
@@ -84,6 +92,23 @@ class SettingsView:
             font=(self.theme.font_family, 11),
         )
         topmost_chk.pack(anchor="w", pady=4)
+
+        net_chk = tk.Checkbutton(
+            card1,
+            text="Network status indicator (Capsule dot & probe)",
+            variable=self.net_monitor_var,
+            bg="#1c212c",
+            fg="#f8fafc",
+            selectcolor="#12151c",
+            activebackground="#1c212c",
+            activeforeground="#00e5ff",
+            relief="flat",
+            bd=0,
+            highlightthickness=0,
+            command=self._toggle_net_monitor,
+            font=(self.theme.font_family, 11),
+        )
+        net_chk.pack(anchor="w", pady=4)
 
         card2 = tk.Frame(
             content,
@@ -157,11 +182,20 @@ class SettingsView:
         ).pack(anchor="w")
 
     def _toggle_topmost(self) -> None:
-        pass
+        val = self.topmost_var.get()
+        settings.save_user_setting("always_on_top", val)
+        logger.info("Setting 'always_on_top' changed to %s", val)
+
+    def _toggle_net_monitor(self) -> None:
+        val = self.net_monitor_var.get()
+        settings.save_user_setting("network_monitor_enabled", val)
+        logger.info("Setting 'network_monitor_enabled' changed to %s", val)
 
     def refresh(self) -> None:
         """Refresh settings state."""
-        pass
+        eff = settings.load_effective_settings()
+        self.topmost_var.set(eff.get("always_on_top", True))
+        self.net_monitor_var.set(eff.get("network_monitor_enabled", True))
 
     def reseed_demo_data(self) -> None:
         """Trigger workspace demo data reseed and notify user."""

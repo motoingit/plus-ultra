@@ -77,8 +77,7 @@ class CoursesView:
             "All",
             "University",
             "YouTube",
-            "Independent",
-            "Book",
+            "Other",
         ]:
             btn = tk.Button(
                 filter_bar,

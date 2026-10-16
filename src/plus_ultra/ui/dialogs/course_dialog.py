@@ -107,7 +107,7 @@ class CourseDialog(tk.Toplevel):
         ).pack(anchor="w")
         self.plat_combo = ttk.Combobox(
             plat_box,
-            values=["University", "YouTube", "Independent", "Book", "Other"],
+            values=["University", "YouTube", "Other"],
             state="readonly",
         )
         self.plat_combo.set(
