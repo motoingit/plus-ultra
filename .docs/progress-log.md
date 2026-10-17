@@ -460,10 +460,10 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
   - Implemented `<Configure>` resize tracking and automatic dimension persistence in `DashboardPanel`: when the user resizes the dashboard and closes it, the new dimensions persist to `~/.config/plus-ultra/user-settings.json` and restore on next launch.
   - Configured `FloatingWidget` and `CapsulePopupPill` to respect `notification_popup_duration_ms` with graceful fallback handling.
 - [x] Test Coverage & Quality Gates:
-  - Created `.tests/test_scripts.py` verifying `seed_data.py`, `clear_db.py`, and `notify.py` execution, arguments, and database effects.
+  - Created `.tests/test_scripts.py` verifying `seed_data.py`, `clear_db.py`, `notify.py`, and `seeds.py` execution, arguments, and database effects.
   - Added component unit tests for `CapsulePopupPill` and `TaskCard` in `.tests/test_refinements.py`.
   - Added dimension persistence test in `.tests/test_settings.py`.
-  - Full suite expanded to **103 unit tests** passing cleanly (`uv run pytest -v`).
+  - Full suite expanded to **104 unit tests** passing cleanly (`uv run pytest -v`).
   - Zero Ruff linter errors (`uv run ruff check .`) and 100% code formatted (`uv run ruff format --check .`).
 - [x] Documentation Uniformity:
   - Synchronized `README.md`, `.docs/architecture.MD`, `.docs/commands.md`, and `.docs/api.md` with new scripts, components, test suites, and configuration options.

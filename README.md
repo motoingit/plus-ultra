@@ -107,7 +107,7 @@ plus-ultra/
 │               ├── opportunities_view.py
 │               ├── quick_links_view.py
 │               └── settings_view.py # Preferences & network monitor toggle
-├── .tests/                       # Automated test suites (103 tests, 100% pass)
+├── .tests/                       # Automated test suites (104 tests, 100% pass)
 │   ├── test_config.py            # XDG paths, fallback, permissions, metadata
 │   ├── test_datetime_utils.py    # Timezone-aware date parsing and formatting
 │   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, popup pill, task card
@@ -169,7 +169,7 @@ The core application currently relies entirely on the **Python Standard Library*
 - `tkinter`: Native desktop GUI rendering and event dispatch.
 
 ## Development Dependencies
-- **`pytest >= 9.1.1`**: Automated test framework (103 tests across 13 test suites).
+- **`pytest >= 9.1.1`**: Automated test framework (104 tests across 13 test suites).
 - **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import sorting, and strict 80-character line lengths.
 
 

@@ -18,6 +18,7 @@ for p in (str(_scripts_dir), str(_src_dir)):
 import clear_db  # noqa: E402
 import notify  # noqa: E402
 import seed_data  # noqa: E402
+import seeds  # noqa: E402
 
 from plus_ultra.database import get_connection, init_db  # noqa: E402
 
@@ -143,3 +144,23 @@ def test_cli_argument_parsers() -> None:
     s_args = seed_data.parse_args(["--unseed", "--soft"])
     assert s_args.unseed is True
     assert s_args.soft is True
+
+
+def test_legacy_seeds_wrapper(tmp_path: Path) -> None:
+    """Test legacy seeds.py wrapper delegates to seed_data properly."""
+    conn = _setup_isolated_db(tmp_path)
+    try:
+        counts = seeds.seed_demo_workspace_data(conn)
+        assert counts["tasks"] == 10
+        assert counts["code_items"] == 20
+        assert counts["courses"] == 8
+        assert counts["ideas_doubts"] == 10
+        assert counts["opportunities"] == 8
+        assert counts["quick_links"] == 10
+        assert counts["reminders"] == 5
+
+        unseed_counts = seeds.unseed_demo_workspace_data(conn, hard_delete=True)
+        assert unseed_counts["tasks"] == 10
+        assert unseed_counts["code_items"] == 20
+    finally:
+        conn.close()
