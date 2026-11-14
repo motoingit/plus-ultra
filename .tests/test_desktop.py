@@ -126,3 +126,25 @@ def test_send_desktop_notification_subprocess_error(
     monkeypatch.setattr("subprocess.run", _mock_raise)
     result = send_desktop_notification(title="Test", message="Body")
     assert result is False
+
+
+def test_send_desktop_notification_default_timeout_3000(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify send_desktop_notification defaults to 3000ms expiration."""
+    from unittest.mock import MagicMock
+
+    from plus_ultra.desktop import send_desktop_notification
+
+    monkeypatch.setattr("shutil.which", lambda _cmd: "/usr/bin/notify-send")
+    mock_run = MagicMock()
+    monkeypatch.setattr("subprocess.run", mock_run)
+
+    res = send_desktop_notification(title="Alert", message="Body")
+    assert res is True
+    mock_run.assert_called_once()
+    args, _ = mock_run.call_args
+    cmd = args[0]
+    assert "-t" in cmd
+    idx = cmd.index("-t")
+    assert cmd[idx + 1] == "3000"

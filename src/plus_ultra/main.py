@@ -150,7 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         init_db()
         conn = get_connection()
-        seed_demo_workspace_data(conn)
+        if args.seed:
+            seed_demo_workspace_data(conn)
 
         app_state_repo = AppStateRepository(conn)
         task_repo = TaskRepository(conn)

@@ -108,7 +108,7 @@ class ReminderScheduler:
                     title=f"Reminder: {task.title}",
                     message=body,
                     urgency=urgency,
-                    timeout_ms=5000,
+                    timeout_ms=3000,
                 )
 
             # 2. In-app notification callback to UI thread

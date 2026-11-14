@@ -62,6 +62,7 @@ class FloatingWidget:
         self._closed = False
         self._beam_length = 56
         self._beam_timer_id: str | None = None
+        self._notif_timer_id: str | None = None
         self._net_monitor = NetworkStatusMonitor()
         self._net_poll_timer_id: str | None = None
 
@@ -72,6 +73,7 @@ class FloatingWidget:
             theme=self.theme,
             always_on_top=self.always_on_top,
             default_duration_ms=self.popup_duration_ms,
+            on_dismiss=self._on_popup_pill_dismissed,
         )
         self._setup_window()
         self._build_canvas()
@@ -316,6 +318,30 @@ class FloatingWidget:
         self._update_bell_state()
         self._spawn_popup_pill(item)
 
+        if self._notif_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._notif_timer_id)
+        self._notif_timer_id = self.root.after(
+            self.popup_duration_ms, self._auto_dismiss_notification
+        )
+
+    def _auto_dismiss_notification(self) -> None:
+        """Auto-dismiss notification indicator and popup pill after 3s."""
+        self._notif_timer_id = None
+        if self._closed:
+            return
+        self._dismiss_popup_pill()
+        self.mark_all_read()
+
+    def _on_popup_pill_dismissed(self) -> None:
+        """Revert capsule indicator when popup pill is dismissed."""
+        if self._notif_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._notif_timer_id)
+            self._notif_timer_id = None
+        if not self._closed:
+            self.mark_all_read()
+
     def _update_capsule_geometry(self) -> None:
         """Dynamically adjust capsule width based on unread notifications."""
         if self._closed:
@@ -427,6 +453,11 @@ class FloatingWidget:
         logger.info("Closing floating widget window.")
         self._closed = True
         self._dismiss_popup_pill()
+
+        if self._notif_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._notif_timer_id)
+            self._notif_timer_id = None
 
         if self._beam_timer_id is not None:
             with contextlib.suppress(Exception):

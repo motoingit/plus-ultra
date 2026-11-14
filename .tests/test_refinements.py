@@ -361,3 +361,57 @@ def test_all_category_views_have_search_inputs(tmp_path: Path) -> None:
         with contextlib.suppress(Exception):
             root.destroy()
         conn.close()
+
+
+def test_floating_widget_auto_dismiss_notification() -> None:
+    """Verify FloatingWidget auto-dismisses notification after duration."""
+    root = tk.Tk()
+    try:
+        widget = FloatingWidget(root=root)
+        widget.popup_duration_ms = 80
+        base_w = widget.width
+
+        widget.post_notification(title="Alert", message="Disappearing in 80ms")
+        widget.root.update_idletasks()
+        widget.root.update()
+
+        assert widget.notifications.has_unread is True
+        assert widget.width > base_w
+        assert widget.canvas.itemcget(widget.bell_id, "state") == "normal"
+
+        widget.root.after(130, widget.root.quit)
+        widget.root.mainloop()
+
+        assert widget.notifications.has_unread is False
+        assert widget.width == base_w
+        assert widget.canvas.itemcget(widget.bell_id, "state") == "hidden"
+        assert widget.popup_pill.is_visible is False
+
+        widget.close()
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
+def test_capsule_popup_pill_on_dismiss_callback() -> None:
+    """Verify CapsulePopupPill on_dismiss callback fires when dismissed."""
+    root = tk.Tk()
+    try:
+        queue = CapsuleNotificationQueue()
+        item = queue.push(title="Click Test", message="Dismiss me")
+        dismiss_called = []
+        pill = CapsulePopupPill(
+            parent=root,
+            queue=queue,
+            default_duration_ms=100,
+            on_dismiss=lambda: dismiss_called.append(True),
+        )
+        pill.show(item, parent_x=10, parent_y=10, parent_w=300, parent_h=50)
+        assert pill.is_visible is True
+
+        pill.dismiss()
+        assert pill.is_visible is False
+        assert dismiss_called == [True]
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()

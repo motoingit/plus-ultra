@@ -25,11 +25,11 @@ from plus_ultra.ui.theme import GEOMETRY, THEME
 
 def test_theme_and_geometry_defaults() -> None:
     """Verify default styling tokens for the floating capsule."""
-    assert GEOMETRY.min_width == 320
-    assert GEOMETRY.max_width == 880
-    assert GEOMETRY.width == 320
-    assert GEOMETRY.height == 72
-    assert GEOMETRY.radius == 36
+    assert GEOMETRY.min_width == 350
+    assert GEOMETRY.max_width == 900
+    assert GEOMETRY.width == 350
+    assert GEOMETRY.height == 30
+    assert GEOMETRY.radius == 15
     assert GEOMETRY.top_offset == 16
 
     assert THEME.hover_border == "#00e5ff"

@@ -10,12 +10,22 @@ Applies OS concepts:
 from __future__ import annotations
 
 import contextlib
-import fcntl
 import logging
 import os
 import shutil
 import subprocess
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # Windows platform fallback
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None  # Non-Windows platform fallback
+
 from plus_ultra import config
 
 logger = logging.getLogger(__name__)
@@ -43,8 +53,11 @@ class SingleInstanceLock:
                 os.O_RDWR | os.O_CREAT,
                 0o600,
             )
-            # Try exclusive non-blocking lock
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            # Try exclusive non-blocking lock (POSIX fcntl or Windows msvcrt)
+            if fcntl is not None:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            elif msvcrt is not None:
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
 
             # Record PID for diagnostic inspection
             os.ftruncate(fd, 0)
@@ -73,7 +86,11 @@ class SingleInstanceLock:
         """Release the advisory lock and close the file descriptor."""
         if self._fd is not None:
             try:
-                fcntl.flock(self._fd, fcntl.LOCK_UN)
+                if fcntl is not None:
+                    fcntl.flock(self._fd, fcntl.LOCK_UN)
+                elif msvcrt is not None:
+                    with contextlib.suppress(OSError):
+                        msvcrt.locking(self._fd, msvcrt.LK_UNLCK, 1)
                 os.close(self._fd)
                 logger.info(
                     "Released single-instance lock on %s", self.lock_path
@@ -165,7 +182,7 @@ def send_desktop_notification(
     title: str,
     message: str = "",
     urgency: str = "normal",
-    timeout_ms: int = 5000,
+    timeout_ms: int = 3000,
     app_name: str = config.APP_NAME,
 ) -> bool:
     """Send a native Linux desktop notification via notify-send without shell.
