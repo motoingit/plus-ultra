@@ -2,7 +2,7 @@
 
 Applies OS concepts:
 - Shell Integration: Registering a persistent icon with the host shell
-  notification area (Windows Notification Area / Linux AppIndicator/StatusNotifier).
+  notification area (Windows Notification Area / StatusNotifier).
 - Background Thread Isolation: Tray event loop runs on its own thread;
   menu callbacks are safely marshaled to the UI event loop.
 """
@@ -47,6 +47,7 @@ class SystemTray(Protocol):
         icon_path: Path | None = None,
         tooltip: str = "PLUS-ULTRA",
         menu_items: list[TrayMenuItem] | None = None,
+        on_menu_popup: Callable[[int, int], None] | None = None,
     ) -> bool:
         """Initialize and start the background system tray icon.
 

@@ -76,7 +76,12 @@ def test_tray_menu_item_conversion() -> None:
 
 def test_tray_lifecycle_mocked(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify tray start and stop lifecycle with mocked pystray Icon."""
+    import threading
+
+    stop_event = threading.Event()
     mock_icon = MagicMock()
+    mock_icon.run.side_effect = stop_event.wait
+    mock_icon.stop.side_effect = stop_event.set
     monkeypatch.setattr("pystray.Icon", lambda **_kwargs: mock_icon)
 
     tray = WindowsSystemTray()
@@ -96,5 +101,51 @@ def test_tray_idempotent_stop() -> None:
     """Verify calling stop() on unstarted or stopped tray is safe."""
     tray = WindowsSystemTray()
     tray.stop()  # Should not raise
+    tray.stop()
+    assert tray.is_running is False
+
+
+def test_linux_tray_right_click_menu_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify Linux tray intercepts Xorg right-click to dispatch popup."""
+    from types import SimpleNamespace
+    import threading
+    from plus_ultra.platform.linux.tray import LinuxSystemTray
+
+    stop_event = threading.Event()
+    mock_icon = MagicMock()
+    mock_icon._message_handlers = {}
+    mock_icon.run.side_effect = stop_event.wait
+    mock_icon.stop.side_effect = stop_event.set
+    monkeypatch.setattr("pystray.Icon", lambda **_kwargs: mock_icon)
+
+    dispatched = []
+    def _popup_callback(x: int, y: int) -> None:
+        dispatched.append((x, y))
+
+    tray = LinuxSystemTray()
+    items = [
+        TrayMenuItem(label="Exit PLUS-ULTRA", action=lambda: None),
+    ]
+    started = tray.start(
+        tooltip="Test Linux Tray",
+        menu_items=items,
+        on_menu_popup=_popup_callback,
+    )
+    assert started is True
+
+    # Check button press handler was registered on message handlers
+    import Xlib.X
+
+    handler = mock_icon._message_handlers.get(Xlib.X.ButtonPress)
+    assert handler is not None
+
+    # Simulate right-click (Button 3) at top bar coordinates (800, 24)
+    fake_event = SimpleNamespace(detail=3, root_x=800, root_y=24)
+    handler(fake_event)
+
+    assert dispatched == [(800, 24)]
+
     tray.stop()
     assert tray.is_running is False

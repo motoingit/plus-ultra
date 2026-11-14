@@ -36,6 +36,7 @@ uv run pytest .tests/test_desktop.py -v
 uv run pytest .tests/test_ui.py -v
 uv run pytest .tests/test_config.py -v
 uv run pytest .tests/test_settings.py -v
+uv run pytest .tests/test_maintenance.py -v
 
 # Standalone Workspace Seeding & Unseeding
 uv run python .scripts/seed_data.py --seed      # Seed demo records if empty
@@ -91,7 +92,10 @@ Verify the following behaviors:
      - **`Ideas-Doubt`**: Filter between `💡 Project Ideas` and `❓ Concept Doubts`. Click status buttons (`[Idea]`, `[Planned]`, `[In Progress]`, `[Completed]`, `[Resolved]`) to advance lifecycle.
      - **`Opportunities`**: Role cards with organization, deadlines, and `[Saved]` -> `[Applied]` lifecycle progression. Click `🔗 Apply` to launch URL.
      - **`Quick Links`**: Fast launcher for Web URLs and local folders/files. Click `🚀 Open` to launch default browser or Linux file manager (`xdg-open`), incrementing click count.
-     - **`Settings`**: Live toggles for Always-On-Top, local SQLite database diagnostics, and `Reseed Demo Data` button.
+     - **`Settings`**: Live toggles for Always-On-Top, Network monitor, popup duration, diagnostics, and data maintenance:
+       - `Reset Config Settings`: Resets preferences to defaults while preserving user data.
+       - `Factory Reset (Delete Everything)`: Transactionally wipes all database tables and resets settings to defaults.
+       - `Reseed Demo Data`: Populates demo dataset across all tabs.
    - **Column 3 (Right Sidebar)**: Notification panel showing active alerts. Click `Mark All Read` or `Clear` to clear unread status and remove the orange bell on the floating capsule.
 
 6. **Notification Flow**:

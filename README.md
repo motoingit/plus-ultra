@@ -47,7 +47,7 @@ The core application currently relies entirely on the **Python Standard Library*
 - `tkinter`: Native desktop GUI rendering and event dispatch.
 
 ## Development Dependencies
-- **`pytest >= 9.1.1`**: Automated test framework (104 tests across 13 test suites).
+- **`pytest >= 9.1.1`**: Automated test framework (145 tests across 18 test suites).
 - **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import sorting, and strict 80-character line lengths.
 
 

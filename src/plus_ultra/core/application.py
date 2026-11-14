@@ -120,7 +120,10 @@ class Application:
             version,
             meta.get("company", ""),
         )
-        logger.info("Host Platform: %s", self.platform.capabilities.platform_type.value)
+        logger.info(
+            "Host Platform: %s",
+            self.platform.capabilities.platform_type.value,
+        )
         logger.info("Data directory: %s", get_data_dir())
         logger.info("State directory: %s", get_state_dir())
         logger.info("Config directory: %s", get_config_dir())
@@ -132,7 +135,9 @@ class Application:
             logger.warning("Another instance of PLUS-ULTRA is already running.")
             return False
 
-        self.lifecycle.register_shutdown_hook(self.platform.instance_lock.release)
+        self.lifecycle.register_shutdown_hook(
+            self.platform.instance_lock.release
+        )
         self.lifecycle.transition_to(LifecycleState.PLATFORM_READY)
 
         # 2. Database Readiness
@@ -228,8 +233,8 @@ class Application:
             code_service=self.code_service,  # type: ignore[arg-type]
             course_service=self.course_service,  # type: ignore[arg-type]
             idea_doubt_service=self.idea_service,  # type: ignore[arg-type]
-            opportunity_service=self.opportunity_service,  # type: ignore[arg-type]
-            quick_link_service=self.quick_link_service,  # type: ignore[arg-type]
+            opportunity_service=self.opportunity_service,
+            quick_link_service=self.quick_link_service,
             on_notifications_cleared=self.widget._update_bell_state,
             on_open=self.widget.root.withdraw,
             on_close=self.widget.root.deiconify,
@@ -305,8 +310,53 @@ class Application:
             ),
         ]
 
-        tray.start(tooltip="PLUS-ULTRA Assistant", menu_items=menu_items)
+        def _show_tray_popup(x: int, y: int) -> None:
+            self.lifecycle.post_to_main_thread(
+                lambda: self._display_tray_menu(x, y, menu_items)
+            )
+
+        tray.start(
+            tooltip="PLUS-ULTRA Assistant",
+            menu_items=menu_items,
+            on_menu_popup=_show_tray_popup,
+        )
         self.lifecycle.register_shutdown_hook(tray.stop)
+
+    def _display_tray_menu(
+        self, x: int, y: int, items: list[TrayMenuItem]
+    ) -> None:
+        """Display styled Tkinter context popup menu at screen position."""
+        if not self.root or not self.root.winfo_exists():
+            return
+        menu = tk.Menu(
+            self.root,
+            tearoff=0,
+            bg="#1a1f2c",
+            fg="#f8fafc",
+            activebackground="#00e5ff",
+            activeforeground="#0a0e17",
+            activeborderwidth=0,
+            font=("Helvetica", 10),
+        )
+        for item in items:
+            if not item.visible:
+                continue
+            if item.is_separator:
+                menu.add_separator()
+            else:
+                action_fn = item.action
+                menu.add_command(
+                    label=item.label,
+                    command=action_fn,
+                    state="normal" if item.enabled else "disabled",
+                )
+
+        if x <= 0 or y <= 0:
+            sw = self.root.winfo_screenwidth()
+            x, y = sw - 220, 32
+
+        self._active_tray_menu = menu
+        menu.tk_popup(x, y)
 
     def _handle_tray_action(self, action: str) -> None:
         """Execute tray menu actions on the main UI thread."""
@@ -357,12 +407,18 @@ class Application:
     def _setup_scheduler(self) -> None:
         """Initialize background reminder evaluation worker."""
         def _handle_reminder_due(task: Task, _rem: Reminder) -> None:
-            logger.info("Reminder triggered for '%s' [id=%s]", task.title, task.id)
+            logger.info(
+                "Reminder triggered for '%s' [id=%s]", task.title, task.id
+            )
             def _ui_action() -> None:
                 if self.widget and not getattr(self.widget, "_closed", True):
+                    msg = (
+                        task.description
+                        or f"Priority: {task.critical_level}"
+                    )
                     self.widget.post_notification(
                         title=f"Due: {task.title}",
-                        message=task.description or f"Priority: {task.critical_level}",
+                        message=msg,
                     )
                     if self.dashboard and self.dashboard.winfo_exists():
                         self.dashboard._refresh_tasks()

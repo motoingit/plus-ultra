@@ -475,6 +475,43 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
+## Settings Maintenance Refactoring (Reset Config vs Factory Reset)
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### Phase To-do List:
+- [x] Provide Option 1: "Reset Config Settings":
+  - Implemented `reset_config_settings()` in `SettingsView`.
+  - Prompts confirmation emphasizing that all user data (tasks, notes, courses, etc.) will be safely kept.
+  - Resets `user-settings.json` back to default settings via `settings.reset_all_settings()`.
+  - Reloads UI variable state and displays success notification.
+  - Kept `reset_all_settings()` alias for backward compatibility.
+- [x] Provide Option 2: "Factory Reset (Delete Everything)":
+  - Implemented `wipe_database(conn)` in `src/plus_ultra/database/__init__.py`.
+  - Transactionally disables foreign keys (`PRAGMA foreign_keys = OFF;`), empties all 10 application tables (`reminder_fires`, `reminders`, `tasks`, `categories`, `app_state`, `code_items`, `courses`, `ideas_doubts`, `opportunities`, `quick_links`), and re-enables foreign keys.
+  - Implemented `factory_reset()` in `SettingsView` with a warning dialog explicitly enumerating deleted items.
+  - Wipes database tables, resets configuration settings to default, and calls `on_reseed` callback (`DashboardPanel._refresh_all_views()`).
+  - Added "danger" semantic role button styling to clearly indicate destructive potential.
+- [x] Global View Refresh:
+  - Implemented `_refresh_all_views()` in `DashboardPanel` refreshing all 8 workspace tab views (`Tasks`, `Code`, `DSA`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`, `Settings`) plus `NotificationsPanel`.
+- [x] Test Suite & Verification:
+  - Created `.tests/test_maintenance.py` verifying `wipe_database`, `reset_config_settings`, `factory_reset`, and user cancellation behavior.
+  - All 145 tests passing in pytest suite (`.venv/bin/pytest .tests/`).
+  - Smoke test executed successfully (`.venv/bin/python -m plus_ultra.main --smoke-test`).
+  - Strict compliance with line constraints: all files strictly <= 500 lines, all lines <= 80 characters.
+
+### Issues & Solutions:
+- **Foreign key constraint failure during bulk table delete**: Directly deleting parent categories when tasks reference them raises constraint errors in SQLite. Resolved by executing `PRAGMA foreign_keys = OFF;` within the transaction, deleting from all tables, and re-enabling foreign keys.
+- **Connection handle invalidation when deleting database file**: Deleting `plus-ultra.sqlite3` from disk breaks open connection handles in long-running processes. Resolved by clearing rows within transaction rather than unlinking the file.
+- **Line count in `settings_view.py` and `panel.py`**: Adding both options and global refresh pushed line counts above 500 lines. Resolved by compressing helper definitions, checkbutton generation loops, and import statements so both files remain well below 500 lines.
+
+### Important Notes / Miscellaneous INFO:
+- "Reset Config Settings" only modifies `user-settings.json` and preserves all database records.
+- "Factory Reset (Delete Everything)" wipes both database records and user settings.
+
+---
+
 ## Next: Phase 6: Robustness, Startup, and Autostart
 
 - **Status**: Ready for Planning

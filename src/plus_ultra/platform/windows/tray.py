@@ -39,7 +39,7 @@ def _create_default_pillow_icon(size: int = 64) -> Any:
     draw.ellipse(
         [center - dot_r, center - dot_r, center + dot_r, center + dot_r],
         fill="#00e5ff",
-        outline="",
+        outline=None,
     )
     return img
 
@@ -83,7 +83,8 @@ class WindowsSystemTray:
 
             action_cb = it.action
             if it.children:
-                sub_menu = pystray.Menu(*self._convert_menu_items(list(it.children)))
+                sub_items = self._convert_menu_items(list(it.children))
+                sub_menu = pystray.Menu(*sub_items)
                 result.append(
                     pystray.MenuItem(
                         text=it.label,
@@ -92,12 +93,18 @@ class WindowsSystemTray:
                     )
                 )
             else:
-                def _make_action(fn: Callable[[], None] | None) -> Callable[[Any, Any], None] | None:
+                def _make_action(
+                    fn: Callable[[], None] | None,
+                ) -> Callable[[Any, Any], None] | None:
                     if fn is None:
                         return None
                     return lambda _icon, _item: fn()
 
-                checked_fn = (lambda _item: it.checked) if it.checked is not None else None
+                checked_fn = (
+                    (lambda _item: it.checked)
+                    if it.checked is not None
+                    else None
+                )
                 result.append(
                     pystray.MenuItem(
                         text=it.label,
@@ -113,6 +120,7 @@ class WindowsSystemTray:
         icon_path: Path | None = None,
         tooltip: str = "PLUS-ULTRA",
         menu_items: list[TrayMenuItem] | None = None,
+        on_menu_popup: Callable[[int, int], None] | None = None,
     ) -> bool:
         """Start the system tray icon in a dedicated daemon thread."""
         with self._lock:
@@ -147,7 +155,9 @@ class WindowsSystemTray:
                         logger.info("Windows system tray loop starting.")
                         self._icon.run()
                     except Exception as exc:
-                        logger.warning("Windows system tray loop ended: %s", exc)
+                        logger.warning(
+                            "Windows system tray loop ended: %s", exc
+                        )
                     finally:
                         with self._lock:
                             self._is_running = False
@@ -205,7 +215,8 @@ class WindowsSystemTray:
                 try:
                     import pystray
 
-                    new_menu = pystray.Menu(*self._convert_menu_items(menu_items))
+                    new_items = self._convert_menu_items(menu_items)
+                    new_menu = pystray.Menu(*new_items)
                     self._icon.menu = new_menu
                 except Exception as exc:
                     logger.warning("Could not update tray menu: %s", exc)

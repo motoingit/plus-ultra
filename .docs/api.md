@@ -363,7 +363,14 @@ Decoupled workspace tab views with 2x card sizing and clean badges:
 - `IdeasView` (`PS/I`): Dual-subtab view featuring dedicated `[ Project Ideas ]` and `[ Concept Doubts ]` tables, each with contextual creation actions (`+ Add Idea` / `+ Add Doubt`).
 - `CoursesView` (`Courses`): Platform filter buttons (`All`, `University`, `YouTube`, `Other`).
 - `OpportunitiesView`, `QuickLinksView`.
-- `SettingsView`: Preferences & diagnostics with Always-on-top toggle, Network status indicator toggle, and demo data reseed.
+- `SettingsView`: Preferences & diagnostics with Always-on-top toggle, Network status indicator toggle, demo data reseed, and two distinct maintenance actions:
+  - `reset_config_settings()`: Restores `user-settings.json` to factory defaults while preserving all SQLite data items intact.
+  - `factory_reset()`: Transactionally wipes all 10 SQLite database tables via `wipe_database()`, resets user settings to defaults, and refreshes all workspace views to a clean empty state.
+  - `reset_all_settings()`: Backward-compatible alias for `reset_config_settings()`.
+
+### `plus_ultra.database` Maintenance API
+- `wipe_database(conn: sqlite3.Connection) -> None`: Transactionally empties all 10 application tables (`reminder_fires`, `reminders`, `tasks`, `categories`, `app_state`, `code_items`, `courses`, `ideas_doubts`, `opportunities`, `quick_links`) while preserving database connection handles and schema definitions.
+- `seed_demo_workspace_data(conn: sqlite3.Connection) -> None`: Populates demo data across all domain categories and workspace views.
 
 ### `plus_ultra.ui.geometry`
 Mathematical capsule coordinate calculations:
