@@ -9,6 +9,7 @@ Applies OS concepts:
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -51,9 +52,17 @@ class WindowsStartupManager:
         if winreg is None:
             return False
         try:
-            # Determine appropriate launch command
+            default_appdata = Path.home() / "AppData" / "Local"
+            local_appdata = Path(
+                os.environ.get("LOCALAPPDATA", default_appdata)
+            )
+            installed = (
+                local_appdata / "Programs" / "plus-ultra" / "plus-ultra.exe"
+            )
             if getattr(sys, "frozen", False):
                 cmd = f'"{sys.executable}"'
+            elif installed.is_file():
+                cmd = f'"{installed}"'
             else:
                 script = Path(__file__).resolve().parents[2] / "main.py"
                 cmd = f'"{sys.executable}" "{script}"'

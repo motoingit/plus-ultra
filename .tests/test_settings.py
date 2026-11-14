@@ -52,6 +52,7 @@ def test_default_settings_keys_and_values() -> None:
     assert defaults["tray_enabled"] is True
     assert defaults["capsule_visible"] is True
     assert defaults["dnd_mode"] is False
+    assert defaults["theme"] == "cyan"
     assert set(defaults.keys()) == {
         "settings_version",
         "always_on_top",
@@ -71,6 +72,7 @@ def test_default_settings_keys_and_values() -> None:
         "tray_enabled",
         "capsule_visible",
         "dnd_mode",
+        "theme",
     }
 
 

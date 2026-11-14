@@ -164,3 +164,62 @@ def test_legacy_seeds_wrapper(tmp_path: Path) -> None:
         assert unseed_counts["code_items"] == 20
     finally:
         conn.close()
+
+
+def test_installer_options_and_preferences(tmp_path: Path) -> None:
+    """Test installer options and preference serialization."""
+    import json
+
+    import install
+
+    opt = install.InstallOptions()
+    assert opt.autostart is True
+    assert opt.theme_key == "cyan"
+    assert "Cyber Cyan" in opt.theme_label
+
+    opt.theme_idx = 1
+    assert opt.theme_key == "emerald"
+
+    opt.autostart = False
+    opt.start_minimized = True
+
+    cfg_dir = tmp_path / "config"
+    install.save_user_preferences(cfg_dir, opt)
+
+    settings_file = cfg_dir / "user-settings.json"
+    assert settings_file.is_file()
+
+    data = json.loads(settings_file.read_text(encoding="utf-8"))
+    assert data["start_with_system"] is False
+    assert data["start_minimized"] is True
+    assert data["theme"] == "emerald"
+
+
+def test_uninstaller_options_and_path_cleanup(tmp_path: Path) -> None:
+    """Test uninstaller options and safe path removal helpers."""
+    import uninstall
+
+    opt = uninstall.UninstallOptions()
+    assert opt.remove_binary is True
+    assert opt.remove_shortcuts is True
+    assert opt.remove_autostart is True
+    assert opt.purge_data is False
+
+    dummy_file = tmp_path / "dummy.txt"
+    dummy_file.write_text("hello", encoding="utf-8")
+    assert dummy_file.is_file()
+    uninstall._remove_path(dummy_file, "dummy file")
+    assert not dummy_file.exists()
+
+    dummy_dir = tmp_path / "dummy_dir"
+    dummy_dir.mkdir()
+    (dummy_dir / "sub.txt").write_text("sub", encoding="utf-8")
+    assert dummy_dir.is_dir()
+    uninstall._remove_path(dummy_dir, "dummy dir")
+    assert not dummy_dir.exists()
+
+    # Verify stop_running_instances runs cleanly when idle
+    uninstall.stop_running_instances()
+
+
+

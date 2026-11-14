@@ -512,7 +512,86 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
-## Next: Phase 6: Robustness, Startup, and Autostart
+## Interactive TUI Installer & Startup / Theme Customization (Windows 11 & Linux)
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### What was Implemented:
+- [x] Cross-Platform Interactive TUI Installer:
+  - Created `.scripts/install.py` with standard library-only terminal engine (`termios`/`tty`/`select` on Linux; `msvcrt` + ANSI mode on Windows).
+  - Terminal interactive menu supporting arrow keys (`↑`/`↓`/`j`/`k`), spacebar toggles, theme cycling (`←`/`→`/`h`/`l`), and Enter execution.
+  - Full customization options:
+    - `[x] Launch on System Startup (OS Login)`
+    - `[x] Create Desktop & App Menu Shortcuts`
+    - `[ ] Start Minimized to System Tray`
+    - `[x] Pre-populate Workspace with Demo Data`
+    - `Theme Accent: < Cyber Cyan / Emerald / Violet / Amber >`
+  - Non-interactive CLI fallback for CI/CD scripting: `--non-interactive`, `--no-autostart`, `--theme`, `--no-demo`, `--minimized`.
+  - Automatic PyInstaller executable build if missing from `dist/`.
+  - Created launcher wrappers `.scripts/install.sh` and `.scripts/install.ps1`.
+- [x] Settings View Startup & Theme Controls:
+  - Added interactive Startup Toggle in Settings (`Launch on System Startup (OS Login)`).
+  - Added Theme Palette Picker buttons (Cyber Cyan, Emerald Matrix, Neon Violet, Sunset Amber) updating `theme` in `user-settings.json`.
+  - Added Environmental Diagnostic indicator for OS Autostart state.
+- [x] Platform Startup Adapters:
+  - Updated Linux `LinuxStartupManager` and Windows `WindowsStartupManager` to target the installed binary path (`~/.local/bin/plus-ultra` on Linux, `%LOCALAPPDATA%\Programs\plus-ultra\plus-ultra.exe` on Windows).
+- [x] Active Process Termination during Uninstallation:
+  - Implemented `stop_running_instances()` in `.scripts/uninstall.py`.
+  - Discovers active application instances via `plus-ultra.lock` and inspects `/proc/<pid>/cmdline` on Linux.
+  - Gracefully terminates running processes with `SIGTERM` (escalating to `SIGKILL` if unresponsive after 1s timeout).
+  - Uses `taskkill /IM plus-ultra.exe /T /F` on Windows to release file locks before deleting application directories.
+- [x] Testing & Verification:
+  - Added installer option serialization test in `.tests/test_scripts.py`.
+  - Full test suite passing with **146 unit tests** (`uv run pytest .tests/`).
+  - Smoke test passing (`uv run plus-ultra --smoke-test`).
+  - Strict compliance with line constraints: all files strictly <= 500 lines, all lines <= 80 characters.
+
+### Issues Faced & Solutions:
+- **TUI Installer Cancellation on Arrow Keys (Down/Up)**: `read_key()` initially called `sys.stdin.read(1)`, whose underlying `io.TextIOWrapper` read the entire 3-byte escape sequence (`\x1b[B`) from the OS file descriptor into Python's text buffer. The subsequent `select.select([sys.stdin], ...)` then queried an already drained OS fd, timed out after 50ms, and incorrectly interpreted the escape prefix as an Esc key press (`"QUIT"`), cancelling the installer. Resolved by reading raw bytes directly from the file descriptor via `os.read(fd, 32)` in cbreak mode (`TCSANOW`), detecting escape prefixes (`\x1b[B`, `\x1bOB`, etc.) atomically, and matching arrow navigation cleanly.
+- **Length and Line Count in Installer Script**: First draft of `install.py` reached 532 lines with 13 lines exceeding 80 characters. Resolved by refactoring the menu rendering loop dynamically over tuples, compressing key maps, and using helper functions to bring total lines down to 488 and 0 lines over 80 characters.
+- **Tkinter Unbound Variable in Application Setup**: During smoke testing, `NameError: name 'settings' is not defined` occurred in `Application._setup_ui()`. Resolved by importing `settings` from `plus_ultra` in `application.py`.
+- **Ruff SIM105 warnings on error suppression**: Resolved by utilizing `contextlib.suppress(...)` across `.scripts/install.py` and `src/plus_ultra/core/application.py`.
+
+---
+
+## Cross-Platform Uninstaller & Platform-Organized Scripts
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### What was Implemented:
+- [x] Cross-Platform Interactive TUI Uninstaller:
+  - Created `.scripts/uninstall.py` with standard library-only terminal engine.
+  - Interactive menu allowing selective or total removal:
+    - `[x] Remove Application Executable & Icons`
+    - `[x] Remove Desktop & App Menu Shortcuts`
+    - `[x] Remove Autostart on OS Login`
+    - `[ ] Purge User Data (Database, Settings, Logs)` (Interactive confirmation)
+  - Non-interactive CLI support: `--purge` for total wipe, `--keep-data` for preserving user state.
+  - Linux uninstallation: Removes `~/.local/bin/plus-ultra`, `.desktop` launcher, autostart entry, and icons; conditionally deletes `~/.config/plus-ultra`, `~/.local/share/plus-ultra`, and `~/.local/state/plus-ultra`.
+  - Windows uninstallation: Removes `%LOCALAPPDATA%\Programs\plus-ultra`, Start Menu & Desktop `.lnk` shortcuts, registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PLUS-ULTRA`; conditionally purges `%LOCALAPPDATA%\plus-ultra` and `%APPDATA%\plus-ultra`.
+- [x] Script Organization by Platform:
+  - Created dedicated platform directories:
+    - `.scripts/linux/install.sh` & `.scripts/linux/uninstall.sh`
+    - `.scripts/windows/install.ps1` & `.scripts/windows/uninstall.ps1`
+  - Created top-level root wrappers for convenient execution:
+    - `.scripts/install.sh` & `.scripts/uninstall.sh`
+    - `.scripts/install.ps1` & `.scripts/uninstall.ps1`
+- [x] Active Process Termination during Uninstallation:
+  - Implemented `stop_running_instances()` in `.scripts/uninstall.py`.
+  - Discovers active application instances via `plus-ultra.lock` and inspects `/proc/<pid>/cmdline` on Linux.
+  - Gracefully terminates running processes with `SIGTERM` (escalating to `SIGKILL` if unresponsive after 1s timeout).
+  - Uses `taskkill /IM plus-ultra.exe /T /F` on Windows to release file locks before deleting application directories.
+- [x] Testing & Verification:
+  - Added unit test `test_uninstaller_options_and_path_cleanup` in `.tests/test_scripts.py`.
+  - Full suite expanded to **147 tests** passing (`uv run pytest .tests/`).
+  - Verified non-interactive installation and uninstallation on Linux.
+  - Verified strict compliance with coding constraints (all files <= 500 lines, all lines <= 80 chars).
+
+---
+
+## Next Steps
 
 - **Status**: Ready for Planning
 - **Target**:
@@ -520,5 +599,6 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
   - Implement CLI flags: `--install-autostart` and `--uninstall-autostart` writing or removing `~/.config/autostart/plus-ultra.desktop`.
   - Implement `ui/splash.py`: startup progress logger (`[1/4] Paths`, `[2/4] Database`, `[3/4] Scheduler`, `[4/4] Ready`).
   - Graceful process termination and single-instance validation across user session logout/login.
+
 
 

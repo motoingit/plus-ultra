@@ -16,5 +16,6 @@
   "desktop_notifications_enabled": true,
   "tray_enabled": true,
   "capsule_visible": true,
-  "dnd_mode": false
+  "dnd_mode": false,
+  "theme": "cyan"
 }

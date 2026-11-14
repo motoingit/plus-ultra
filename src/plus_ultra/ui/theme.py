@@ -61,19 +61,24 @@ class CapsuleGeometry:
 
     def __post_init__(self) -> None:
         if self.width <= 0:
-            raise ValueError(f"Capsule width must be positive, got {self.width}")
+            raise ValueError(
+                f"Capsule width must be positive, got {self.width}"
+            )
         if self.height <= 0:
-            raise ValueError(f"Capsule height must be positive, got {self.height}")
+            raise ValueError(
+                f"Capsule height must be positive, got {self.height}"
+            )
         if self.min_width <= 0 or self.max_width <= 0:
             raise ValueError("Capsule min/max widths must be positive")
         if self.min_width > self.max_width:
             raise ValueError(
-                f"min_width ({self.min_width}) cannot exceed max_width ({self.max_width})"
+                f"min_width ({self.min_width}) "
+                f"cannot exceed max_width ({self.max_width})"
             )
 
     @property
     def radius(self) -> int:
-        """Corner radius mathematically derived from dimensions: min(w, h) / 2."""
+        """Corner radius mathematically derived from: min(w, h) / 2."""
         return min(self.width, self.height) // 2
 
     @property
@@ -124,3 +129,42 @@ class CapsuleTheme:
 
 GEOMETRY = CapsuleGeometry()
 THEME = CapsuleTheme()
+
+THEME_PALETTES: dict[str, dict[str, str]] = {
+    "cyan": {
+        "name": "Cyber Cyan",
+        "accent": "#00e5ff",
+        "hover": "#33ebff",
+        "muted": "#0284c7",
+    },
+    "emerald": {
+        "name": "Emerald Matrix",
+        "accent": "#10b981",
+        "hover": "#34d399",
+        "muted": "#059669",
+    },
+    "purple": {
+        "name": "Neon Violet",
+        "accent": "#a855f7",
+        "hover": "#c084fc",
+        "muted": "#7c3aed",
+    },
+    "amber": {
+        "name": "Sunset Amber",
+        "accent": "#f59e0b",
+        "hover": "#fbbf24",
+        "muted": "#d97706",
+    },
+}
+
+
+def get_theme_by_name(name: str = "cyan") -> CapsuleTheme:
+    """Return a CapsuleTheme configured with the specified accent colors."""
+    pal = THEME_PALETTES.get(name.lower(), THEME_PALETTES["cyan"])
+    return CapsuleTheme(
+        hover_border=pal["accent"],
+        beam_body=pal["accent"],
+        beam_tail=pal["muted"],
+        badge_bg=pal["accent"],
+    )
+

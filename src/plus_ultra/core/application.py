@@ -11,11 +11,10 @@ Applies OS and Software Architecture concepts:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import signal
-import sys
 import tkinter as tk
-from pathlib import Path
 from typing import Any
 
 from plus_ultra.config import (
@@ -28,7 +27,6 @@ from plus_ultra.config import (
     get_state_dir,
 )
 from plus_ultra.core.events import EventBus
-from plus_ultra.core.exceptions import SingleInstanceError
 from plus_ultra.core.lifecycle import LifecycleManager, LifecycleState
 from plus_ultra.database import (
     get_connection,
@@ -200,8 +198,13 @@ class Application:
 
     def _setup_ui(self) -> None:
         """Create FloatingWidget capsule and DashboardPanel."""
+        from plus_ultra import settings
         from plus_ultra.ui.floating import FloatingWidget
         from plus_ultra.ui.panel import DashboardPanel
+        from plus_ultra.ui.theme import get_theme_by_name
+
+        eff = settings.load_effective_settings()
+        active_theme = get_theme_by_name(eff.get("theme", "cyan"))
 
         saved_pos = (
             self.app_state_repo.get_widget_position()
@@ -221,6 +224,7 @@ class Application:
             initial_x=init_x,
             initial_y=init_y,
             on_position_change=on_pos_change,
+            theme=active_theme,
         )
         self.root = self.widget.root
 
@@ -235,6 +239,7 @@ class Application:
             idea_doubt_service=self.idea_service,  # type: ignore[arg-type]
             opportunity_service=self.opportunity_service,
             quick_link_service=self.quick_link_service,
+            theme=active_theme,
             on_notifications_cleared=self.widget._update_bell_state,
             on_open=self.widget.root.withdraw,
             on_close=self.widget.root.deiconify,
@@ -250,10 +255,8 @@ class Application:
     def _safe_destroy_ui(self) -> None:
         """Destroy UI windows cleanly."""
         if self._dispatch_timer_id is not None and self.root:
-            try:
+            with contextlib.suppress(Exception):
                 self.root.after_cancel(self._dispatch_timer_id)
-            except Exception:
-                pass
             self._dispatch_timer_id = None
 
         if self.dashboard and self.dashboard.winfo_exists():
@@ -472,7 +475,5 @@ class Application:
         logger.info("Application shutdown requested.")
         self.lifecycle.shutdown()
         if self.root:
-            try:
+            with contextlib.suppress(Exception):
                 self.root.quit()
-            except Exception:
-                pass

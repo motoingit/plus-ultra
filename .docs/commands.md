@@ -50,6 +50,30 @@ uv run python .scripts/clear_db.py -t tasks -t code_items  # Clear specific tabl
 uv run python .scripts/clear_db.py --include-app-state     # Also clear machine runtime state
 uv run python .scripts/clear_db.py --vacuum                # Run VACUUM after clearing
 
+# Interactive TUI Installer (Linux & Windows 11)
+uv run python .scripts/install.py                          # Launch Interactive TUI menu
+./.scripts/install.sh                                      # Linux shell wrapper (TUI)
+./.scripts/linux/install.sh                                # Linux subfolder wrapper
+powershell .scripts/install.ps1                            # Windows PowerShell wrapper
+powershell .scripts/windows/install.ps1                    # Windows subfolder wrapper
+
+# Non-Interactive / Headless Installation
+uv run python .scripts/install.py -y --theme=emerald       # Non-interactive with theme
+uv run python .scripts/install.py -y --no-autostart        # Disable launch on OS login
+uv run python .scripts/install.py -y --no-demo             # Fresh install without demo data
+uv run python .scripts/install.py -y --minimized           # Start minimized to system tray
+
+# Interactive TUI Uninstaller (Linux & Windows 11)
+uv run python .scripts/uninstall.py                        # Launch Interactive TUI uninstaller
+./.scripts/uninstall.sh                                    # Linux shell uninstaller (TUI)
+./.scripts/linux/uninstall.sh                              # Linux subfolder uninstaller
+powershell .scripts/uninstall.ps1                          # Windows PowerShell uninstaller
+powershell .scripts/windows/uninstall.ps1                  # Windows subfolder uninstaller
+
+# Non-Interactive Uninstallation
+uv run python .scripts/uninstall.py -y --keep-data         # Remove app, keep database & config
+uv run python .scripts/uninstall.py -y --purge             # Complete purge of app, DB & config
+
 # Desktop Notification Testing
 uv run python .scripts/notify.py                           # Immediate desktop popup
 uv run python .scripts/notify.py 2                         # Popup after 2 minutes delay

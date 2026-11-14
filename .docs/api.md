@@ -378,7 +378,18 @@ Mathematical capsule coordinate calculations:
 - `generate_perimeter_path(width, height, radius, total_points=56) -> list[tuple[float, float]]`
 
 ### `.scripts` Standalone Utilities
+- `install.py`: Cross-platform interactive TUI installer and automated CLI script for Linux and Windows 11. Provides arrow-key menu navigation, spacebar toggles, theme cycling, autostart configuration, desktop shortcut creation, and optional demo data seeding.
+- `install.sh` / `linux/install.sh`: Linux Bash launcher delegating to `install.py`.
+- `install.ps1` / `windows/install.ps1`: Windows PowerShell launcher delegating to `install.py`.
+- `uninstall.py`: Cross-platform interactive TUI uninstaller removing binaries, desktop shortcuts, autostart entries, and icons with optional total user data purge.
+- `uninstall.sh` / `linux/uninstall.sh`: Linux Bash uninstaller delegating to `uninstall.py`.
+- `uninstall.ps1` / `windows/uninstall.ps1`: Windows PowerShell uninstaller delegating to `uninstall.py`.
 - `clear_db.py`: `clear_database(conn, tables, hard_delete, clear_app_state, vacuum)` - Clears database tables cleanly with hard DELETE or soft delete (`is_deleted = 1`) and `--force` support.
 - `seed_data.py`: `seed_demo_workspace_data(conn, force)`, `unseed_demo_workspace_data(conn, hard_delete)` - Full workspace demo population and selective removal.
 - `notify.py`: `dispatch_notification(title, message, delay_seconds, urgency)` - Desktop notification dispatcher supporting instant popup or delayed countdown delivery.
+
+### `plus_ultra.ui.theme`
+- `THEME_PALETTES: dict[str, ThemePalette]`: Registered palettes (`cyan`, `emerald`, `purple`, `amber`).
+- `get_theme_by_name(name: str) -> ThemePalette`: Resolves theme palette by key, falling back to Cyber Cyan default.
+
 

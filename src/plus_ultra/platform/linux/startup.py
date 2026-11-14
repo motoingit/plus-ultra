@@ -2,7 +2,7 @@
 
 Applies OS concepts:
 - FreeDesktop XDG Autostart Specification:
-  - ~/.config/autostart/plus-ultra.desktop entry launched on graphical session login.
+  - ~/.config/autostart/plus-ultra.desktop launched on session login.
 """
 
 from __future__ import annotations
@@ -52,7 +52,10 @@ class LinuxStartupManager:
         """Write .desktop file with valid executable command."""
         target = self._get_autostart_file()
         try:
-            if getattr(sys, "frozen", False):
+            installed = Path.home() / ".local" / "bin" / "plus-ultra"
+            if installed.is_file():
+                cmd = str(installed)
+            elif getattr(sys, "frozen", False):
                 cmd = sys.executable
             else:
                 cmd = f"{sys.executable} -m plus_ultra.main"
@@ -72,7 +75,8 @@ class LinuxStartupManager:
         try:
             if target.is_file():
                 target.unlink()
-                logger.info("Removed Linux autostart desktop entry at %s", target)
+                logger.info("Removed Linux autostart desktop entry at %s",
+                            target)
             return True
         except OSError as exc:
             logger.error("Failed to disable Linux autostart: %s", exc)

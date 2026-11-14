@@ -15,6 +15,18 @@ plus-ultra/
 ├── .scripts/                      # Standalone maintenance and testing utilities
 │   ├── __init__.py               # Scripts package marker
 │   ├── clear_db.py               # Table purging, soft/hard delete, vacuum utility
+│   ├── install.py                # Cross-platform interactive TUI installer
+│   ├── install.sh                # Linux bash launcher (delegates to install.py)
+│   ├── install.ps1               # Windows PowerShell launcher (delegates to install.py)
+│   ├── uninstall.py              # Cross-platform interactive TUI uninstaller
+│   ├── uninstall.sh              # Linux bash uninstaller launcher
+│   ├── uninstall.ps1             # Windows PowerShell uninstaller launcher
+│   ├── linux/                    # Linux platform scripts
+│   │   ├── install.sh            # Linux install launcher
+│   │   └── uninstall.sh          # Linux uninstall launcher
+│   ├── windows/                  # Windows platform scripts
+│   │   ├── install.ps1           # Windows install launcher
+│   │   └── uninstall.ps1         # Windows uninstall launcher
 │   ├── notify.py                 # Instant/delayed desktop notification testing CLI
 │   ├── seed_data.py              # Demo dataset seeding and unseeding engine
 │   └── seeds.py                  # Legacy wrapper delegating to seed_data.py

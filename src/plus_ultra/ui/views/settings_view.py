@@ -107,8 +107,13 @@ class SettingsView:
         eff = settings.load_effective_settings()
         for attr, (k, def_val) in self._BOOL_SETTINGS.items():
             setattr(self, attr, tk.BooleanVar(value=eff.get(k, def_val)))
+        if self.platform.startup.is_supported:
+            self.start_with_system_var.set(
+                self.platform.startup.is_autostart_enabled()
+            )
         dur = eff.get("notification_popup_duration_ms", 3000)
         self.popup_duration_var = tk.StringVar(value=str(dur))
+        self.theme_var = tk.StringVar(value=eff.get("theme", "cyan"))
 
     def _build_ui(self) -> None:
         """Construct scrollable multi-card settings layout."""
@@ -197,6 +202,21 @@ class SettingsView:
             c, "Enable animated orbiting border beam on capsule hover",
             self.glow_enabled_var, "glow_enabled",
         )
+        t_row = tk.Frame(c, bg=COLOR_SURFACE_CARD)
+        t_row.pack(fill="x", pady=(SPACING_SM // 2, 0))
+        tk.Label(
+            t_row, text="Theme Accent: ", bg=COLOR_SURFACE_CARD,
+            fg=COLOR_TEXT_SECONDARY, font=(FONT_FAMILY, FONT_SIZE_BASE),
+        ).pack(side="left")
+        for key, label in (
+            ("cyan", "Cyan"), ("emerald", "Emerald"),
+            ("purple", "Violet"), ("amber", "Amber"),
+        ):
+            StyledButton(
+                t_row, text=label,
+                command=lambda k=key: self._on_theme_selected(k),
+                role="secondary", font_size=FONT_SIZE_SM, padx=6, pady=2,
+            ).pack(side="left", padx=2)
         tk.Label(
             c, text="Capsule: 350x30px (Radius: 15px) | Dashboard: 1380x840px",
             bg=COLOR_SURFACE_CARD, fg=COLOR_TEXT_MUTED,
@@ -265,14 +285,17 @@ class SettingsView:
         caps = self.platform.capabilities
         p_name = caps.platform_type.value.upper()
         d_name = caps.desktop_environment.value
-        srv_name = caps.display_server.value.upper()
+        srv = caps.display_server.value.upper()
+        auto_st = (
+            "Yes" if self.platform.startup.is_autostart_enabled() else "No"
+        )
         diag_lines = [
             f"Host Platform: {p_name} (Desktop: {d_name})",
-            f"Display Server: {srv_name}",
+            f"Display Server: {srv}",
             f"Tray Backend: {caps.tray_backend_name} "
             f"(Supported: {caps.supports_system_tray})",
-            f"Notification Backend: {caps.notification_backend_name} "
-            f"(Available: {caps.supports_desktop_notifications})",
+            f"Notification Backend: {caps.notification_backend_name}",
+            f"Autostart on OS Login: {auto_st}",
         ]
         for line in diag_lines:
             tk.Label(
@@ -288,60 +311,41 @@ class SettingsView:
         card = _card_header(
             parent, "Local Data, Persistence & Storage Management"
         )
-        db_path = config.get_db_path()
-        cfg_path = config.get_user_settings_path()
-        log_path = config.get_log_path()
-        paths = [
-            ("SQLite Store", db_path, db_path.parent),
-            ("User Settings", cfg_path, cfg_path.parent),
-            ("Persistent Log", log_path, log_path.parent),
-        ]
-        for label, file_path, folder_path in paths:
+        db_p = config.get_db_path()
+        cfg_p = config.get_user_settings_path()
+        log_p = config.get_log_path()
+        for label, file_path, folder_path in (
+            ("SQLite Store", db_p, db_p.parent),
+            ("User Settings", cfg_p, cfg_p.parent),
+            ("Persistent Log", log_p, log_p.parent),
+        ):
             row = tk.Frame(card, bg=COLOR_SURFACE_CARD)
             row.pack(fill="x", pady=4)
             tk.Label(
-                row,
-                text=f"{label}:",
-                bg=COLOR_SURFACE_CARD,
-                fg=COLOR_TEXT_SECONDARY,
+                row, text=f"{label}:", bg=COLOR_SURFACE_CARD,
+                fg=COLOR_TEXT_SECONDARY, width=14, anchor="w",
                 font=(FONT_FAMILY, FONT_SIZE_BASE, "bold"),
-                width=14,
-                anchor="w",
             ).pack(side="left")
             tk.Label(
-                row,
-                text=str(file_path),
-                bg=COLOR_SURFACE_CARD,
-                fg=COLOR_TEXT_MUTED,
-                font=("courier", 9),
-                anchor="w",
+                row, text=str(file_path), bg=COLOR_SURFACE_CARD,
+                fg=COLOR_TEXT_MUTED, font=("courier", 9), anchor="w",
             ).pack(side="left", fill="x", expand=True, padx=SPACING_SM)
             StyledButton(
-                row,
-                text="Open Folder",
+                row, text="Open Folder",
                 command=lambda p=folder_path: _open_folder_in_explorer(p),
-                role="secondary",
-                font_size=FONT_SIZE_SM,
-                padx=10,
-                pady=2,
+                role="secondary", font_size=FONT_SIZE_SM, padx=10, pady=2,
             ).pack(side="right")
 
         actions_row = tk.Frame(card, bg=COLOR_SURFACE_CARD)
         actions_row.pack(anchor="w", pady=(SPACING_MD, 0))
-        buttons = [
+        for title, handler, role in (
             ("Reset Config Settings", self.reset_config_settings, "secondary"),
             ("Factory Reset (Delete Everything)", self.factory_reset, "danger"),
             ("Reseed Demo Data", self.reseed_demo_data, "secondary"),
-        ]
-        for title, handler, role in buttons:
+        ):
             StyledButton(
-                actions_row,
-                text=title,
-                command=handler,
-                role=role,
-                font_size=FONT_SIZE_BASE,
-                padx=14,
-                pady=6,
+                actions_row, text=title, command=handler, role=role,
+                font_size=FONT_SIZE_BASE, padx=14, pady=6,
             ).pack(side="left", padx=(0, SPACING_MD))
 
     def _save_bool(self, key: str, var: tk.BooleanVar) -> None:
@@ -353,6 +357,8 @@ class SettingsView:
         val = self.start_with_system_var.get()
         settings.update_user_setting("start_with_system", val)
         if val and not self.platform.startup.enable_autostart():
+            self.start_with_system_var.set(False)
+            settings.update_user_setting("start_with_system", False)
             messagebox.showwarning(
                 "Autostart",
                 "Could not register autostart. Check permissions.",
@@ -360,6 +366,15 @@ class SettingsView:
             )
         elif not val:
             self.platform.startup.disable_autostart()
+
+    def _on_theme_selected(self, key: str) -> None:
+        self.theme_var.set(key)
+        settings.update_user_setting("theme", key)
+        messagebox.showinfo(
+            "Theme Updated",
+            f"Accent theme set to '{key.capitalize()}'. Restart to apply.",
+            parent=self.parent_window,
+        )
 
     def _toggle_topmost(self) -> None:
         val = self.topmost_var.get()
@@ -394,8 +409,13 @@ class SettingsView:
         eff = settings.load_effective_settings()
         for attr, (k, def_val) in self._BOOL_SETTINGS.items():
             getattr(self, attr).set(eff.get(k, def_val))
+        if self.platform.startup.is_supported:
+            self.start_with_system_var.set(
+                self.platform.startup.is_autostart_enabled()
+            )
         dur = eff.get("notification_popup_duration_ms", 3000)
         self.popup_duration_var.set(str(dur))
+        self.theme_var.set(eff.get("theme", "cyan"))
 
     def reseed_demo_data(self) -> None:
         """Trigger workspace demo data reseed and notify user."""
@@ -425,8 +445,8 @@ class SettingsView:
     def reset_config_settings(self) -> None:
         """Reset configuration preferences to defaults without data loss."""
         msg = (
-            "Reset all preferences and UI configuration to defaults?\n\n"
-            "Your tasks, notes, courses, and database records will be kept."
+            "Reset preferences to defaults?\n\n"
+            "Your tasks, notes, courses, and data will be kept."
         )
         if not messagebox.askyesno(
             "Reset Config Settings", msg, parent=self.parent_window
@@ -435,8 +455,7 @@ class SettingsView:
         settings.reset_all_settings()
         self.refresh()
         messagebox.showinfo(
-            "Config Reset",
-            "Configuration settings restored to application defaults.",
+            "Config Reset", "Configuration restored to defaults.",
             parent=self.parent_window,
         )
 
@@ -465,8 +484,7 @@ class SettingsView:
             if self.on_reseed:
                 self.on_reseed()
             messagebox.showinfo(
-                "Factory Reset Complete",
-                "Factory reset complete. All data and settings wiped.",
+                "Factory Reset Complete", "All data and settings wiped.",
                 parent=self.parent_window,
             )
         except Exception as exc:
