@@ -154,26 +154,28 @@ class FloatingWidget:
         # 3. Content items: Alert indicator icon + PLUS-ULTRA text
         self._bell_icon = get_icon("fallback", 18)
         self.bell_id = self.canvas.create_image(
-            52,
-            h // 2,
+            self.geometry.bell_center_x,
+            self.geometry.center_y,
             image=self._bell_icon,
             state="hidden",
         )
 
         self.idle_text_id = self.canvas.create_text(
-            w // 2,
-            h // 2,
+            self.geometry.center_x,
+            self.geometry.center_y,
             text="PLUS-ULTRA",
             fill=self.theme.idle_text,
             font=(self.theme.font_family, self.theme.font_size, "bold"),
         )
 
         # 4. Small network status indicator dot on right side of capsule
+        net_x = self.geometry.net_dot_x
+        net_y = self.geometry.center_y
         self.net_dot_id = self.canvas.create_oval(
-            w - 28,
-            (h // 2) - 4,
-            w - 20,
-            (h // 2) + 4,
+            net_x - 4,
+            net_y - 4,
+            net_x + 4,
+            net_y + 4,
             fill="#10b981",
             outline="",
             state="hidden",
@@ -373,12 +375,14 @@ class FloatingWidget:
                 self.root.winfo_id(), self.width, self.height, self.radius
             )
             if hasattr(self, "net_dot_id"):
+                net_x = self.width - int(self.radius * 1.8)
+                net_y = self.height // 2
                 self.canvas.coords(
                     self.net_dot_id,
-                    self.width - 28,
-                    (self.height // 2) - 4,
-                    self.width - 20,
-                    (self.height // 2) + 4,
+                    net_x - 4,
+                    net_y - 4,
+                    net_x + 4,
+                    net_y + 4,
                 )
 
     def _update_bell_state(self) -> None:
@@ -436,12 +440,14 @@ class FloatingWidget:
             is_on = res if res is not None else self._net_monitor.last_status
             color = "#10b981" if is_on else "#ef4444"
             self.canvas.itemconfig(self.net_dot_id, fill=color, state="normal")
+            net_x = self.width - int(self.radius * 1.8)
+            net_y = self.height // 2
             self.canvas.coords(
                 self.net_dot_id,
-                self.width - 28,
-                (self.height // 2) - 4,
-                self.width - 20,
-                (self.height // 2) + 4,
+                net_x - 4,
+                net_y - 4,
+                net_x + 4,
+                net_y + 4,
             )
 
         self._net_poll_timer_id = self.root.after(

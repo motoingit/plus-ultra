@@ -10,6 +10,7 @@ Validates:
 from __future__ import annotations
 
 import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -25,9 +26,10 @@ def test_lock_acquire_and_release(tmp_path: Path) -> None:
     assert lock1.acquire() is True
     assert lock_file.is_file()
 
-    # Verify mode 0o600
-    file_mode = stat.S_IMODE(lock_file.stat().st_mode)
-    assert file_mode == 0o600, f"Expected 0o600, got {oct(file_mode)}"
+    # Verify mode 0o600 on POSIX platforms
+    if sys.platform != "win32":
+        file_mode = stat.S_IMODE(lock_file.stat().st_mode)
+        assert file_mode == 0o600, f"Expected 0o600, got {oct(file_mode)}"
 
     # Second instance attempting same lock must fail (contention)
     lock2 = SingleInstanceLock(lock_file)

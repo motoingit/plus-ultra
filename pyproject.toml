@@ -4,7 +4,10 @@ version = "0"
 description = "Floating desktop assistant for TECHPERSON"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pillow>=13.0.0",
+    "pystray>=0.19.5",
+]
 
 [project.scripts]
 plus-ultra = "plus_ultra.main:main"

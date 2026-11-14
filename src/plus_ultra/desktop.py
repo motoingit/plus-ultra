@@ -1,32 +1,22 @@
 """Desktop platform adapter and process management for PLUS-ULTRA.
 
 Applies OS concepts:
-- Mutual Exclusion & Single Instance: POSIX advisory file locking (fcntl.flock)
-  ensures only one application process runs concurrently per user session.
-- Process lifecycle: Clean lock acquisition, PID recording, and release on
-  normal shutdown or signal termination.
+- Mutual Exclusion & Single Instance: Delegates to PlatformServices instance lock.
+- Desktop notifications: Provides native notify-send compatibility on Linux
+  and delegates across platforms.
+- Window Shaping: Delegates to WindowEffects.
 """
 
 from __future__ import annotations
 
-import contextlib
 import logging
-import os
-import shutil
-import subprocess
 from pathlib import Path
 
-try:
-    import fcntl
-except ImportError:
-    fcntl = None  # Windows platform fallback
-
-try:
-    import msvcrt
-except ImportError:
-    msvcrt = None  # Non-Windows platform fallback
-
-from plus_ultra import config
+from plus_ultra.config import APP_NAME, get_platform_services
+from plus_ultra.platform.interfaces.notifications import (
+    NotificationRequest,
+    NotificationUrgency,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,73 +24,33 @@ LOCK_FILENAME = "plus-ultra.lock"
 
 
 class SingleInstanceLock:
-    """Manages an exclusive advisory file lock for the application process."""
+    """Advisory single-instance lock delegating to current platform backend."""
 
     def __init__(self, lock_path: Path | None = None) -> None:
-        self.lock_path = lock_path or (config.get_state_dir() / LOCK_FILENAME)
-        self._fd: int | None = None
+        if lock_path is not None:
+            from plus_ultra.platform.detection import is_windows
+            if is_windows():
+                from plus_ultra.platform.windows.instance import (
+                    WindowsSingleInstanceLock,
+                )
+                self._backend = WindowsSingleInstanceLock(lock_path=lock_path)
+            else:
+                from plus_ultra.platform.linux.instance import (
+                    LinuxSingleInstanceLock,
+                )
+                self._backend = LinuxSingleInstanceLock(lock_path=lock_path)
+        else:
+            self._backend = get_platform_services().instance_lock
+
+    @property
+    def lock_path(self) -> Path:
+        return self._backend.lock_path
 
     def acquire(self) -> bool:
-        """Attempt to acquire exclusive advisory lock without blocking.
-
-        Returns:
-            True if lock was acquired, False if another instance holds it.
-        """
-        config.get_state_dir()  # Ensure state directory exists (0o700)
-        try:
-            fd = os.open(
-                self.lock_path,
-                os.O_RDWR | os.O_CREAT,
-                0o600,
-            )
-            # Try exclusive non-blocking lock (POSIX fcntl or Windows msvcrt)
-            if fcntl is not None:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            elif msvcrt is not None:
-                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-
-            # Record PID for diagnostic inspection
-            os.ftruncate(fd, 0)
-            os.lseek(fd, 0, os.SEEK_SET)
-            os.write(fd, f"{os.getpid()}\n".encode())
-
-            self._fd = fd
-            logger.info(
-                "Acquired single-instance lock on %s (pid: %d)",
-                self.lock_path,
-                os.getpid(),
-            )
-            return True
-        except (BlockingIOError, OSError) as exc:
-            logger.warning(
-                "Single-instance lock contention on %s: %s",
-                self.lock_path,
-                exc,
-            )
-            with contextlib.suppress(OSError):
-                if "fd" in locals():
-                    os.close(fd)
-            return False
+        return self._backend.acquire()
 
     def release(self) -> None:
-        """Release the advisory lock and close the file descriptor."""
-        if self._fd is not None:
-            try:
-                if fcntl is not None:
-                    fcntl.flock(self._fd, fcntl.LOCK_UN)
-                elif msvcrt is not None:
-                    with contextlib.suppress(OSError):
-                        msvcrt.locking(self._fd, msvcrt.LK_UNLCK, 1)
-                os.close(self._fd)
-                logger.info(
-                    "Released single-instance lock on %s", self.lock_path
-                )
-            except OSError as err:
-                logger.error("Error releasing lock: %s", err)
-            finally:
-                self._fd = None
-                with contextlib.suppress(OSError):
-                    self.lock_path.unlink()
+        self._backend.release()
 
     def __enter__(self) -> bool:
         return self.acquire()
@@ -112,69 +62,27 @@ class SingleInstanceLock:
 
 
 def apply_window_shape_mask(
-    window_id: int, width: int, height: int, radius: int
+    window_id_or_widget: object, width: int, height: int, radius: int
 ) -> bool:
-    """Clip XWayland window to capsule shape using XShape extension.
+    """Clip window to capsule shape using platform-specific mechanism."""
+    import tkinter as tk
 
-    Returns True if the mask was applied, False if Xlib/XShape is unavailable.
-    """
+    win_effects = get_platform_services().window
+    if isinstance(window_id_or_widget, (tk.Tk, tk.Toplevel)):
+        return win_effects.apply_capsule_shape(
+            window_id_or_widget, width, height, radius
+        )
+
     try:
-        import ctypes
-        import ctypes.util
+        from plus_ultra.platform.linux.window import LinuxWindowEffects
+        class _StubWidget:
+            def winfo_id(self) -> int:
+                return int(window_id_or_widget)  # type: ignore[arg-type]
 
-        x11_name = ctypes.util.find_library("X11") or "libX11.so.6"
-        xext_name = ctypes.util.find_library("Xext") or "libXext.so.6"
-        x11 = ctypes.cdll.LoadLibrary(x11_name)
-        xext = ctypes.cdll.LoadLibrary(xext_name)
-
-        display = x11.XOpenDisplay(None)
-        if not display:
-            return False
-
-        try:
-            event_base = ctypes.c_int()
-            error_base = ctypes.c_int()
-            if not xext.XShapeQueryExtension(
-                display, ctypes.byref(event_base), ctypes.byref(error_base)
-            ):
-                return False
-
-            row_bytes = (width + 7) // 8
-            data = bytearray(row_bytes * height)
-            r = radius
-            r_sq = r * r
-
-            for y in range(height):
-                for x in range(width):
-                    inside = False
-                    if r <= x <= width - r:
-                        inside = True
-                    elif x < r:
-                        inside = (x - r) ** 2 + (y - r) ** 2 <= r_sq
-                    else:
-                        inside = (x - (width - r)) ** 2 + (y - r) ** 2 <= r_sq
-
-                    if inside:
-                        byte_idx = y * row_bytes + (x // 8)
-                        bit_idx = x % 8
-                        data[byte_idx] |= 1 << bit_idx
-
-            bitmap_data = (ctypes.c_char * len(data)).from_buffer(data)
-            pixmap = x11.XCreateBitmapFromData(
-                display, window_id, bitmap_data, width, height
-            )
-            if not pixmap:
-                return False
-
-            # 0: ShapeBounding, 0: ShapeSet
-            xext.XShapeCombineMask(display, window_id, 0, 0, 0, pixmap, 0)
-            x11.XFreePixmap(display, pixmap)
-            x11.XFlush(display)
-            return True
-        finally:
-            x11.XCloseDisplay(display)
-    except Exception as exc:
-        logger.debug("Window shape mask skipped or unsupported: %s", exc)
+        return LinuxWindowEffects().apply_capsule_shape(
+            _StubWidget(), width, height, radius  # type: ignore[arg-type]
+        )
+    except Exception:
         return False
 
 
@@ -183,50 +91,24 @@ def send_desktop_notification(
     message: str = "",
     urgency: str = "normal",
     timeout_ms: int = 3000,
-    app_name: str = config.APP_NAME,
+    app_name: str = APP_NAME,
 ) -> bool:
-    """Send a native Linux desktop notification via notify-send without shell.
+    """Send native desktop notification via notify-send adapter."""
+    from plus_ultra.platform.linux.notifications import LinuxDesktopNotifier
 
-    Args:
-        title: Notification summary heading.
-        message: Notification body text.
-        urgency: Urgency level ('low', 'normal', 'critical').
-        timeout_ms: Expiration timeout in milliseconds.
-        app_name: Originating application identifier.
-
-    Returns:
-        True if notify-send completed successfully, False otherwise.
-    """
-    executable = shutil.which("notify-send")
-    if not executable:
-        logger.warning(
-            "notify-send executable not found; desktop notification skipped."
-        )
-        return False
-
-    cmd = [
-        executable,
-        "-a",
-        app_name,
-        "-u",
-        urgency,
-        "-t",
-        str(timeout_ms),
-        title,
-        message,
-    ]
     try:
-        subprocess.run(
-            cmd,
-            check=True,
-            capture_output=True,
-            timeout=3,
-        )
-        logger.info("Desktop notification dispatched: %s", title)
-        return True
-    except (subprocess.SubprocessError, OSError) as exc:
-        logger.warning("Failed to dispatch desktop notification: %s", exc)
-        return False
+        urg = NotificationUrgency(urgency.lower())
+    except ValueError:
+        urg = NotificationUrgency.NORMAL
+
+    req = NotificationRequest(
+        title=title,
+        message=message,
+        urgency=urg,
+        timeout_ms=timeout_ms,
+        app_name=app_name,
+    )
+    return LinuxDesktopNotifier().send(req)
 
 
 notify = send_desktop_notification

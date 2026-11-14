@@ -1,4 +1,9 @@
-"""Capsule geometry and perimeter path calculation functions."""
+"""Capsule geometry and perimeter path calculation functions.
+
+Applies mathematical modeling:
+- Validates input dimensions to eliminate degenerate geometries.
+- Generates 2D parametric polygons and perimeter trajectories for animations.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +13,30 @@ import math
 def generate_capsule_points(
     w: int, h: int, r: int, steps: int = 24
 ) -> list[float]:
-    """Generate exact coordinates for a horizontal capsule polygon."""
+    """Generate exact coordinates for a horizontal capsule polygon.
+
+    Args:
+        w: Width of capsule in pixels (must be > 0).
+        h: Height of capsule in pixels (must be > 0).
+        r: Corner radius in pixels (0 <= r <= min(w, h) / 2).
+        steps: Number of radial interpolation steps along semicircle caps.
+
+    Returns:
+        List of alternating [x0, y0, x1, y1, ...] coordinate points for canvas.
+
+    Raises:
+        ValueError: If dimensions or radius are negative or invalid.
+    """
+    if w <= 0 or h <= 0:
+        raise ValueError(f"Dimensions must be positive: width={w}, height={h}")
+    max_radius = min(w, h) // 2
+    if r < 0 or r > max_radius:
+        raise ValueError(
+            f"Radius must be between 0 and {max_radius}, got {r}"
+        )
+    if steps < 2:
+        raise ValueError(f"Steps must be >= 2, got {steps}")
+
     points: list[float] = []
 
     # 1. Top straight edge: left to right
@@ -39,7 +67,30 @@ def generate_capsule_points(
 def generate_perimeter_path(
     w: int, h: int, r: int, num_arc_points: int = 24
 ) -> list[tuple[float, float]]:
-    """Generate ordered 2D perimeter points for the animated border beam."""
+    """Generate ordered 2D perimeter points for the animated border beam.
+
+    Args:
+        w: Width of capsule in pixels (must be > 0).
+        h: Height of capsule in pixels (must be > 0).
+        r: Corner radius in pixels (0 <= r <= min(w, h) / 2).
+        num_arc_points: Density of points along semicircle caps.
+
+    Returns:
+        List of (x, y) tuples forming a continuous clockwise perimeter loop.
+
+    Raises:
+        ValueError: If dimensions or radius are negative or invalid.
+    """
+    if w <= 0 or h <= 0:
+        raise ValueError(f"Dimensions must be positive: width={w}, height={h}")
+    max_radius = min(w, h) // 2
+    if r < 0 or r > max_radius:
+        raise ValueError(
+            f"Radius must be between 0 and {max_radius}, got {r}"
+        )
+    if num_arc_points < 2:
+        raise ValueError(f"num_arc_points must be >= 2, got {num_arc_points}")
+
     path: list[tuple[float, float]] = []
 
     # 1. Top edge: left to right (step by 2px)

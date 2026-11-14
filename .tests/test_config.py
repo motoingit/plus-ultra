@@ -10,6 +10,7 @@ Validates:
 from __future__ import annotations
 
 import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -30,8 +31,12 @@ def test_default_xdg_paths(
     data_dir = config.get_data_dir()
     state_dir = config.get_state_dir()
 
-    expected_data = fake_home / ".local" / "share" / config.APP_NAME
-    expected_state = fake_home / ".local" / "state" / config.APP_NAME
+    if sys.platform == "win32":
+        expected_data = fake_home / "AppData" / "Local" / config.APP_NAME
+        expected_state = fake_home / "AppData" / "Local" / config.APP_NAME / "state"
+    else:
+        expected_data = fake_home / ".local" / "share" / config.APP_NAME
+        expected_state = fake_home / ".local" / "state" / config.APP_NAME
 
     assert data_dir == expected_data
     assert state_dir == expected_state
@@ -69,11 +74,14 @@ def test_directory_permissions_mode_0700(
     data_dir = config.get_data_dir()
     state_dir = config.get_state_dir()
 
-    data_mode = stat.S_IMODE(data_dir.stat().st_mode)
-    state_mode = stat.S_IMODE(state_dir.stat().st_mode)
-
-    assert data_mode == 0o700, f"Expected 0o700, got {oct(data_mode)}"
-    assert state_mode == 0o700, f"Expected 0o700, got {oct(state_mode)}"
+    if sys.platform != "win32":
+        data_mode = stat.S_IMODE(data_dir.stat().st_mode)
+        state_mode = stat.S_IMODE(state_dir.stat().st_mode)
+        assert data_mode == 0o700, f"Expected 0o700, got {oct(data_mode)}"
+        assert state_mode == 0o700, f"Expected 0o700, got {oct(state_mode)}"
+    else:
+        assert data_dir.is_dir()
+        assert state_dir.is_dir()
 
 
 @pytest.mark.parametrize("empty_val", ["", "   ", "\t"])
@@ -86,8 +94,12 @@ def test_edge_case_empty_env_vars_fallback(
     monkeypatch.setenv("XDG_DATA_HOME", empty_val)
     monkeypatch.setenv("XDG_STATE_HOME", empty_val)
 
-    expected_data = fake_home / ".local" / "share" / config.APP_NAME
-    expected_state = fake_home / ".local" / "state" / config.APP_NAME
+    if sys.platform == "win32":
+        expected_data = fake_home / "AppData" / "Local" / config.APP_NAME
+        expected_state = fake_home / "AppData" / "Local" / config.APP_NAME / "state"
+    else:
+        expected_data = fake_home / ".local" / "share" / config.APP_NAME
+        expected_state = fake_home / ".local" / "state" / config.APP_NAME
 
     assert config.get_data_dir() == expected_data
     assert config.get_state_dir() == expected_state
@@ -123,7 +135,11 @@ def test_main_startup_logging(
 ) -> None:
     """Integration: main() writes startup lines to launcher.log."""
     fake_state = tmp_path / "test_state"
+    fake_data = tmp_path / "test_data"
+    fake_config = tmp_path / "test_config"
     monkeypatch.setenv("XDG_STATE_HOME", str(fake_state))
+    monkeypatch.setenv("XDG_DATA_HOME", str(fake_data))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(fake_config))
 
     app_main([])
 
@@ -144,10 +160,15 @@ def test_config_dir_default_and_override(
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
 
     config_dir = config.get_config_dir()
-    expected_default = fake_home / ".config" / config.APP_NAME
+    if sys.platform == "win32":
+        expected_default = fake_home / "AppData" / "Roaming" / config.APP_NAME
+    else:
+        expected_default = fake_home / ".config" / config.APP_NAME
+
     assert config_dir == expected_default
     assert config_dir.is_dir()
-    assert stat.S_IMODE(config_dir.stat().st_mode) == 0o700
+    if sys.platform != "win32":
+        assert stat.S_IMODE(config_dir.stat().st_mode) == 0o700
 
     custom_cfg = tmp_path / "custom_cfg"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(custom_cfg))
@@ -155,7 +176,8 @@ def test_config_dir_default_and_override(
     expected_override = custom_cfg / config.APP_NAME
     assert override_dir == expected_override
     assert override_dir.is_dir()
-    assert stat.S_IMODE(override_dir.stat().st_mode) == 0o700
+    if sys.platform != "win32":
+        assert stat.S_IMODE(override_dir.stat().st_mode) == 0o700
 
 
 def test_user_settings_path(

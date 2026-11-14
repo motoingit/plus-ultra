@@ -12,6 +12,7 @@ Validates:
 from __future__ import annotations
 
 import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -34,7 +35,7 @@ def test_default_settings_keys_and_values() -> None:
     """Verify default settings match the locked schema."""
     defaults = settings.load_default_settings()
 
-    assert defaults["settings_version"] == 1
+    assert defaults["settings_version"] == 2
     assert defaults["always_on_top"] is True
     assert defaults["glow_enabled"] is True
     assert defaults["glow_pulse_period_ms"] == 3000
@@ -44,6 +45,13 @@ def test_default_settings_keys_and_values() -> None:
     assert defaults["panel_min_width"] == 1000
     assert defaults["panel_min_height"] == 640
     assert defaults["notification_popup_duration_ms"] == 3000
+    assert defaults["start_with_system"] is False
+    assert defaults["start_minimized"] is False
+    assert defaults["close_to_tray"] is True
+    assert defaults["desktop_notifications_enabled"] is True
+    assert defaults["tray_enabled"] is True
+    assert defaults["capsule_visible"] is True
+    assert defaults["dnd_mode"] is False
     assert set(defaults.keys()) == {
         "settings_version",
         "always_on_top",
@@ -56,6 +64,13 @@ def test_default_settings_keys_and_values() -> None:
         "panel_min_width",
         "panel_min_height",
         "notification_popup_duration_ms",
+        "start_with_system",
+        "start_minimized",
+        "close_to_tray",
+        "desktop_notifications_enabled",
+        "tray_enabled",
+        "capsule_visible",
+        "dnd_mode",
     }
 
 
@@ -74,8 +89,9 @@ def test_update_setting_persists_and_enforces_0600() -> None:
     settings_file = config.get_user_settings_path()
     assert settings_file.is_file()
 
-    file_mode = stat.S_IMODE(settings_file.stat().st_mode)
-    assert file_mode == 0o600, f"Expected 0o600, got {oct(file_mode)}"
+    if sys.platform != "win32":
+        file_mode = stat.S_IMODE(settings_file.stat().st_mode)
+        assert file_mode == 0o600, f"Expected 0o600, got {oct(file_mode)}"
 
     # Reload fresh to verify persistence
     reloaded = settings.reload()
@@ -217,3 +233,21 @@ def test_dashboard_dimension_configuration_and_persistence(
     reloaded = settings.reload()
     assert reloaded["panel_width"] == 1450
     assert reloaded["panel_height"] == 900
+
+
+def test_schema_migration_v1_to_v2() -> None:
+    """Settings file from v1 is safely migrated to v2 without data loss."""
+    v1_payload = {
+        "settings_version": 1,
+        "always_on_top": False,
+        "glow_enabled": False,
+        "panel_width": 1400,
+    }
+    migrated = settings.migrate_settings(v1_payload)
+    assert migrated["settings_version"] == 2
+    assert migrated["always_on_top"] is False
+    assert migrated["glow_enabled"] is False
+    assert migrated["panel_width"] == 1400
+    assert migrated["close_to_tray"] is True
+    assert migrated["start_with_system"] is False
+    assert migrated["desktop_notifications_enabled"] is True
