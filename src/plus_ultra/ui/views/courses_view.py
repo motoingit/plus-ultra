@@ -69,9 +69,32 @@ class CoursesView:
             pady=8,
         ).pack(side="right")
 
-        # Platform Filter Pills
+        # Platform Filter Pills & Search Bar
         filter_bar = tk.Frame(self.container, bg="#161922", padx=28)
         filter_bar.pack(fill="x", pady=(0, 16))
+
+        search_box = tk.Frame(filter_bar, bg="#161922")
+        search_box.pack(side="left", fill="x", expand=True, padx=(0, 16))
+        tk.Label(
+            search_box,
+            text="Search:",
+            bg="#161922",
+            fg="#94a3b8",
+            font=(self.theme.font_family, 10, "bold"),
+        ).pack(side="left", padx=(0, 6))
+        self.search_entry = tk.Entry(
+            search_box,
+            bg="#12151c",
+            fg="#f8fafc",
+            relief="flat",
+            insertbackground="#00e5ff",
+            font=(self.theme.font_family, 11),
+        )
+        self.search_entry.pack(side="left", fill="x", expand=True, ipady=5)
+        self.search_entry.bind("<KeyRelease>", lambda _e: self.refresh())
+
+        plat_box = tk.Frame(filter_bar, bg="#161922")
+        plat_box.pack(side="right")
 
         for plat in [
             "All",
@@ -80,7 +103,7 @@ class CoursesView:
             "Other",
         ]:
             btn = tk.Button(
-                filter_bar,
+                plat_box,
                 text=plat,
                 bg="#1e2433" if plat == "All" else "#12151c",
                 fg="#00e5ff" if plat == "All" else "#94a3b8",
@@ -125,12 +148,20 @@ class CoursesView:
             if self.active_course_filter == "All"
             else self.active_course_filter
         )
-        courses = self.course_service.list_courses(platform=plat)
+        query = self.search_entry.get().strip() or None
+        courses = self.course_service.list_courses(
+            platform=plat, search_query=query
+        )
 
         if not courses:
+            msg = (
+                "No courses match your search or filter."
+                if query
+                else "No courses found in this category."
+            )
             tk.Label(
                 parent,
-                text="No courses found in this category.",
+                text=msg,
                 bg="#161922",
                 fg="#64748b",
                 font=(self.theme.font_family, 11),

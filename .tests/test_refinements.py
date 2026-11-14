@@ -13,17 +13,29 @@ from plus_ultra.models import Task
 from plus_ultra.network import NetworkStatusMonitor, is_network_online
 from plus_ultra.notifications import CapsuleNotificationQueue
 from plus_ultra.repositories import (
+    CodeRepository,
+    CourseRepository,
     IdeaDoubtRepository,
+    OpportunityRepository,
+    QuickLinkRepository,
 )
 from plus_ultra.services import (
+    CodeService,
+    CourseService,
     IdeaDoubtService,
+    OpportunityService,
+    QuickLinkService,
 )
 from plus_ultra.ui.components.datetime_picker import DateTimePicker
 from plus_ultra.ui.components.popup_pill import CapsulePopupPill
 from plus_ultra.ui.components.task_card import TaskCard
 from plus_ultra.ui.dialogs import CodeDialog, OpportunityDialog, TaskDialog
 from plus_ultra.ui.floating import FloatingWidget
+from plus_ultra.ui.views.code_view import CodeView
+from plus_ultra.ui.views.courses_view import CoursesView
 from plus_ultra.ui.views.ideas_view import IdeasView
+from plus_ultra.ui.views.opportunities_view import OpportunitiesView
+from plus_ultra.ui.views.quick_links_view import QuickLinksView
 
 
 def test_datetime_picker_interactive_actions() -> None:
@@ -285,3 +297,67 @@ def test_task_card_interactions() -> None:
     finally:
         with contextlib.suppress(Exception):
             root.destroy()
+
+
+def test_all_category_views_have_search_inputs(tmp_path: Path) -> None:
+    """Verify Code, Courses, Ideas, Opportunities, and Links support search."""
+    db_path = tmp_path / "search_test.db"
+    init_db(db_path)
+    conn = get_connection(db_path)
+
+    code_svc = CodeService(CodeRepository(conn))
+    course_svc = CourseService(CourseRepository(conn))
+    idea_svc = IdeaDoubtService(IdeaDoubtRepository(conn))
+    opp_svc = OpportunityService(OpportunityRepository(conn))
+    link_svc = QuickLinkService(QuickLinkRepository(conn))
+
+    code_svc.create_item(category="Snippets", title="Fast Fourier Transform")
+    course_svc.create_course(title="Distributed Systems MIT")
+    idea_svc.create_item(kind="Idea", title="Wayland Window Manager")
+    opp_svc.create_opportunity(
+        title="Linux Kernel Intern", organization="Red Hat"
+    )
+    link_svc.create_link(
+        name="Kernel Documentation", target_uri="https://kernel.org"
+    )
+
+    root = tk.Tk()
+    try:
+        # 1. CodeView Search
+        cv = CodeView(root, root, code_service=code_svc)
+        assert hasattr(cv, "search_entry")
+        cv.search_entry.insert(0, "Fourier")
+        cv.refresh()
+        assert len(cv.code_scroll.interior.winfo_children()) == 1
+
+        # 2. CoursesView Search
+        crv = CoursesView(root, root, course_service=course_svc)
+        assert hasattr(crv, "search_entry")
+        crv.search_entry.insert(0, "Distributed")
+        crv.refresh()
+        assert len(crv.courses_scroll.interior.winfo_children()) == 1
+
+        # 3. IdeasView Search
+        iv = IdeasView(root, root, idea_doubt_service=idea_svc)
+        assert hasattr(iv, "search_entry")
+        iv.search_entry.insert(0, "Wayland")
+        iv.refresh()
+        assert len(iv.ideas_scroll.interior.winfo_children()) == 1
+
+        # 4. OpportunitiesView Search
+        ov = OpportunitiesView(root, root, opportunity_service=opp_svc)
+        assert hasattr(ov, "search_entry")
+        ov.search_entry.insert(0, "Kernel")
+        ov.refresh()
+        assert len(ov.opps_scroll.interior.winfo_children()) == 1
+
+        # 5. QuickLinksView Search
+        qv = QuickLinksView(root, root, quick_link_service=link_svc)
+        assert hasattr(qv, "search_entry")
+        qv.search_entry.insert(0, "Documentation")
+        qv.refresh()
+        assert len(qv.links_scroll.interior.winfo_children()) == 1
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+        conn.close()

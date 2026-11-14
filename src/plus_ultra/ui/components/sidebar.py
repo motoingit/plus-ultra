@@ -81,7 +81,7 @@ class Sidebar:
         bottom_frame.pack(side="bottom", fill="x")
 
         # Fallback to fallback icon if settings icon is missing (5x scale)
-        settings_icon = get_icon("settings", 80) or get_icon("fallback", 80)
+        settings_icon = get_icon("settings", 40) or get_icon("fallback", 40)
         self.settings_btn = tk.Button(
             bottom_frame,
             image=settings_icon,

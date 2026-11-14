@@ -69,12 +69,17 @@ class TaskCard(tk.Frame):
         status_btn.pack(side="left", padx=(0, 12))
 
         title_fg = "#64748b" if is_done else "#f8fafc"
+        title_font = (
+            self.theme.font_family,
+            14,
+            "bold overstrike" if is_done else "bold",
+        )
         tk.Label(
             top_row,
             text=self.task.title,
             bg="#1c212c",
             fg=title_fg,
-            font=(self.theme.font_family, 14, "bold"),
+            font=title_font,
             anchor="w",
         ).pack(side="left", fill="x", expand=True)
 

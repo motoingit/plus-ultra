@@ -22,7 +22,6 @@ DB_FILENAME = "plus-ultra.sqlite3"
 LOG_FILENAME = "launcher.log"
 USER_SETTINGS_FILENAME = "user-settings.json"
 
-
 def _ensure_private_directory(path: Path) -> Path:
     """Ensure directory exists and enforce private mode 0o700 (owner only).
 
@@ -33,7 +32,6 @@ def _ensure_private_directory(path: Path) -> Path:
     with contextlib.suppress(OSError):
         path.chmod(0o700)
     return path
-
 
 def get_data_dir() -> Path:
     """Resolve and create application data directory.
@@ -47,7 +45,6 @@ def get_data_dir() -> Path:
     target_dir = base_dir / APP_NAME
     return _ensure_private_directory(target_dir)
 
-
 def get_state_dir() -> Path:
     """Resolve and create application state directory for logs.
 
@@ -60,16 +57,13 @@ def get_state_dir() -> Path:
     target_dir = base_dir / APP_NAME
     return _ensure_private_directory(target_dir)
 
-
 def get_db_path() -> Path:
     """Return path to SQLite database file in data directory."""
     return get_data_dir() / DB_FILENAME
 
-
 def get_log_path() -> Path:
     """Return path to launcher log file in state directory."""
     return get_state_dir() / LOG_FILENAME
-
 
 def get_config_dir() -> Path:
     """Resolve and create application configuration directory.
@@ -83,7 +77,6 @@ def get_config_dir() -> Path:
     target_dir = base_dir / APP_NAME
     return _ensure_private_directory(target_dir)
 
-
 def get_user_settings_path() -> Path:
     """Return path to user settings JSON file in configuration directory."""
     return get_config_dir() / USER_SETTINGS_FILENAME
@@ -95,7 +88,6 @@ def get_app_version() -> str:
         return importlib.metadata.version(APP_NAME)
     except importlib.metadata.PackageNotFoundError:
         return "0.1.0"
-
 
 def get_metadata() -> dict[str, Any]:
     """Load static application metadata from packaged resources."""

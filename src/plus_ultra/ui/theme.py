@@ -12,11 +12,11 @@ from typing import NamedTuple
 class CapsuleGeometry(NamedTuple):
     """Dimensions for the top-center floating capsule."""
 
-    min_width: int = 320
-    width: int = 320
-    max_width: int = 880
-    height: int = 72
-    radius: int = 36
+    min_width: int = 350
+    max_width: int = 900
+    width: int = 350
+    height: int = 30
+    radius: int = 15 # half of radius
     top_offset: int = 16
 
 
