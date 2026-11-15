@@ -75,8 +75,9 @@ class LinuxStartupManager:
         try:
             if target.is_file():
                 target.unlink()
-                logger.info("Removed Linux autostart desktop entry at %s",
-                            target)
+                logger.info(
+                    "Removed Linux autostart desktop entry at %s", target
+                )
             return True
         except OSError as exc:
             logger.error("Failed to disable Linux autostart: %s", exc)

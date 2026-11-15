@@ -220,6 +220,3 @@ def test_uninstaller_options_and_path_cleanup(tmp_path: Path) -> None:
 
     # Verify stop_running_instances runs cleanly when idle
     uninstall.stop_running_instances()
-
-
-

@@ -47,4 +47,3 @@ def parse_flexible_datetime(val: str | datetime) -> datetime:
 
     logger.warning("Unrecognized datetime format '%s'; fallback to now", val)
     return datetime.now().astimezone()
-

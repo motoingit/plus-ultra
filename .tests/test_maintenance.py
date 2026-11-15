@@ -215,5 +215,3 @@ def test_terminate_application_cancelled() -> None:
     finally:
         with contextlib.suppress(Exception):
             root.destroy()
-
-

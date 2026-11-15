@@ -11,4 +11,3 @@ __all__ = [
     "NetworkStatusMonitor",
     "is_network_online",
 ]
-

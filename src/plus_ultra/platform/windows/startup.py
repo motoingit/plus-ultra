@@ -73,9 +73,7 @@ class WindowsStartupManager:
                 0,
                 winreg.KEY_SET_VALUE,
             ) as key:
-                winreg.SetValueEx(
-                    key, self._app_name, 0, winreg.REG_SZ, cmd
-                )
+                winreg.SetValueEx(key, self._app_name, 0, winreg.REG_SZ, cmd)
             logger.info("Enabled Windows autostart: %s", cmd)
             return True
         except OSError as exc:

@@ -665,9 +665,59 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
+## Phase 6: Database Layer Modernization — SQLAlchemy 2.x & Database-Agnostic Clean Architecture
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### Phase To-do List:
+- [x] Refactor persistence architecture from raw SQLite SQL to SQLAlchemy 2.x ORM without introducing Alembic.
+- [x] Add `sqlalchemy>=2.0.0` dependency to `pyproject.toml` and lock via `uv.lock`.
+- [x] Create pure Python dataclass domain entities (`src/plus_ultra/domain/entities/`):
+  - `Category`, `Task`, `Reminder`, `ReminderFire`, `AppState`, `CodeItem`, `Course`, `IdeaDoubt`, `Opportunity`, `QuickLink`.
+  - Zero database or framework imports in the domain layer.
+- [x] Define abstract repository interfaces via `typing.Protocol` (`src/plus_ultra/domain/repositories/`):
+  - `CategoryRepositoryContract`, `TaskRepositoryContract`, `ReminderRepositoryContract`, `AppStateRepositoryContract`.
+  - `CodeRepositoryContract`, `CourseRepositoryContract`, `IdeaDoubtRepositoryContract`, `OpportunityRepositoryContract`, `QuickLinkRepositoryContract`.
+- [x] Implement Unit of Work pattern (`src/plus_ultra/application/interfaces/unit_of_work.py` and `src/plus_ultra/infrastructure/persistence/sqlalchemy/unit_of_work.py`).
+- [x] Build centralized configuration provider (`DatabaseConfig`) supporting `sqlite:///...`, `:memory:`, and PostgreSQL via `PERSISTENCE_BACKEND` and `DATABASE_URL`.
+- [x] Implement SQLAlchemy 2.x declarative models (`src/plus_ultra/infrastructure/persistence/sqlalchemy/models/`) with exact table names, check constraints, foreign keys, and partial indexes.
+- [x] Implement model-to-domain mappers (`mappers.py`).
+- [x] Implement concrete SQLAlchemy repositories (`src/plus_ultra/infrastructure/persistence/sqlalchemy/repositories/`):
+  - Full support for both direct `Session` and legacy DBAPI connection wrapping via `StaticPool` and `pool_reset_on_return=None`.
+  - Dual exception inheritance (`CategoryNameExistsError(sqlite3.IntegrityError, IntegrityError)`).
+  - Search filtering with case-insensitive `ilike()` across title, content, notes, and instructor.
+- [x] Implement non-destructive schema initializer (`init_database`) using `Base.metadata.create_all()` and setting `PRAGMA user_version = 2`.
+- [x] Implement transactional multi-table wiper (`wipe_database`).
+- [x] Document future MongoDB integration blueprint (`mongodb/README.md`).
+- [x] Migrate `.scripts/clear_db.py` and `.scripts/seed_data.py` to modern architecture.
+- [x] Update GUI views (`SettingsView`, `DashboardPanel`) to decouple from database handles and call application services directly.
+- [x] Add comprehensive tests (`test_sqlalchemy_persistence.py`, `test_unit_of_work.py`, `test_architecture_boundaries.py`).
+- [x] Enforce project constraints: 100% test pass (167 tests), zero ruff errors, all files < 500 lines, all lines <= 80 characters.
+
+### Issues Faced & Solutions:
+- **Partial Unique Index in SQLAlchemy**: Using `sqlite_where=(is_deleted == 0)` failed to compile the SQL WHERE clause on table creation. Resolved by using `sqlite_where=text("is_deleted = 0")`.
+- **Database-Level vs Python-Level Defaults**: Raw SQL INSERT queries omitting defaulted columns failed with NOT NULL constraint errors because SQLAlchemy `default=...` only applies to Python sessions. Resolved by adding `server_default=text(...)` across all models.
+- **Dual Exception Compatibility**: Tests asserting `with pytest.raises(sqlite3.IntegrityError)` failed when `sqlalchemy.exc.IntegrityError` was thrown for duplicate categories. Resolved by defining `CategoryNameExistsError` inheriting from both `sqlite3.IntegrityError` and `sqlalchemy.exc.IntegrityError`.
+- **Connection Fairy Reset on Closed DBAPI Connections**: When wrapping legacy test connections with `StaticPool`, connection checkin on GC called `rollback()` on closed SQLite connections. Resolved by setting `pool_reset_on_return=None`.
+- **File Length Limits (< 500 lines)**: Initial `workspace_repositories.py` (593 lines) and formatted `settings_view.py` (577 lines) exceeded 500 lines. Resolved by splitting repositories into individual files (`code_repository.py`, etc.) and extracting settings card builders into `settings_helpers.py`.
+
+### Important Notes / Miscellaneous INFO:
+- The domain layer and presentation layer now have ZERO direct dependencies on SQLite or SQLAlchemy.
+- Switching to PostgreSQL requires only setting `DATABASE_URL=postgresql://user:pass@host/db`.
+- No migration metadata table (`alembic_version`) was introduced, honoring project constraints.
+
+---
+
 ## Next Steps
 
 - **Status**: Ready for Planning
+- **Target**:
+  - Implement Decision D2 (autostart path resolution).
+  - Implement CLI flags: `--install-autostart` and `--uninstall-autostart` writing or removing `~/.config/autostart/plus-ultra.desktop`.
+  - Implement `ui/splash.py`: startup progress logger (`[1/4] Paths`, `[2/4] Database`, `[3/4] Scheduler`, `[4/4] Ready`).
+  - Graceful process termination and single-instance validation across user session logout/login.
+
 - **Target**:
   - Implement Decision D2 (autostart path resolution).
   - Implement CLI flags: `--install-autostart` and `--uninstall-autostart` writing or removing `~/.config/autostart/plus-ultra.desktop`.

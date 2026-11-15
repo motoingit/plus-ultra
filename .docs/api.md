@@ -431,5 +431,46 @@ Root package modules maintain 100% backward-compatible re-exports using the Faca
 - `plus_ultra.datetime_utils` -> re-exports `plus_ultra.utils.datetime_utils`
 - `plus_ultra.desktop` -> platform adapter facade (`SingleInstanceLock`, `send_desktop_notification`, `apply_window_shape_mask`)
 
+---
+
+## 8. SQLAlchemy 2.x Persistence Architecture & Repository Contracts
+
+### `plus_ultra.domain.repositories`
+Abstract `typing.Protocol` repository contracts enforcing strict Dependency Inversion:
+- `CategoryRepositoryContract`: `create()`, `get_by_id()`, `list_active()`, `update()`, `soft_delete()`.
+- `TaskRepositoryContract`: `create()`, `get_by_id()`, `list_active()`, `update()`, `soft_delete()`.
+- `ReminderRepositoryContract`: `create()`, `get_by_id()`, `list_due()`, `mark_fired()`, `is_fired()`, `soft_delete()`.
+- `AppStateRepositoryContract`: `get()`, `set()`, `get_coords()`, `set_coords()`, `clear()`.
+- `CodeRepositoryContract`: `list_items()`, `get()`, `create()`, `toggle_done()`, `update()`, `soft_delete()`.
+- `CourseRepositoryContract`: `list_courses()`, `get()`, `create()`, `increment_module()`, `update()`, `soft_delete()`.
+- `IdeaDoubtRepositoryContract`: `list_items()`, `get()`, `create()`, `update_status()`, `update()`, `soft_delete()`.
+- `OpportunityRepositoryContract`: `list_opportunities()`, `get()`, `create()`, `update_status()`, `update()`, `soft_delete()`.
+- `QuickLinkRepositoryContract`: `list_links()`, `get()`, `create()`, `increment_click()`, `update()`, `soft_delete()`.
+
+### `plus_ultra.application.interfaces.unit_of_work`
+- `UnitOfWork(Protocol)`: Context manager coordinating atomic transactions across all 9 domain repositories (`commit()`, `rollback()`).
+- `UnitOfWorkFactory(Protocol)`: Abstract callable factory producing scoped `UnitOfWork` instances.
+
+### `plus_ultra.infrastructure.persistence`
+- `DatabaseConfig`: Dataclass managing `backend` (`sqlalchemy`, `sqlite`, `postgres`), `url` (`sqlite:///...`), `echo`, and connection pool configurations.
+- `DatabaseFactory`: Pluggable persistence provider managing lazy `Engine`, `sessionmaker[Session]`, and `create_unit_of_work()`.
+- `database_initializer`:
+  - `init_database(engine, config) -> Engine`: Non-destructively initializes schema via `Base.metadata.create_all()` without Alembic migration tables. Sets `PRAGMA user_version = 2` on SQLite.
+  - `wipe_database(target)`: Transactionally purges records across all 10 application tables in dependency order while preserving DDL schema.
+
+### `plus_ultra.infrastructure.persistence.sqlalchemy`
+- `SqlAlchemyUnitOfWork`: Implements `UnitOfWork` protocol wrapping a scoped SQLAlchemy `Session` with automatic rollback on unhandled exceptions and explicit `commit()`.
+- Concrete Repositories:
+  - `SqlAlchemyCategoryRepository`
+  - `SqlAlchemyTaskRepository`
+  - `SqlAlchemyReminderRepository`
+  - `SqlAlchemyAppStateRepository`
+  - `SqlAlchemyCodeRepository`
+  - `SqlAlchemyCourseRepository`
+  - `SqlAlchemyIdeaDoubtRepository`
+  - `SqlAlchemyOpportunityRepository`
+  - `SqlAlchemyQuickLinkRepository`
+
+
 
 

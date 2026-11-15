@@ -82,9 +82,7 @@ def detect_desktop_environment() -> DesktopEnvironment:
     if plat == PlatformType.MACOS:
         return DesktopEnvironment.MACOS_AQUA
 
-    xdg_current = (
-        os.environ.get("XDG_CURRENT_DESKTOP", "").strip().lower()
-    )
+    xdg_current = os.environ.get("XDG_CURRENT_DESKTOP", "").strip().lower()
     if "gnome" in xdg_current:
         return DesktopEnvironment.GNOME
     if "kde" in xdg_current or "plasma" in xdg_current:

@@ -7,11 +7,11 @@ Provides standalone CLI to populate or remove demo records across all tabs.
 from __future__ import annotations
 
 import argparse
-import sqlite3
 import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 # Ensure 'src' is in sys.path when executed directly
 _src_dir = Path(__file__).resolve().parents[1] / "src"
@@ -20,8 +20,10 @@ if str(_src_dir) not in sys.path:
 
 from plus_ultra import config  # noqa: E402
 from plus_ultra.database.connection import (  # noqa: E402
-    get_connection,
     transaction,
+)
+from plus_ultra.infrastructure.persistence.database_factory import (  # noqa: E402
+    DatabaseFactory,
 )
 
 # Known signatures of seeded demo data for selective unseeding
@@ -121,9 +123,20 @@ DEMO_TASK_TITLES = [
 
 
 def seed_demo_workspace_data(
-    conn: sqlite3.Connection, force: bool = False
+    conn: Any = None, force: bool = False
 ) -> dict[str, int]:
     """Seed initial sample data for all workspace tabs if empty or forced."""
+    session = None
+    close_session = False
+    if conn is None:
+        factory = DatabaseFactory()
+        session = factory.create_session()
+        conn = session.connection().connection
+        close_session = True
+    elif hasattr(conn, "connection") and hasattr(conn, "commit"):
+        session = conn
+        conn = conn.connection().connection
+
     now = datetime.now(UTC).isoformat()
     seeded_counts: dict[str, int] = {}
 
@@ -1237,13 +1250,29 @@ def seed_demo_workspace_data(
             )
         seeded_counts["reminders"] = len(demo_reminders)
 
+    if session is not None:
+        session.commit()
+    if close_session and session is not None:
+        session.close()
+
     return seeded_counts
 
 
 def unseed_demo_workspace_data(
-    conn: sqlite3.Connection, hard_delete: bool = True
+    conn: Any = None, hard_delete: bool = True
 ) -> dict[str, int]:
     """Remove demo seeded records while preserving user-created entries."""
+    session = None
+    close_session = False
+    if conn is None:
+        factory = DatabaseFactory()
+        session = factory.create_session()
+        conn = session.connection().connection
+        close_session = True
+    elif hasattr(conn, "connection") and hasattr(conn, "commit"):
+        session = conn
+        conn = conn.connection().connection
+
     unseeded_counts: dict[str, int] = {}
 
     def _execute_unseed(table: str, col: str, values: list[str]) -> int:
@@ -1339,6 +1368,11 @@ def unseed_demo_workspace_data(
                             (cid,),
                         )
 
+    if session is not None:
+        session.commit()
+    if close_session and session is not None:
+        session.close()
+
     return unseeded_counts
 
 
@@ -1378,26 +1412,29 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     """CLI script entrypoint."""
     args = parse_args(argv)
-    conn = get_connection()
+    factory = DatabaseFactory()
+    session = factory.create_session()
     try:
         if args.unseed:
             print("Unseeding demo workspace data...")
-            counts = unseed_demo_workspace_data(conn, hard_delete=not args.soft)
+            counts = unseed_demo_workspace_data(
+                session, hard_delete=not args.soft
+            )
             print("Unseeding complete:")
             for tbl, cnt in counts.items():
                 print(f"  - {tbl}: {cnt} demo records removed")
         else:
             print("Seeding demo workspace data...")
-            counts = seed_demo_workspace_data(conn, force=args.force)
+            counts = seed_demo_workspace_data(session, force=args.force)
             if not counts:
                 print("Tables already contained data (use --force to reseed).")
             else:
                 print("Seeding complete:")
                 for tbl, cnt in counts.items():
-                    print(f"  - {tbl}: {cnt} demo records added")
+                    print(f"  - {tbl}: {cnt} sample items seeded")
         return 0
     finally:
-        conn.close()
+        session.close()
 
 
 if __name__ == "__main__":

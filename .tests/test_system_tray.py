@@ -122,6 +122,7 @@ def test_linux_tray_right_click_menu_dispatch(
     monkeypatch.setattr("pystray.Icon", lambda **_kwargs: mock_icon)
 
     dispatched = []
+
     def _popup_callback(x: int, y: int) -> None:
         dispatched.append((x, y))
 

@@ -31,9 +31,7 @@ def generate_capsule_points(
         raise ValueError(f"Dimensions must be positive: width={w}, height={h}")
     max_radius = min(w, h) // 2
     if r < 0 or r > max_radius:
-        raise ValueError(
-            f"Radius must be between 0 and {max_radius}, got {r}"
-        )
+        raise ValueError(f"Radius must be between 0 and {max_radius}, got {r}")
     if steps < 2:
         raise ValueError(f"Steps must be >= 2, got {steps}")
 
@@ -85,9 +83,7 @@ def generate_perimeter_path(
         raise ValueError(f"Dimensions must be positive: width={w}, height={h}")
     max_radius = min(w, h) // 2
     if r < 0 or r > max_radius:
-        raise ValueError(
-            f"Radius must be between 0 and {max_radius}, got {r}"
-        )
+        raise ValueError(f"Radius must be between 0 and {max_radius}, got {r}")
     if num_arc_points < 2:
         raise ValueError(f"num_arc_points must be >= 2, got {num_arc_points}")
 

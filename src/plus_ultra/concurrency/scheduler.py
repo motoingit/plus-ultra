@@ -13,15 +13,16 @@ Applies OS concepts:
 
 from __future__ import annotations
 
+import contextlib
 import logging
-import sqlite3
 import threading
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from plus_ultra import desktop, settings
-from plus_ultra.database import get_connection
+from plus_ultra.database import get_session
 from plus_ultra.models import Reminder, Task
 from plus_ultra.repositories import ReminderRepository, TaskRepository
 from plus_ultra.services import ReminderService
@@ -42,7 +43,8 @@ class ReminderScheduler:
         desktop_notify: bool = True,
         now_provider: Callable[[], str] | None = None,
         db_path: Path | None = None,
-        conn_factory: Callable[[], sqlite3.Connection] | None = None,
+        conn_factory: Callable[[], Any] | None = None,
+        session_factory: Callable[[], Any] | None = None,
     ) -> None:
         self.reminder_service = reminder_service
         self.poll_interval_s = poll_interval_s
@@ -51,6 +53,7 @@ class ReminderScheduler:
         self.now_provider = now_provider
         self.db_path = db_path
         self.conn_factory = conn_factory
+        self.session_factory = session_factory
 
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -130,17 +133,19 @@ class ReminderScheduler:
             self.poll_interval_s,
         )
 
-        thread_conn: sqlite3.Connection | None = None
+        thread_session: Any | None = None
         thread_service: ReminderService = self.reminder_service
 
         try:
-            if self.conn_factory is not None:
-                thread_conn = self.conn_factory()
+            if self.session_factory is not None:
+                thread_session = self.session_factory()
+            elif self.conn_factory is not None:
+                thread_session = self.conn_factory()
             else:
-                thread_conn = get_connection(self.db_path)
+                thread_session = get_session(self.db_path)
 
-            rem_repo = ReminderRepository(thread_conn)
-            task_repo = TaskRepository(thread_conn)
+            rem_repo = ReminderRepository(thread_session)
+            task_repo = TaskRepository(thread_session)
             thread_service = ReminderService(rem_repo, task_repo)
         except Exception as err:
             logger.debug(
@@ -158,8 +163,9 @@ class ReminderScheduler:
 
                 self._stop_event.wait(self.poll_interval_s)
         finally:
-            if thread_conn is not None:
-                thread_conn.close()
+            if thread_session is not None:
+                with contextlib.suppress(Exception):
+                    thread_session.close()
 
         logger.info("Reminder scheduler worker thread stopped.")
 
@@ -188,4 +194,3 @@ class ReminderScheduler:
             self._thread.join(timeout=timeout)
             self._thread = None
         logger.info("Reminder scheduler cleanly stopped.")
-

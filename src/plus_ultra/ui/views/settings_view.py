@@ -2,25 +2,19 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
-import os
-import subprocess
-import sys
 import tkinter as tk
 from collections.abc import Callable
-from pathlib import Path
 from tkinter import messagebox
 
-from plus_ultra import config, settings
+from plus_ultra import settings
 from plus_ultra.config import get_platform_services
 from plus_ultra.database import (
-    get_connection,
     seed_demo_workspace_data,
     wipe_database,
 )
 from plus_ultra.ui.components.scrollable import ScrollableFrame
-from plus_ultra.ui.components.widgets import Card, StyledButton
+from plus_ultra.ui.components.widgets import StyledButton
 from plus_ultra.ui.icons import get_icon
 from plus_ultra.ui.theme import (
     COLOR_ACCENT,
@@ -33,7 +27,6 @@ from plus_ultra.ui.theme import (
     COLOR_TEXT_SECONDARY,
     FONT_FAMILY,
     FONT_SIZE_BASE,
-    FONT_SIZE_MD,
     FONT_SIZE_SM,
     SPACING_LG,
     SPACING_MD,
@@ -42,30 +35,13 @@ from plus_ultra.ui.theme import (
     THEME,
     CapsuleTheme,
 )
+from plus_ultra.ui.views.settings_helpers import (
+    build_data_card,
+    build_system_card,
+    card_header,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _open_folder_in_explorer(folder_path: Path) -> None:
-    """Open folder in native desktop file manager (Explorer / Nautilus)."""
-    with contextlib.suppress(Exception):
-        folder_path.mkdir(parents=True, exist_ok=True)
-        if sys.platform == "win32":
-            os.startfile(folder_path)  # type: ignore[attr-defined]
-        else:
-            cmd = "open" if sys.platform == "darwin" else "xdg-open"
-            subprocess.run([cmd, str(folder_path)], check=False)
-
-
-def _card_header(parent: tk.Widget, title: str) -> Card:
-    """Create a standardized settings Card with accented header."""
-    card = Card(parent)
-    card.pack(fill="x", pady=SPACING_SM)
-    tk.Label(
-        card, text=title, bg=COLOR_SURFACE_CARD, fg=COLOR_ACCENT,
-        font=(FONT_FAMILY, FONT_SIZE_MD, "bold"),
-    ).pack(anchor="w", pady=(0, SPACING_SM))
-    return card
 
 
 class SettingsView:
@@ -128,13 +104,17 @@ class SettingsView:
         col = tk.Frame(head, bg=COLOR_SURFACE)
         col.pack(side="left")
         tk.Label(
-            col, text="Preferences & Environmental Diagnostics",
-            bg=COLOR_SURFACE, fg=COLOR_TEXT_PRIMARY,
+            col,
+            text="Preferences & Environmental Diagnostics",
+            bg=COLOR_SURFACE,
+            fg=COLOR_TEXT_PRIMARY,
             font=(FONT_FAMILY, 15, "bold"),
         ).pack(anchor="w")
         tk.Label(
-            col, text="Application behavior, display geometry, and storage",
-            bg=COLOR_SURFACE, fg=COLOR_TEXT_MUTED,
+            col,
+            text="Application behavior, display geometry, and storage",
+            bg=COLOR_SURFACE,
+            fg=COLOR_TEXT_MUTED,
             font=(FONT_FAMILY, FONT_SIZE_SM),
         ).pack(anchor="w")
 
@@ -159,79 +139,116 @@ class SettingsView:
     ) -> tk.Checkbutton:
         cmd = command or (lambda: self._save_bool(save_key or "", var))
         chk = tk.Checkbutton(
-            parent, text=text, variable=var, bg=COLOR_SURFACE_CARD,
-            fg=COLOR_TEXT_PRIMARY, selectcolor=COLOR_BG_DARK,
-            activebackground=COLOR_SURFACE_CARD, activeforeground=COLOR_ACCENT,
-            relief="flat", bd=0, highlightthickness=0,
-            command=cmd, font=(FONT_FAMILY, FONT_SIZE_BASE),
+            parent,
+            text=text,
+            variable=var,
+            bg=COLOR_SURFACE_CARD,
+            fg=COLOR_TEXT_PRIMARY,
+            selectcolor=COLOR_BG_DARK,
+            activebackground=COLOR_SURFACE_CARD,
+            activeforeground=COLOR_ACCENT,
+            relief="flat",
+            bd=0,
+            highlightthickness=0,
+            command=cmd,
+            font=(FONT_FAMILY, FONT_SIZE_BASE),
         )
         chk.pack(anchor="w", pady=SPACING_SM // 2)
         return chk
 
     def _build_general_card(self, parent: tk.Widget) -> None:
-        c = _card_header(parent, "General Application Behavior")
+        c = card_header(parent, "General Application Behavior")
         self._add_check(
-            c, "Start PLUS-ULTRA automatically upon OS login",
+            c,
+            "Start PLUS-ULTRA automatically upon OS login",
             self.start_with_system_var,
             command=self._on_start_with_system_toggled,
         )
         self._add_check(
-            c, "Start application minimized to system tray",
-            self.start_minimized_var, "start_minimized",
+            c,
+            "Start application minimized to system tray",
+            self.start_minimized_var,
+            "start_minimized",
         )
         self._add_check(
-            c, "Keep running in system tray when dashboard closes",
-            self.close_to_tray_var, "close_to_tray",
+            c,
+            "Keep running in system tray when dashboard closes",
+            self.close_to_tray_var,
+            "close_to_tray",
         )
 
     def _build_appearance_card(self, parent: tk.Widget) -> None:
-        c = _card_header(parent, "Appearance & Floating Capsule Geometry")
+        c = card_header(parent, "Appearance & Floating Capsule Geometry")
         self._add_check(
-            c, "Show floating desktop capsule presence",
-            self.capsule_visible_var, "capsule_visible",
+            c,
+            "Show floating desktop capsule presence",
+            self.capsule_visible_var,
+            "capsule_visible",
         )
         self._add_check(
-            c, "Keep floating capsule always-on-top above all windows",
-            self.topmost_var, command=self._toggle_topmost,
+            c,
+            "Keep floating capsule always-on-top above all windows",
+            self.topmost_var,
+            command=self._toggle_topmost,
         )
         self._add_check(
-            c, "Enable animated orbiting border beam on capsule hover",
-            self.glow_enabled_var, "glow_enabled",
+            c,
+            "Enable animated orbiting border beam on capsule hover",
+            self.glow_enabled_var,
+            "glow_enabled",
         )
         t_row = tk.Frame(c, bg=COLOR_SURFACE_CARD)
         t_row.pack(fill="x", pady=(SPACING_SM // 2, 0))
         tk.Label(
-            t_row, text="Theme Accent: ", bg=COLOR_SURFACE_CARD,
-            fg=COLOR_TEXT_SECONDARY, font=(FONT_FAMILY, FONT_SIZE_BASE),
+            t_row,
+            text="Theme Accent: ",
+            bg=COLOR_SURFACE_CARD,
+            fg=COLOR_TEXT_SECONDARY,
+            font=(FONT_FAMILY, FONT_SIZE_BASE),
         ).pack(side="left")
         for key, label in (
-            ("cyan", "Cyan"), ("emerald", "Emerald"),
-            ("purple", "Violet"), ("amber", "Amber"),
+            ("cyan", "Cyan"),
+            ("emerald", "Emerald"),
+            ("purple", "Violet"),
+            ("amber", "Amber"),
         ):
             StyledButton(
-                t_row, text=label,
+                t_row,
+                text=label,
                 command=lambda k=key: self._on_theme_selected(k),
-                role="secondary", font_size=FONT_SIZE_SM, padx=6, pady=2,
+                role="secondary",
+                font_size=FONT_SIZE_SM,
+                padx=6,
+                pady=2,
             ).pack(side="left", padx=2)
         tk.Label(
-            c, text="Capsule: 350x30px (Radius: 15px) | Dashboard: 1380x840px",
-            bg=COLOR_SURFACE_CARD, fg=COLOR_TEXT_MUTED,
-            font=(FONT_FAMILY, FONT_SIZE_SM), anchor="w",
+            c,
+            text="Capsule: 350x30px (Radius: 15px) | Dashboard: 1380x840px",
+            bg=COLOR_SURFACE_CARD,
+            fg=COLOR_TEXT_MUTED,
+            font=(FONT_FAMILY, FONT_SIZE_SM),
+            anchor="w",
         ).pack(fill="x", pady=(SPACING_SM // 2, 0))
 
     def _build_notifications_card(self, parent: tk.Widget) -> None:
-        c = _card_header(parent, "Notifications & Scheduled Reminders")
+        c = card_header(parent, "Notifications & Scheduled Reminders")
         self._add_check(
-            c, "Enable background task deadline evaluation & reminders",
-            self.reminders_enabled_var, "reminders_enabled",
+            c,
+            "Enable background task deadline evaluation & reminders",
+            self.reminders_enabled_var,
+            "reminders_enabled",
         )
         self._add_check(
-            c, "Dispatch native OS desktop notifications (notify-send / Toast)",
-            self.desktop_notif_var, "desktop_notifications_enabled",
+            c,
+            "Dispatch native OS desktop notifications (notify-send / Toast)",
+            self.desktop_notif_var,
+            "desktop_notifications_enabled",
         )
         self._add_check(
-            c, "Do Not Disturb (DND) mode: mute banner popups and alerts",
-            self.dnd_mode_var, "dnd_mode",
+            c,
+            "Do Not Disturb (DND) mode: mute banner popups and alerts",
+            self.dnd_mode_var,
+            "dnd_mode",
         )
         row = tk.Frame(c, bg=COLOR_SURFACE_CARD)
         row.pack(anchor="w", pady=(SPACING_SM // 2, 0))
@@ -267,84 +284,10 @@ class SettingsView:
         ).pack(side="left")
 
     def _build_system_card(self, parent: tk.Widget) -> None:
-        c = _card_header(
-            parent, "System Integration & Environmental Diagnostics"
-        )
-        self._add_check(
-            c, "System tray integration (Background notification icon)",
-            self.tray_enabled_var, "tray_enabled",
-        )
-        self._add_check(
-            c, "Network monitor (Capsule status dot & background probe)",
-            self.net_monitor_var, command=self._toggle_net_monitor,
-        )
-        caps = self.platform.capabilities
-        p_name = caps.platform_type.value.upper()
-        d_name = caps.desktop_environment.value
-        srv = caps.display_server.value.upper()
-        auto_st = (
-            "Yes" if self.platform.startup.is_autostart_enabled() else "No"
-        )
-        diag_lines = [
-            f"Host Platform: {p_name} (Desktop: {d_name})",
-            f"Display Server: {srv}",
-            f"Tray Backend: {caps.tray_backend_name} "
-            f"(Supported: {caps.supports_system_tray})",
-            f"Notification Backend: {caps.notification_backend_name}",
-            f"Autostart on OS Login: {auto_st}",
-        ]
-        for line in diag_lines:
-            tk.Label(
-                c, text=f"•  {line}", bg=COLOR_SURFACE_CARD,
-                fg=COLOR_TEXT_MUTED, font=("courier", 9), anchor="w",
-            ).pack(anchor="w", pady=1)
-
-        StyledButton(
-            c, text="Terminate Application",
-            command=self.terminate_application, role="danger",
-            font_size=FONT_SIZE_BASE, padx=14, pady=5,
-        ).pack(anchor="w", pady=(SPACING_MD, 0))
+        build_system_card(self, parent)
 
     def _build_data_card(self, parent: tk.Widget) -> None:
-        card = _card_header(
-            parent, "Local Data, Persistence & Storage Management"
-        )
-        db_p = config.get_db_path()
-        cfg_p = config.get_user_settings_path()
-        log_p = config.get_log_path()
-        for label, file_path, folder_path in (
-            ("SQLite Store", db_p, db_p.parent),
-            ("User Settings", cfg_p, cfg_p.parent),
-            ("Persistent Log", log_p, log_p.parent),
-        ):
-            row = tk.Frame(card, bg=COLOR_SURFACE_CARD)
-            row.pack(fill="x", pady=4)
-            tk.Label(
-                row, text=f"{label}:", bg=COLOR_SURFACE_CARD,
-                fg=COLOR_TEXT_SECONDARY, width=14, anchor="w",
-                font=(FONT_FAMILY, FONT_SIZE_BASE, "bold"),
-            ).pack(side="left")
-            tk.Label(
-                row, text=str(file_path), bg=COLOR_SURFACE_CARD,
-                fg=COLOR_TEXT_MUTED, font=("courier", 9), anchor="w",
-            ).pack(side="left", fill="x", expand=True, padx=SPACING_SM)
-            StyledButton(
-                row, text="Open Folder",
-                command=lambda p=folder_path: _open_folder_in_explorer(p),
-                role="secondary", font_size=FONT_SIZE_SM, padx=10, pady=2,
-            ).pack(side="right")
-
-        actions_row = tk.Frame(card, bg=COLOR_SURFACE_CARD)
-        actions_row.pack(anchor="w", pady=(SPACING_MD, 0))
-        for title, handler, role in (
-            ("Reset Config Settings", self.reset_config_settings, "secondary"),
-            ("Factory Reset (Delete Everything)", self.factory_reset, "danger"),
-            ("Reseed Demo Data", self.reseed_demo_data, "secondary"),
-        ):
-            StyledButton(
-                actions_row, text=title, command=handler, role=role,
-                font_size=FONT_SIZE_BASE, padx=14, pady=6,
-            ).pack(side="left", padx=(0, SPACING_MD))
+        build_data_card(self, parent)
 
     def _save_bool(self, key: str, var: tk.BooleanVar) -> None:
         val = var.get()
@@ -422,16 +365,18 @@ class SettingsView:
         ):
             return
         try:
-            seed_demo_workspace_data(get_connection())
+            seed_demo_workspace_data()
             messagebox.showinfo(
-                "Demo Data", "Reseeded demo data across all tabs!",
+                "Demo Data",
+                "Reseeded demo data across all tabs!",
                 parent=self.parent_window,
             )
             if self.on_reseed:
                 self.on_reseed()
         except Exception as exc:
             messagebox.showerror(
-                "Reseed Error", f"Failed to reseed workspace data: {exc}",
+                "Reseed Error",
+                f"Failed to reseed workspace data: {exc}",
                 parent=self.parent_window,
             )
 
@@ -445,7 +390,8 @@ class SettingsView:
         settings.reset_all_settings()
         self.refresh()
         messagebox.showinfo(
-            "Config Reset", "Configuration restored to defaults.",
+            "Config Reset",
+            "Configuration restored to defaults.",
             parent=self.parent_window,
         )
 
@@ -458,24 +404,28 @@ class SettingsView:
             "This action CANNOT be undone. Proceed?"
         )
         if not messagebox.askyesno(
-            "Factory Reset (Delete Everything)", msg,
-            icon="warning", parent=self.parent_window,
+            "Factory Reset (Delete Everything)",
+            msg,
+            icon="warning",
+            parent=self.parent_window,
         ):
             return
         try:
-            wipe_database(get_connection())
+            wipe_database()
             settings.reset_all_settings()
             self.refresh()
             if self.on_reseed:
                 self.on_reseed()
             messagebox.showinfo(
-                "Factory Reset Complete", "All data and settings wiped.",
+                "Factory Reset Complete",
+                "All data and settings wiped.",
                 parent=self.parent_window,
             )
         except Exception as exc:
             logger.error("Factory reset failed: %s", exc, exc_info=True)
             messagebox.showerror(
-                "Factory Reset Failed", f"Could not reset: {exc}",
+                "Factory Reset Failed",
+                f"Could not reset: {exc}",
                 parent=self.parent_window,
             )
 

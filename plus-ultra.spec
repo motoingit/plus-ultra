@@ -9,6 +9,8 @@ hidden_imports = [
     'tkinter',
     'tkinter.ttk',
     'sqlite3',
+    'sqlalchemy',
+    'sqlalchemy.sql.default_comparator',
     'pystray',
     'PIL',
     'PIL._imagingtk',

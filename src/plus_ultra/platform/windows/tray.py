@@ -68,9 +68,7 @@ class WindowsSystemTray:
         with self._lock:
             return self._is_running
 
-    def _convert_menu_items(
-        self, items: list[TrayMenuItem]
-    ) -> list[Any]:
+    def _convert_menu_items(self, items: list[TrayMenuItem]) -> list[Any]:
         import pystray
 
         result: list[Any] = []
@@ -93,6 +91,7 @@ class WindowsSystemTray:
                     )
                 )
             else:
+
                 def _make_action(
                     fn: Callable[[], None] | None,
                 ) -> Callable[[Any, Any], None] | None:

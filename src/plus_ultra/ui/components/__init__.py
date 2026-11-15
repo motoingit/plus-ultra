@@ -8,6 +8,7 @@ from plus_ultra.ui.components.popup_pill import CapsulePopupPill
 from plus_ultra.ui.components.scrollable import ScrollableFrame
 from plus_ultra.ui.components.sidebar import Sidebar
 from plus_ultra.ui.components.task_card import TaskCard
+from plus_ultra.ui.components.tree_facade import TreeCompatibilityFacade
 from plus_ultra.ui.components.widgets import Card, SearchBar, StyledButton
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "Sidebar",
     "StyledButton",
     "TaskCard",
+    "TreeCompatibilityFacade",
 ]

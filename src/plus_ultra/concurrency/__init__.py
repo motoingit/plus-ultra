@@ -11,4 +11,3 @@ __all__ = [
     "DEFAULT_POLL_INTERVAL_S",
     "ReminderScheduler",
 ]
-

@@ -20,9 +20,7 @@ def is_network_online(
     except (OSError, TimeoutError):
         if host != "8.8.8.8":
             try:
-                with socket.create_connection(
-                    ("8.8.8.8", 53), timeout=timeout
-                ):
+                with socket.create_connection(("8.8.8.8", 53), timeout=timeout):
                     return True
             except (OSError, TimeoutError):
                 pass
@@ -61,4 +59,3 @@ class NetworkStatusMonitor:
             return val
         except queue.Empty:
             return None
-

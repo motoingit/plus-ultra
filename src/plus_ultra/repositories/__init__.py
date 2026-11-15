@@ -1,6 +1,7 @@
 """Repositories package for PLUS-ULTRA.
 
-Encapsulates data access and persistence operations for all domain models.
+Exposes concrete repository implementations adhering to the domain
+repository contracts.
 """
 
 from __future__ import annotations

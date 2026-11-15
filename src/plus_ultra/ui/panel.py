@@ -30,6 +30,7 @@ from plus_ultra.ui.components import (
     NotificationsPanel,
     ScrollableFrame,
     Sidebar,
+    TreeCompatibilityFacade,
 )
 from plus_ultra.ui.dialogs import (
     CategoryDialog,
@@ -55,22 +56,19 @@ from plus_ultra.ui.views import (
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "CategoryDialog", "CodeDialog", "CourseDialog", "DSAView",
-    "DashboardPanel", "IdeaDialog", "OpportunityDialog",
-    "QuickLinkDialog", "ScrollableFrame", "Sidebar",
-    "TaskDialog", "TreeCompatibilityFacade",
+    "CategoryDialog",
+    "CodeDialog",
+    "CourseDialog",
+    "DSAView",
+    "DashboardPanel",
+    "IdeaDialog",
+    "OpportunityDialog",
+    "QuickLinkDialog",
+    "ScrollableFrame",
+    "Sidebar",
+    "TaskDialog",
+    "TreeCompatibilityFacade",
 ]
-
-
-class TreeCompatibilityFacade:
-    """Facade for backward compatibility with tests expecting panel.tree."""
-
-    def __init__(self, panel: DashboardPanel) -> None:
-        self.panel = panel
-
-    def get_children(self) -> list[str]:
-        """Return task IDs of currently filtered and rendered tasks."""
-        return [t.id for t in self.panel._filtered_tasks]
 
 
 class DashboardPanel(tk.Toplevel):

@@ -1,10 +1,10 @@
-"""Common utilities and base functions for data repositories."""
+"""Base repository utilities facade."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from plus_ultra.infrastructure.persistence.sqlalchemy.repositories.base import (
+    SqlAlchemyRepositoryBase,
+    _now_utc,
+)
 
-
-def _now_utc() -> str:
-    """Return current UTC timestamp in ISO-8601 format."""
-    return datetime.now(UTC).isoformat()
+__all__ = ["SqlAlchemyRepositoryBase", "_now_utc"]

@@ -1,89 +1,62 @@
-# PLUS-ULTRA 🚀
+# PLUS-ULTRA
 
-A user-facing floating desktop assistant for Ubuntu (GNOME on Wayland) engineered as a Problem-Based Learning (PBL) project. PLUS-ULTRA starts with the user's session, displays a compact top-center hovering presence, manages tasks and reminders across customizable categories, and serves as an interactive demonstration of core Operating System (OS) concepts (process lifecycle, mutual exclusion via advisory locks, permissions, signals) and Database Management System (DBMS) concepts (ACID transactions, Write-Ahead Logging, schema evolution, cascading soft deletes, indexed queries).
-
----
+A user-facing floating desktop assistant for Ubuntu (GNOME on Wayland) engineered as a Problem-Based Learning (PBL) project. PLUS-ULTRA starts with the user's session, displays a compact top-center hovering presence, manages tasks and reminders across customizable categories, and serves as an interactive demonstration of core Operating System (OS) concepts (process lifecycle, mutual exclusion via advisory locks, permissions, signals) and Database Management System (DBMS) concepts (clean architecture, repository pattern, unit of work, ACID transactions, Write-Ahead Logging, non-destructive schema initialization, cascading soft deletes, and indexed queries).
 
 # Project Folder Structure
 
 ```text
 plus-ultra/
-├── AGENTS.md                  # Project instructions & single source of truth
-├── pyproject.toml             # Dependencies, ruff, pytest configuration
-├── README.md                  # Project overview, tech-stack, folder structure
-├── uv.lock                    # Pinned deterministic lockfile
-├── .agents/                   # Agent rules, workflows, and skills
-├── .docs/                     # Architecture, API, commands, and progress docs
-│   ├── api.md
-│   ├── architecture.MD
-│   ├── commands.md
-│   ├── data-sources.md
-│   ├── features.md
-│   ├── makeEXE.md
-│   └── progress-log.md
-├── .scripts/                  # Operations, seeders, TUI installer/uninstaller
-│   ├── clear_db.py            # Database clearing utility
-│   ├── install.py             # Cross-platform interactive TUI installer
-│   ├── install.sh / .ps1      # Platform launcher wrappers
-│   ├── linux/                 # Linux install/uninstall shell scripts
-│   ├── notify.py              # Desktop notification test dispatcher
-│   ├── seed_data.py           # Demo dataset seeder/unseeder
-│   ├── seeds.py               # Legacy seeder wrapper
-│   ├── uninstall.py           # Cross-platform interactive TUI uninstaller
-│   ├── uninstall.sh / .ps1    # Platform uninstaller wrappers
-│   └── windows/               # Windows PowerShell install/uninstall scripts
-├── .tests/                    # Test suite (154 unit tests, 100% pass)
-└── src/
-    └── plus_ultra/
-        ├── concurrency/       # Concurrency, workers & scheduling (OS concepts)
-        │   └── scheduler.py   # Background reminder daemon thread
-        ├── core/              # Core domain orchestrator, lifecycle, event bus
-        │   ├── application.py # Dependency container & application startup
-        │   ├── events.py      # Pub/sub event broker
-        │   ├── exceptions.py  # Domain & system exception hierarchy
-        │   └── lifecycle.py   # State machine transitions & shutdown hooks
-        ├── database/          # Persistence & storage subsystem (DBMS concepts)
-        │   ├── connection.py  # SQLite connection factory (WAL mode, ACID context)
-        │   ├── migrations.py  # Schema migration runner
-        │   └── schema.py      # DDL schemas with indexes and constraints
-        ├── diagnostics/       # Diagnostics, health probes & telemetry
-        │   └── network.py     # Network socket connectivity probes
-        ├── domain/            # Enterprise business rules & domain entities
-        │   ├── models.py      # Core entities (Task, Category, Reminder, etc.)
-        │   └── notifications.py # Capsule notifications & priority enum
-        ├── platform/          # OS adapters (Adapter Pattern & Dependency Inversion)
-        │   ├── capabilities.py
-        │   ├── detection.py   # OS, display server, desktop environment detection
-        │   ├── factory.py     # Platform services provider factory
-        │   ├── interfaces/    # Abstract platform contracts
-        │   ├── linux/         # POSIX / Linux / Wayland implementations
-        │   └── windows/       # Windows NT implementations
-        ├── repositories/      # Data access layer (Repository Pattern)
-        ├── resources/         # Static assets (data JSON, icons)
-        ├── services/          # Business logic layer (Service Pattern)
-        ├── ui/                # Presentation layer (Tkinter GUI)
-        │   ├── components/    # Reusable UI widgets
-        │   ├── dialogs/       # Entity creation & editing modal dialogs
-        │   ├── floating.py    # Top-center compact floating capsule widget
-        │   ├── geometry.py    # Multi-monitor window math
-        │   ├── icons.py       # Raster asset loaders
-        │   ├── panel.py       # 3-column workspace dashboard
-        │   ├── theme.py       # Dark cyber design tokens & palettes
-        │   └── views/         # Decoupled workspace tab views
-        ├── utils/             # Cross-cutting utility helpers
-        │   └── datetime_utils.py # ISO-8601 formatting & parsing
-        ├── config.py          # Platform path resolution facade
-        ├── settings.py        # User settings JSON persistence with atomic replace
-        ├── main.py            # CLI entry point, argument parsing, bootstrap
-        ├── models.py          # Facade re-exporting domain.models
-        ├── notifications.py   # Facade re-exporting domain.notifications
-        ├── scheduler.py       # Facade re-exporting concurrency.scheduler
-        ├── network.py         # Facade re-exporting diagnostics.network
-        ├── datetime_utils.py  # Facade re-exporting utils.datetime_utils
-        └── desktop.py         # Facade re-exporting platform desktop adapter
+├── .agents/                      # Agent rules, guidelines, and instructions
+├── .docs/                        # Architecture, API specs, commands, and logs
+│   ├── api.md                    # Public API and interface specifications
+│   ├── architecture.MD           # Architecture, Tech-Stack, and Dependencies
+│   ├── commands.md               # CLI commands, testing flags, and checklists
+│   ├── features.md               # 6-tab workspace specifications & db schema
+│   └── progress-log.md           # Chronological phase implementation log
+├── .scripts/                     # Standalone maintenance and tooling utilities
+│   ├── clear_db.py               # Table purging, soft/hard delete, vacuum utility
+│   ├── install.py                # Cross-platform interactive TUI installer
+│   ├── notify.py                 # Desktop notification testing CLI
+│   ├── seed_data.py              # Demo dataset seeding and unseeding engine
+│   └── uninstall.py              # Interactive TUI uninstaller
+├── .tests/                       # Test suite (167 tests across 21 test suites)
+│   ├── test_architecture_boundaries.py
+│   ├── test_sqlalchemy_persistence.py
+│   └── test_unit_of_work.py
+├── pyproject.toml                # Project metadata, dependencies, and tool configs
+├── README.md                     # High-level overview, architecture, and quick start
+├── src/
+│   └── plus_ultra/               # Core application package
+│       ├── application/          # Application layer & use cases
+│       │   ├── interfaces/       # Abstract interfaces (Unit of Work)
+│       │   └── services/         # Application maintenance & data services
+│       ├── concurrency/          # Concurrency & background workers (OS concepts)
+│       ├── core/                 # Core DI container, lifecycle, event bus
+│       ├── diagnostics/          # Health probes and network monitor
+│       ├── domain/               # Enterprise domain entities & repository contracts
+│       │   ├── entities/         # Pure Python dataclasses (Task, Category, etc.)
+│       │   ├── repositories/     # Abstract Protocol repository contracts
+│       │   └── notifications.py  # Capsule notification value objects & queue
+│       ├── infrastructure/       # Persistence & external adapters
+│       │   └── persistence/      # Database adapters (SQLAlchemy 2.x, MongoDB doc)
+│       │       ├── database_config.py      # Centralized database configuration
+│       │       ├── database_factory.py     # Pluggable persistence factory
+│       │       ├── database_initializer.py # Non-destructive Base.metadata.create_all
+│       │       ├── mongodb/                # Future MongoDB adapter documentation
+│       │       └── sqlalchemy/             # SQLAlchemy 2.x ORM implementation
+│       │           ├── base.py             # DeclarativeBase root
+│       │           ├── mappers/            # ORM model <-> domain entity mappers
+│       │           ├── models/             # 10 SQLAlchemy ORM table models
+│       │           ├── repositories/       # Concrete repository implementations
+│       │           ├── session.py          # Engine, events & session factories
+│       │           └── unit_of_work.py     # SqlAlchemyUnitOfWork implementation
+│       ├── services/             # Domain business logic services (decoupled)
+│       ├── repositories/         # Compatibility facade for concrete repositories
+│       ├── database/             # Compatibility facade for session and engine
+│       ├── ui/                   # Modular presentation layer (Tkinter / XWayland)
+│       └── main.py               # Application bootstrap and argument parsing
+└── uv.lock                       # Deterministic dependency lockfile
 ```
-
----
 
 # Project Tech-Stack
 
@@ -95,8 +68,10 @@ The technology choices are locked and adhere to Problem-Based Learning objective
 | **Language Runtime** | CPython 3.12+ | Managed via `uv`. Modern typing, pattern matching. |
 | **Package & Env Manager** | `uv` | High-performance virtualenv and dependency locking. |
 | **GUI Toolkit** | `tkinter` & `tkinter.ttk` | Standard library GUI toolkit. Kept strictly on UI thread. |
-| **Database Engine** | `sqlite3` (Standard Library) | Raw parameterized SQL only (no ORM). WAL mode, foreign keys (`PRAGMA foreign_keys = ON`), ACID transactions. |
-| **Machine State Persistence** | SQLite `app_state` table | Dedicated key-value store for machine state (`widget_x`, `widget_y`). Kept separate from user preferences. |
+| **Persistence Engine** | `SQLAlchemy >= 2.0.0` | Database-agnostic persistence layer (ORM / Core), Repository Pattern, and Unit of Work. |
+| **Default Storage Engine** | SQLite 3 (via SQLAlchemy) | Default file and in-memory engine. WAL mode, foreign keys (`PRAGMA foreign_keys = ON`), 5s busy timeout via connection events. |
+| **Schema Initialization** | Non-destructive `create_all` | No Alembic migration tables (`alembic_version` forbidden). Schema initializes non-destructively. |
+| **Machine State** | `app_state` table | Dedicated key-value store for machine state (`widget_x`, `widget_y`). Kept separate from user preferences. |
 | **User Settings Engine** | Custom JSON Engine | Atomic file replacement (`os.replace`, `0o600`), strict type safety, automatic quarantine of corrupt files. |
 | **Process Management** | `fcntl.flock` (Standard Library) | Single-instance mutual exclusion via POSIX advisory file locking. |
 | **Desktop Notifications** | `notify-send` via `subprocess` | Desktop notification dispatch without heavyweight dependencies. |
@@ -109,55 +84,43 @@ The technology choices are locked and adhere to Problem-Based Learning objective
 All dependencies are defined in `pyproject.toml` and pinned in `uv.lock`.
 
 ## Runtime Dependencies
-The core application currently relies entirely on the **Python Standard Library** with zero third-party packages:
-- `argparse`: Command-line interface argument parsing.
-- `contextlib`: Resource management and exception suppression.
-- `dataclasses`: Strongly typed domain entities (`Category`, `Task`, `Reminder`, `AppState`).
-- `datetime`: ISO-8601 UTC timestamp generation (`datetime.UTC`).
-- `fcntl`: POSIX file locking (`flock`) for single-instance enforcement.
-- `importlib.metadata` & `importlib.resources`: Version discovery and packaged resource access.
-- `json`: User preference serialization and metadata decoding.
-- `logging`: Dual logging (console stdout and persistent `launcher.log`).
-- `os` & `stat`: Filesystem permissions (`0o700`, `0o600`) and atomic replace (`os.replace`).
-- `pathlib`: Object-oriented path resolution per XDG standards.
-- `queue`: Thread-safe cross-thread messaging.
-- `signal`: POSIX signal trapping (`SIGINT`, `SIGTERM`) for clean shutdown.
-- `sqlite3`: Direct ACID transactional database management and migrations.
-- `subprocess`: Safe argument-list invocation of `notify-send`.
-- `threading`: Background task execution (scheduler, sync).
-- `tkinter`: Native desktop GUI rendering and event dispatch.
+- **`sqlalchemy >= 2.0.0`**: Modern SQLAlchemy 2.x persistence engine providing ORM mapping, statement compilation, and connection pool management.
+- **Python Standard Library**:
+  - `argparse`: Command-line interface argument parsing.
+  - `contextlib`: Resource management and exception suppression.
+  - `dataclasses`: Pure domain entities (`Category`, `Task`, `Reminder`, `AppState`, workspace models).
+  - `datetime`: ISO-8601 UTC timestamp generation (`datetime.UTC`).
+  - `fcntl`: POSIX file locking (`flock`) for single-instance enforcement.
+  - `importlib.metadata` & `importlib.resources`: Version discovery and packaged resource access.
+  - `json`: User preference serialization and metadata decoding.
+  - `logging`: Dual logging (console stdout and persistent `launcher.log`).
+  - `os` & `stat`: Filesystem permissions (`0o700`, `0o600`) and atomic replace (`os.replace`).
+  - `pathlib`: Object-oriented path resolution per XDG standards.
+  - `queue`: Thread-safe cross-thread messaging.
+  - `signal`: POSIX signal trapping (`SIGINT`, `SIGTERM`) for clean shutdown.
+  - `sqlite3`: Standard library SQLite DBAPI driver used by SQLAlchemy SQLite dialect.
+  - `subprocess`: Safe argument-list invocation of `notify-send`.
+  - `threading`: Background task execution (scheduler, network monitor).
+  - `tkinter`: Native desktop GUI rendering and event dispatch.
 
 ## Development Dependencies
-- **`pytest >= 9.1.1`**: Automated test framework (145 tests across 18 test suites).
+- **`pytest >= 9.1.1`**: Automated test framework (167 tests across 21 test suites).
 - **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import sorting, and strict 80-character line lengths.
-
-
-## Scheduled Runtime Dependencies (Phased)
-- **Phase 5**: Decision D1 resolved to drop external tray libraries (`pystray`/`Pillow`) to maintain a 100% pure Python standard library stack with zero C-binding dependencies.
-- **Phase 7**: Supabase client library (Incremental cloud sync).
 
 ---
 
 ## Quick Start
 
 ```bash
-# Interactive TUI Installer (Linux & Windows 11)
-uv run python .scripts/install.py
-# Or use the platform-specific scripts:
-./.scripts/install.sh            # Linux (or ./.scripts/linux/install.sh)
-powershell .scripts/install.ps1  # Windows 11 (or .\.scripts\windows\install.ps1)
-
-# Interactive TUI Uninstaller (Remove app & optional data purge)
-uv run python .scripts/uninstall.py
-# Or use the platform-specific uninstaller:
-./.scripts/uninstall.sh            # Linux (or ./.scripts/linux/uninstall.sh)
-powershell .scripts/uninstall.ps1  # Windows 11 (or .\.scripts\windows\uninstall.ps1)
-
 # Sync environment dependencies
 uv sync
 
 # Run the test suite
 uv run pytest -v
+
+# Run linting and format verification
+uv run ruff check .
+uv run ruff format --check .
 
 # Launch the floating desktop assistant
 uv run plus-ultra
@@ -176,8 +139,4 @@ uv run python .scripts/clear_db.py --all --force
 
 # Test instant desktop notification
 uv run python .scripts/notify.py
-
-# Test delayed desktop notification after 2 minutes (or -s for seconds)
-uv run python .scripts/notify.py 2
-uv run python .scripts/notify.py -s 10
 ```

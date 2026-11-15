@@ -63,12 +63,23 @@ def read_key() -> str:
         ch = msvcrt.getch()
         if ch in (b"\x00", b"\xe0"):
             return {
-                b"H": "UP", b"P": "DOWN", b"M": "RIGHT", b"K": "LEFT",
+                b"H": "UP",
+                b"P": "DOWN",
+                b"M": "RIGHT",
+                b"K": "LEFT",
             }.get(msvcrt.getch(), "")
         key_map = {
-            b"\r": "ENTER", b"\n": "ENTER", b" ": "SPACE",
-            b"\x1b": "QUIT", b"q": "QUIT", b"Q": "QUIT", b"\x03": "QUIT",
-            b"k": "UP", b"j": "DOWN", b"h": "LEFT", b"l": "RIGHT",
+            b"\r": "ENTER",
+            b"\n": "ENTER",
+            b" ": "SPACE",
+            b"\x1b": "QUIT",
+            b"q": "QUIT",
+            b"Q": "QUIT",
+            b"\x03": "QUIT",
+            b"k": "UP",
+            b"j": "DOWN",
+            b"h": "LEFT",
+            b"l": "RIGHT",
         }
         return key_map.get(ch, ch.decode("utf-8", errors="ignore"))
 
@@ -94,11 +105,22 @@ def read_key() -> str:
         if raw.startswith((b"\x1b[D", b"\x1bOD")):
             return "LEFT"
         key_map = {
-            b"\r": "ENTER", b"\n": "ENTER", b" ": "SPACE",
-            b"\x1b": "QUIT", b"q": "QUIT", b"Q": "QUIT",
-            b"\x03": "QUIT", b"\x04": "QUIT",
-            b"k": "UP", b"K": "UP", b"j": "DOWN", b"J": "DOWN",
-            b"h": "LEFT", b"H": "LEFT", b"l": "RIGHT", b"L": "RIGHT",
+            b"\r": "ENTER",
+            b"\n": "ENTER",
+            b" ": "SPACE",
+            b"\x1b": "QUIT",
+            b"q": "QUIT",
+            b"Q": "QUIT",
+            b"\x03": "QUIT",
+            b"\x04": "QUIT",
+            b"k": "UP",
+            b"K": "UP",
+            b"j": "DOWN",
+            b"J": "DOWN",
+            b"h": "LEFT",
+            b"H": "LEFT",
+            b"l": "RIGHT",
+            b"L": "RIGHT",
         }
         return key_map.get(raw, raw.decode("utf-8", errors="ignore"))
     finally:
@@ -268,8 +290,14 @@ def uninstall_linux(opt: UninstallOptions) -> None:
     if opt.remove_binary:
         _remove_path(home / ".local" / "bin" / "plus-ultra", "executable")
         icon_path = (
-            home / ".local" / "share" / "icons"
-            / "hicolor" / "256x256" / "apps" / "plus-ultra.png"
+            home
+            / ".local"
+            / "share"
+            / "icons"
+            / "hicolor"
+            / "256x256"
+            / "apps"
+            / "plus-ultra.png"
         )
         _remove_path(icon_path, "application icon")
 
@@ -282,9 +310,7 @@ def uninstall_linux(opt: UninstallOptions) -> None:
 
     # 3. Autostart
     if opt.remove_autostart:
-        autostart_file = (
-            home / ".config" / "autostart" / "plus-ultra.desktop"
-        )
+        autostart_file = home / ".config" / "autostart" / "plus-ultra.desktop"
         _remove_path(autostart_file, "autostart desktop entry")
 
     # 4. User Data Purge
@@ -297,9 +323,7 @@ def uninstall_linux(opt: UninstallOptions) -> None:
         print(f"  Database: {home / '.local' / 'share' / 'plus-ultra'}")
         print(f"  Settings: {home / '.config' / 'plus-ultra'}")
 
-    print(
-        f"\n{GREEN}{BOLD}PLUS-ULTRA uninstalled on Linux!{RESET}"
-    )
+    print(f"\n{GREEN}{BOLD}PLUS-ULTRA uninstalled on Linux!{RESET}")
 
 
 def uninstall_windows(opt: UninstallOptions) -> None:
@@ -355,9 +379,7 @@ def uninstall_windows(opt: UninstallOptions) -> None:
         print(f"  Database: {local_appdata / 'plus-ultra'}")
         print(f"  Settings: {roaming / 'plus-ultra'}")
 
-    print(
-        f"\n{GREEN}{BOLD}PLUS-ULTRA uninstalled on Windows 11!{RESET}"
-    )
+    print(f"\n{GREEN}{BOLD}PLUS-ULTRA uninstalled on Windows 11!{RESET}")
 
 
 def main() -> None:
@@ -365,15 +387,19 @@ def main() -> None:
         description="PLUS-ULTRA Desktop Assistant Uninstaller"
     )
     parser.add_argument(
-        "--non-interactive", "-y", action="store_true",
+        "--non-interactive",
+        "-y",
+        action="store_true",
         help="Run non-interactively",
     )
     parser.add_argument(
-        "--purge", action="store_true",
+        "--purge",
+        action="store_true",
         help="Purge all persistent user data, SQLite database, and settings",
     )
     parser.add_argument(
-        "--keep-data", action="store_true",
+        "--keep-data",
+        action="store_true",
         help="Preserve user database and settings (default)",
     )
     args = parser.parse_args()

@@ -148,4 +148,3 @@ class CapsuleNotificationQueue:
         if len(full_text) <= max_chars:
             return full_text
         return full_text[: max_chars - 1].rstrip() + "…"
-

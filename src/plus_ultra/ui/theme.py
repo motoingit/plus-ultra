@@ -167,4 +167,3 @@ def get_theme_by_name(name: str = "cyan") -> CapsuleTheme:
         beam_tail=pal["muted"],
         badge_bg=pal["accent"],
     )
-

@@ -1,4 +1,4 @@
-"""Database migration runner and schema version management."""
+"""Database initialization and schema version management."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ import logging
 import sqlite3
 from pathlib import Path
 
-from plus_ultra.database.connection import get_connection, transaction
-from plus_ultra.database.schema import (
-    MIGRATION_V1_SQL,
-    MIGRATION_V2_SQL,
+from plus_ultra.database.connection import get_engine
+from plus_ultra.database.schema import CURRENT_SCHEMA_VERSION
+from plus_ultra.infrastructure.persistence.database_initializer import (
+    init_database,
 )
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ def get_schema_version(conn: sqlite3.Connection) -> int:
     """Return current PRAGMA user_version from SQLite database."""
     cur = conn.execute("PRAGMA user_version;")
     row = cur.fetchone()
-    return int(row[0]) if row else 0
+    return int(row[0]) if row else CURRENT_SCHEMA_VERSION
 
 
 def set_schema_version(conn: sqlite3.Connection, version: int) -> None:
@@ -28,25 +28,10 @@ def set_schema_version(conn: sqlite3.Connection, version: int) -> None:
 
 
 def init_db(db_path: Path | None = None) -> None:
-    """Run pending database schema migrations incrementally."""
-    conn = get_connection(db_path)
-    try:
-        current_version = get_schema_version(conn)
-        logger.info("Current SQLite database version: %d", current_version)
-
-        if current_version < 1:
-            logger.info("Applying Migration 1 (core schema)...")
-            with transaction(conn) as cur:
-                cur.executescript(MIGRATION_V1_SQL)
-            set_schema_version(conn, 1)
-            logger.info("Database migrated successfully to version 1.")
-
-        if current_version < 2:
-            logger.info("Applying Migration 2 (workspace tabs)...")
-            with transaction(conn) as cur:
-                cur.executescript(MIGRATION_V2_SQL)
-            set_schema_version(conn, 2)
-            logger.info("Database migrated successfully to version 2.")
-
-    finally:
-        conn.close()
+    """Initialize database schema non-destructively using SQLAlchemy."""
+    engine = get_engine(db_path)
+    init_database(engine)
+    logger.info(
+        "Database initialized via SQLAlchemy metadata (version %d).",
+        CURRENT_SCHEMA_VERSION,
+    )

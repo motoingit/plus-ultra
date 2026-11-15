@@ -26,6 +26,9 @@ tail -f ~/.local/state/plus-ultra/launcher.log
 uv run pytest -v
 
 # Run targeted test suites
+uv run pytest .tests/test_sqlalchemy_persistence.py -v
+uv run pytest .tests/test_unit_of_work.py -v
+uv run pytest .tests/test_architecture_boundaries.py -v
 uv run pytest .tests/test_scheduler.py -v
 uv run pytest .tests/test_scripts.py -v
 uv run pytest .tests/test_services.py -v

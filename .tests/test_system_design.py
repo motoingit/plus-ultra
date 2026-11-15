@@ -51,16 +51,14 @@ def test_domain_layer_models_and_facade_equivalence() -> None:
 def test_domain_layer_notifications_and_facade_equivalence() -> None:
     """Notification models and queue must be identical across import paths."""
     assert (
-        domain.CapsuleNotification
-        is legacy_notifications.CapsuleNotification
+        domain.CapsuleNotification is legacy_notifications.CapsuleNotification
     )
     assert (
         domain.CapsuleNotificationQueue
         is legacy_notifications.CapsuleNotificationQueue
     )
     assert (
-        domain.NotificationPriority
-        is legacy_notifications.NotificationPriority
+        domain.NotificationPriority is legacy_notifications.NotificationPriority
     )
 
     queue = CapsuleNotificationQueue()
@@ -94,8 +92,7 @@ def test_diagnostics_layer_and_facade_equivalence() -> None:
 def test_utils_layer_and_facade_equivalence() -> None:
     """Datetime utility must be identical across import paths."""
     assert (
-        utils.parse_flexible_datetime
-        is legacy_datetime.parse_flexible_datetime
+        utils.parse_flexible_datetime is legacy_datetime.parse_flexible_datetime
     )
 
     now = datetime.datetime.now(datetime.UTC)

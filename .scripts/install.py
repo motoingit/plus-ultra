@@ -72,12 +72,23 @@ def read_key() -> str:
         ch = msvcrt.getch()
         if ch in (b"\x00", b"\xe0"):
             return {
-                b"H": "UP", b"P": "DOWN", b"M": "RIGHT", b"K": "LEFT",
+                b"H": "UP",
+                b"P": "DOWN",
+                b"M": "RIGHT",
+                b"K": "LEFT",
             }.get(msvcrt.getch(), "")
         key_map = {
-            b"\r": "ENTER", b"\n": "ENTER", b" ": "SPACE",
-            b"\x1b": "QUIT", b"q": "QUIT", b"Q": "QUIT", b"\x03": "QUIT",
-            b"k": "UP", b"j": "DOWN", b"h": "LEFT", b"l": "RIGHT",
+            b"\r": "ENTER",
+            b"\n": "ENTER",
+            b" ": "SPACE",
+            b"\x1b": "QUIT",
+            b"q": "QUIT",
+            b"Q": "QUIT",
+            b"\x03": "QUIT",
+            b"k": "UP",
+            b"j": "DOWN",
+            b"h": "LEFT",
+            b"l": "RIGHT",
         }
         return key_map.get(ch, ch.decode("utf-8", errors="ignore"))
 
@@ -103,11 +114,22 @@ def read_key() -> str:
         if raw.startswith((b"\x1b[D", b"\x1bOD")):
             return "LEFT"
         key_map = {
-            b"\r": "ENTER", b"\n": "ENTER", b" ": "SPACE",
-            b"\x1b": "QUIT", b"q": "QUIT", b"Q": "QUIT",
-            b"\x03": "QUIT", b"\x04": "QUIT",
-            b"k": "UP", b"K": "UP", b"j": "DOWN", b"J": "DOWN",
-            b"h": "LEFT", b"H": "LEFT", b"l": "RIGHT", b"L": "RIGHT",
+            b"\r": "ENTER",
+            b"\n": "ENTER",
+            b" ": "SPACE",
+            b"\x1b": "QUIT",
+            b"q": "QUIT",
+            b"Q": "QUIT",
+            b"\x03": "QUIT",
+            b"\x04": "QUIT",
+            b"k": "UP",
+            b"K": "UP",
+            b"j": "DOWN",
+            b"J": "DOWN",
+            b"h": "LEFT",
+            b"H": "LEFT",
+            b"l": "RIGHT",
+            b"L": "RIGHT",
         }
         return key_map.get(raw, raw.decode("utf-8", errors="ignore"))
     finally:
@@ -226,7 +248,8 @@ def build_binary_if_missing(exe_path: Path) -> None:
     with contextlib.suppress(Exception):
         subprocess.run(
             ["uv", "run", "pyinstaller", str(spec_file), "--noconfirm"],
-            cwd=PROJECT_ROOT, check=True,
+            cwd=PROJECT_ROOT,
+            check=True,
         )
 
 
@@ -281,9 +304,7 @@ def setup_database(db_path: Path, seed_demo: bool) -> None:
                 conn.close()
 
 
-def _write_desktop_file(
-    path: Path, cmd: str, autostart: bool = False
-) -> None:
+def _write_desktop_file(path: Path, cmd: str, autostart: bool = False) -> None:
     """Write standard FreeDesktop .desktop application launcher."""
     path.parent.mkdir(parents=True, exist_ok=True)
     extra = (
@@ -319,8 +340,13 @@ def install_linux(opt: InstallOptions) -> None:
 
     # 2. Install icon
     icon_dir = (
-        Path.home() / ".local" / "share" / "icons"
-        / "hicolor" / "256x256" / "apps"
+        Path.home()
+        / ".local"
+        / "share"
+        / "icons"
+        / "hicolor"
+        / "256x256"
+        / "apps"
     )
     icon_dir.mkdir(parents=True, exist_ok=True)
     target_icon = icon_dir / "plus-ultra.png"
@@ -332,16 +358,17 @@ def install_linux(opt: InstallOptions) -> None:
     # 3. Desktop shortcut / launcher
     if opt.shortcuts:
         app_file = (
-            Path.home() / ".local" / "share" / "applications"
+            Path.home()
+            / ".local"
+            / "share"
+            / "applications"
             / "plus-ultra.desktop"
         )
         _write_desktop_file(app_file, exec_cmd, autostart=False)
         print(f"[OK] Created application launcher: {app_file}")
 
     # 4. Autostart
-    auto_file = (
-        Path.home() / ".config" / "autostart" / "plus-ultra.desktop"
-    )
+    auto_file = Path.home() / ".config" / "autostart" / "plus-ultra.desktop"
     if opt.autostart:
         _write_desktop_file(auto_file, exec_cmd, autostart=True)
         print(f"[OK] Enabled autostart: {auto_file}")
@@ -444,23 +471,30 @@ def main() -> None:
         description="PLUS-ULTRA Desktop Assistant Installer"
     )
     parser.add_argument(
-        "--non-interactive", "-y", action="store_true",
+        "--non-interactive",
+        "-y",
+        action="store_true",
         help="Run non-interactively with defaults",
     )
     parser.add_argument(
-        "--no-autostart", action="store_true",
+        "--no-autostart",
+        action="store_true",
         help="Disable launch on OS startup",
     )
     parser.add_argument(
-        "--theme", choices=["cyan", "emerald", "purple", "amber"],
-        default="cyan", help="Theme palette accent",
+        "--theme",
+        choices=["cyan", "emerald", "purple", "amber"],
+        default="cyan",
+        help="Theme palette accent",
     )
     parser.add_argument(
-        "--no-demo", action="store_true",
+        "--no-demo",
+        action="store_true",
         help="Do not seed demo workspace data",
     )
     parser.add_argument(
-        "--minimized", action="store_true",
+        "--minimized",
+        action="store_true",
         help="Start minimized to tray",
     )
     args = parser.parse_args()

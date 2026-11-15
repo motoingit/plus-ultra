@@ -30,15 +30,18 @@ class SingleInstanceLock:
     def __init__(self, lock_path: Path | None = None) -> None:
         if lock_path is not None:
             from plus_ultra.platform.detection import is_windows
+
             if is_windows():
                 from plus_ultra.platform.windows.instance import (
                     WindowsSingleInstanceLock,
                 )
+
                 self._backend = WindowsSingleInstanceLock(lock_path=lock_path)
             else:
                 from plus_ultra.platform.linux.instance import (
                     LinuxSingleInstanceLock,
                 )
+
                 self._backend = LinuxSingleInstanceLock(lock_path=lock_path)
         else:
             self._backend = get_platform_services().instance_lock
@@ -76,12 +79,16 @@ def apply_window_shape_mask(
 
     try:
         from plus_ultra.platform.linux.window import LinuxWindowEffects
+
         class _StubWidget:
             def winfo_id(self) -> int:
                 return int(window_id_or_widget)  # type: ignore[arg-type]
 
         return LinuxWindowEffects().apply_capsule_shape(
-            _StubWidget(), width, height, radius  # type: ignore[arg-type]
+            _StubWidget(),
+            width,
+            height,
+            radius,  # type: ignore[arg-type]
         )
     except Exception:
         return False

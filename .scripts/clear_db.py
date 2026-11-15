@@ -7,16 +7,42 @@ clear runtime machine state, and run VACUUM.
 from __future__ import annotations
 
 import argparse
-import sqlite3
+import contextlib
 import sys
 from pathlib import Path
+from typing import Any
 
 # Ensure 'src' is in sys.path when executed directly
 _src_dir = Path(__file__).resolve().parents[1] / "src"
 if str(_src_dir) not in sys.path:
     sys.path.insert(0, str(_src_dir))
 
-from plus_ultra.database.connection import get_connection, transaction  # noqa: E402
+from sqlalchemy import (  # noqa: E402
+    create_engine,
+    delete,
+    func,
+    select,
+    text,
+    update,
+)
+from sqlalchemy.orm import Session  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+
+from plus_ultra.infrastructure.persistence.database_factory import (  # noqa: E402
+    DatabaseFactory,
+)
+from plus_ultra.infrastructure.persistence.sqlalchemy.models import (  # noqa: E402
+    AppStateModel,
+    CategoryModel,
+    CodeItemModel,
+    CourseModel,
+    IdeaDoubtModel,
+    OpportunityModel,
+    QuickLinkModel,
+    ReminderFireModel,
+    ReminderModel,
+    TaskModel,
+)
 
 ALL_DOMAIN_TABLES: list[str] = [
     "reminders",
@@ -29,18 +55,31 @@ ALL_DOMAIN_TABLES: list[str] = [
     "quick_links",
 ]
 
+_TABLE_MODEL_MAP: dict[str, Any] = {
+    "reminder_fires": ReminderFireModel,
+    "reminders": ReminderModel,
+    "tasks": TaskModel,
+    "categories": CategoryModel,
+    "app_state": AppStateModel,
+    "code_items": CodeItemModel,
+    "courses": CourseModel,
+    "ideas_doubts": IdeaDoubtModel,
+    "opportunities": OpportunityModel,
+    "quick_links": QuickLinkModel,
+}
+
 
 def clear_database(
-    conn: sqlite3.Connection,
+    conn: Any | None = None,
     tables: list[str] | None = None,
     hard_delete: bool = True,
     clear_app_state: bool = False,
     vacuum: bool = False,
 ) -> dict[str, int]:
-    """Clear specified or all domain tables in SQLite database.
+    """Clear specified or all domain tables in database using SQLAlchemy.
 
     Args:
-        conn: Active SQLite connection.
+        conn: Active Session or Connection.
         tables: List of table names to clear. Defaults to ALL_DOMAIN_TABLES.
         hard_delete: If True, execute DELETE FROM table; if False,
           soft-delete by setting is_deleted = 1.
@@ -50,38 +89,87 @@ def clear_database(
     Returns:
         Mapping of table name to count of modified rows.
     """
-    target_tables = list(tables or ALL_DOMAIN_TABLES)
+    if isinstance(conn, Session):
+        session = conn
+        close_session = False
+    elif hasattr(conn, "cursor") and not hasattr(conn, "scalars"):
+        eng = create_engine(
+            "sqlite://",
+            creator=lambda: conn,
+            poolclass=StaticPool,
+            pool_reset_on_return=None,
+        )
+        session = Session(eng)
+        close_session = True
+    else:
+        factory = DatabaseFactory()
+        session = factory.create_session()
+        close_session = True
+
+    target_tables = (
+        list(tables) if tables is not None else list(ALL_DOMAIN_TABLES)
+    )
     if clear_app_state and "app_state" not in target_tables:
         target_tables.append("app_state")
 
     counts: dict[str, int] = {}
 
-    with transaction(conn) as cur:
-        for tbl in target_tables:
-            if tbl == "app_state":
-                cur.execute("SELECT COUNT(*) FROM app_state;")
-                row_cnt = cur.fetchone()[0]
-                cur.execute("DELETE FROM app_state;")
-                counts[tbl] = row_cnt
-            elif hard_delete:
-                cur.execute(f"SELECT COUNT(*) FROM {tbl};")  # noqa: S608
-                row_cnt = cur.fetchone()[0]
-                cur.execute(f"DELETE FROM {tbl};")  # noqa: S608
-                counts[tbl] = row_cnt
+    try:
+        # Order tables to respect foreign keys during deletion
+        deletion_order = [
+            "reminder_fires",
+            "reminders",
+            "tasks",
+            "categories",
+            "app_state",
+            "code_items",
+            "courses",
+            "ideas_doubts",
+            "opportunities",
+            "quick_links",
+        ]
+        ordered_targets = [t for t in deletion_order if t in target_tables]
+        for t in target_tables:
+            if t not in ordered_targets:
+                ordered_targets.append(t)
+
+        for tbl in ordered_targets:
+            model = _TABLE_MODEL_MAP.get(tbl)
+            if model is None:
+                continue
+
+            if tbl == "app_state" or hard_delete:
+                count_stmt = select(func.count()).select_from(model)
+                cnt = session.scalar(count_stmt) or 0
+                session.execute(delete(model))
+                counts[tbl] = cnt
             else:
-                cur.execute(
-                    f"SELECT COUNT(*) FROM {tbl} WHERE is_deleted = 0;"  # noqa: S608
+                count_stmt = (
+                    select(func.count())
+                    .select_from(model)
+                    .where(model.is_deleted == 0)
                 )
-                row_cnt = cur.fetchone()[0]
-                cur.execute(
-                    f"UPDATE {tbl} SET is_deleted = 1 WHERE is_deleted = 0;"  # noqa: S608
+                cnt = session.scalar(count_stmt) or 0
+                session.execute(
+                    update(model)
+                    .where(model.is_deleted == 0)
+                    .values(is_deleted=1)
                 )
-                counts[tbl] = row_cnt
+                counts[tbl] = cnt
 
-    if vacuum:
-        conn.execute("VACUUM;")
+        session.commit()
 
-    return counts
+        if vacuum:
+            with contextlib.suppress(Exception):
+                session.execute(text("VACUUM;"))
+
+        return counts
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        if close_session:
+            session.close()
 
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
@@ -141,10 +229,11 @@ def main(argv: list[str] | None = None) -> int:
             print("Aborted.")
             return 1
 
-    conn = get_connection()
+    factory = DatabaseFactory()
+    session = factory.create_session()
     try:
         results = clear_database(
-            conn=conn,
+            conn=session,
             tables=tables_to_clear,
             hard_delete=not args.soft,
             clear_app_state=args.include_app_state,
@@ -157,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
             print("  - VACUUM completed.")
         return 0
     finally:
-        conn.close()
+        session.close()
 
 
 if __name__ == "__main__":

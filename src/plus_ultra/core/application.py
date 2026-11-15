@@ -29,9 +29,11 @@ from plus_ultra.config import (
 from plus_ultra.core.events import EventBus
 from plus_ultra.core.lifecycle import LifecycleManager, LifecycleState
 from plus_ultra.database import (
-    get_connection,
     init_db,
     seed_demo_workspace_data,
+)
+from plus_ultra.infrastructure.persistence.database_factory import (
+    DatabaseFactory,
 )
 from plus_ultra.models import Reminder, Task
 from plus_ultra.platform.factory import (
@@ -140,10 +142,12 @@ class Application:
 
         # 2. Database Readiness
         init_db()
-        self.db_conn = get_connection()
+        self.db_factory = DatabaseFactory()
+        self.db_session = self.db_factory.create_session()
+        self.db_conn = self.db_session
         self.lifecycle.register_shutdown_hook(self._safe_close_db)
         if seed_data:
-            seed_demo_workspace_data(self.db_conn)
+            seed_demo_workspace_data(self.db_session)
         self.lifecycle.transition_to(LifecycleState.DATABASE_READY)
 
         # 3. Services Readiness
@@ -164,28 +168,31 @@ class Application:
         return True
 
     def _safe_close_db(self) -> None:
-        """Close SQLite database connection cleanly."""
-        if self.db_conn is not None:
+        """Close database session and persistence engine cleanly."""
+        if getattr(self, "db_session", None) is not None:
             try:
-                self.db_conn.close()
-                logger.info("Database connection closed cleanly.")
+                self.db_session.close()
+                logger.info("Database session closed cleanly.")
             except Exception as exc:
-                logger.error("Error closing database connection: %s", exc)
+                logger.error("Error closing database session: %s", exc)
             finally:
+                self.db_session = None
                 self.db_conn = None
+        if getattr(self, "db_factory", None) is not None:
+            self.db_factory.close()
 
     def _setup_repositories_and_services(self) -> None:
         """Instantiate data repositories and business services."""
-        conn = self.db_conn
-        self.app_state_repo = AppStateRepository(conn)
-        task_repo = TaskRepository(conn)
-        cat_repo = CategoryRepository(conn)
-        rem_repo = ReminderRepository(conn)
-        code_repo = CodeRepository(conn)
-        course_repo = CourseRepository(conn)
-        idea_repo = IdeaDoubtRepository(conn)
-        opp_repo = OpportunityRepository(conn)
-        link_repo = QuickLinkRepository(conn)
+        session = self.db_session
+        self.app_state_repo = AppStateRepository(session)
+        task_repo = TaskRepository(session)
+        cat_repo = CategoryRepository(session)
+        rem_repo = ReminderRepository(session)
+        code_repo = CodeRepository(session)
+        course_repo = CourseRepository(session)
+        idea_repo = IdeaDoubtRepository(session)
+        opp_repo = OpportunityRepository(session)
+        link_repo = QuickLinkRepository(session)
 
         self.task_service = TaskService(task_repo, cat_repo)
         self.category_service = CategoryService(cat_repo)
@@ -410,16 +417,15 @@ class Application:
 
     def _setup_scheduler(self) -> None:
         """Initialize background reminder evaluation worker."""
+
         def _handle_reminder_due(task: Task, _rem: Reminder) -> None:
             logger.info(
                 "Reminder triggered for '%s' [id=%s]", task.title, task.id
             )
+
             def _ui_action() -> None:
                 if self.widget and not getattr(self.widget, "_closed", True):
-                    msg = (
-                        task.description
-                        or f"Priority: {task.critical_level}"
-                    )
+                    msg = task.description or f"Priority: {task.critical_level}"
                     self.widget.post_notification(
                         title=f"Due: {task.title}",
                         message=msg,
@@ -432,6 +438,7 @@ class Application:
 
         self.scheduler = ReminderScheduler(
             reminder_service=self.reminder_service,  # type: ignore[arg-type]
+            session_factory=self.db_factory.create_session,
             on_reminder_due=_handle_reminder_due,
             desktop_notify=True,
         )
@@ -440,6 +447,7 @@ class Application:
 
     def _setup_signal_handlers(self) -> None:
         """Register POSIX and Windows termination signals."""
+
         def _sig_handler(_sig: int, _frame: object) -> None:
             logger.info("Received termination signal, shutting down.")
             self.lifecycle.post_to_main_thread(self.shutdown)
