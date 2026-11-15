@@ -36,6 +36,8 @@ uv run pytest .tests/test_desktop.py -v
 uv run pytest .tests/test_ui.py -v
 uv run pytest .tests/test_config.py -v
 uv run pytest .tests/test_settings.py -v
+uv run pytest .tests/test_maintenance.py -v
+uv run pytest .tests/test_system_design.py -v
 
 # Standalone Workspace Seeding & Unseeding
 uv run python .scripts/seed_data.py --seed      # Seed demo records if empty
@@ -48,6 +50,30 @@ uv run python .scripts/clear_db.py --soft --force          # Soft delete (is_del
 uv run python .scripts/clear_db.py -t tasks -t code_items  # Clear specific tables
 uv run python .scripts/clear_db.py --include-app-state     # Also clear machine runtime state
 uv run python .scripts/clear_db.py --vacuum                # Run VACUUM after clearing
+
+# Interactive TUI Installer (Linux & Windows 11)
+uv run python .scripts/install.py                          # Launch Interactive TUI menu
+./.scripts/install.sh                                      # Linux shell wrapper (TUI)
+./.scripts/linux/install.sh                                # Linux subfolder wrapper
+powershell .scripts/install.ps1                            # Windows PowerShell wrapper
+powershell .scripts/windows/install.ps1                    # Windows subfolder wrapper
+
+# Non-Interactive / Headless Installation
+uv run python .scripts/install.py -y --theme=emerald       # Non-interactive with theme
+uv run python .scripts/install.py -y --no-autostart        # Disable launch on OS login
+uv run python .scripts/install.py -y --no-demo             # Fresh install without demo data
+uv run python .scripts/install.py -y --minimized           # Start minimized to system tray
+
+# Interactive TUI Uninstaller (Linux & Windows 11)
+uv run python .scripts/uninstall.py                        # Launch Interactive TUI uninstaller
+./.scripts/uninstall.sh                                    # Linux shell uninstaller (TUI)
+./.scripts/linux/uninstall.sh                              # Linux subfolder uninstaller
+powershell .scripts/uninstall.ps1                          # Windows PowerShell uninstaller
+powershell .scripts/windows/uninstall.ps1                  # Windows subfolder uninstaller
+
+# Non-Interactive Uninstallation
+uv run python .scripts/uninstall.py -y --keep-data         # Remove app, keep database & config
+uv run python .scripts/uninstall.py -y --purge             # Complete purge of app, DB & config
 
 # Desktop Notification Testing
 uv run python .scripts/notify.py                           # Immediate desktop popup
@@ -91,7 +117,10 @@ Verify the following behaviors:
      - **`Ideas-Doubt`**: Filter between `💡 Project Ideas` and `❓ Concept Doubts`. Click status buttons (`[Idea]`, `[Planned]`, `[In Progress]`, `[Completed]`, `[Resolved]`) to advance lifecycle.
      - **`Opportunities`**: Role cards with organization, deadlines, and `[Saved]` -> `[Applied]` lifecycle progression. Click `🔗 Apply` to launch URL.
      - **`Quick Links`**: Fast launcher for Web URLs and local folders/files. Click `🚀 Open` to launch default browser or Linux file manager (`xdg-open`), incrementing click count.
-     - **`Settings`**: Live toggles for Always-On-Top, local SQLite database diagnostics, and `Reseed Demo Data` button.
+     - **`Settings`**: Live toggles for Always-On-Top, Network monitor, popup duration, diagnostics, and data maintenance:
+       - `Reset Config Settings`: Resets preferences to defaults while preserving user data.
+       - `Factory Reset (Delete Everything)`: Transactionally wipes all database tables and resets settings to defaults.
+       - `Reseed Demo Data`: Populates demo dataset across all tabs.
    - **Column 3 (Right Sidebar)**: Notification panel showing active alerts. Click `Mark All Read` or `Clear` to clear unread status and remove the orange bell on the floating capsule.
 
 6. **Notification Flow**:

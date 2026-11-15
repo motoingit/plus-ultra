@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import tkinter as tk
+from collections.abc import Callable
 
 from plus_ultra.desktop import apply_window_shape_mask
 from plus_ultra.notifications import (
@@ -27,12 +28,14 @@ class CapsulePopupPill:
         theme: CapsuleTheme = THEME,
         always_on_top: bool = True,
         default_duration_ms: int = 3000,
+        on_dismiss: Callable[[], None] | None = None,
     ) -> None:
         self.parent = parent
         self.queue = queue
         self.theme = theme
         self.always_on_top = always_on_top
         self.default_duration_ms = default_duration_ms
+        self.on_dismiss = on_dismiss
 
         self.window: tk.Toplevel | None = None
         self._dismiss_timer_id: str | None = None
@@ -110,6 +113,9 @@ class CapsulePopupPill:
             font=(self.theme.font_family, 11, "bold"),
         )
 
+        canvas.bind("<Button-1>", lambda _e: self.dismiss())
+        popup.bind("<Button-1>", lambda _e: self.dismiss())
+
         popup.update_idletasks()
         apply_window_shape_mask(popup.winfo_id(), pop_w, pop_h, pop_r)
 
@@ -138,3 +144,6 @@ class CapsulePopupPill:
             with contextlib.suppress(Exception):
                 self.window.destroy()
         self.window = None
+        if self.on_dismiss:
+            with contextlib.suppress(Exception):
+                self.on_dismiss()

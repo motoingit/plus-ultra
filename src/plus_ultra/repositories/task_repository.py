@@ -30,7 +30,6 @@ def _row_to_task(row: sqlite3.Row) -> Task:
         is_deleted=row["is_deleted"],
     )
 
-
 class TaskRepository:
     """Data access operations for Task entities."""
 
@@ -44,7 +43,7 @@ class TaskRepository:
         description: str = "",
         due_date: str | None = None,
         status: str = "Pending",
-        task_label: str = "College",
+        task_label: str = "General",
         critical_level: str = "Medium",
         pace_level: str = "Short-term",
         is_google_task: bool = False,

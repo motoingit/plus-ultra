@@ -73,6 +73,29 @@ class CodeView:
         filter_bar = tk.Frame(self.container, bg="#161922", padx=28)
         filter_bar.pack(fill="x", pady=(0, 16))
 
+        search_box = tk.Frame(filter_bar, bg="#161922")
+        search_box.pack(side="left", fill="x", expand=True, padx=(0, 16))
+        tk.Label(
+            search_box,
+            text="Search:",
+            bg="#161922",
+            fg="#94a3b8",
+            font=(self.theme.font_family, 10, "bold"),
+        ).pack(side="left", padx=(0, 6))
+        self.search_entry = tk.Entry(
+            search_box,
+            bg="#12151c",
+            fg="#f8fafc",
+            relief="flat",
+            insertbackground="#00e5ff",
+            font=(self.theme.font_family, 11),
+        )
+        self.search_entry.pack(side="left", fill="x", expand=True, ipady=5)
+        self.search_entry.bind("<KeyRelease>", lambda _e: self.refresh())
+
+        cat_box = tk.Frame(filter_bar, bg="#161922")
+        cat_box.pack(side="right")
+
         for cat in [
             "All",
             "Snippets",
@@ -80,7 +103,7 @@ class CodeView:
             "Syntax Reference",
         ]:
             btn = tk.Button(
-                filter_bar,
+                cat_box,
                 text=cat,
                 bg="#1e2433" if cat == "All" else "#12151c",
                 fg="#00e5ff" if cat == "All" else "#94a3b8",
@@ -123,7 +146,8 @@ class CodeView:
             if self.active_code_filter == "All"
             else self.active_code_filter
         )
-        items = self.code_service.list_items(category=cat)
+        query = self.search_entry.get().strip() or None
+        items = self.code_service.list_items(category=cat, search_query=query)
         # Exclude DSA items from Code Lab
         if self.active_code_filter == "All":
             items = [i for i in items if i.category != "DSA Problem Tracker"]
@@ -131,9 +155,14 @@ class CodeView:
         if not items:
             empty_box = tk.Frame(parent, bg="#161922", pady=48)
             empty_box.pack(fill="both", expand=True)
+            msg = (
+                "No code items match your search or filter."
+                if query
+                else "No code items found in this category."
+            )
             tk.Label(
                 empty_box,
-                text="No code items found in this category.",
+                text=msg,
                 bg="#161922",
                 fg="#64748b",
                 font=(self.theme.font_family, 12),

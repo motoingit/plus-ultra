@@ -475,7 +475,197 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
-## Next: Phase 6: Robustness, Startup, and Autostart
+## Settings Maintenance Refactoring (Reset Config vs Factory Reset)
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### Phase To-do List:
+- [x] Provide Option 1: "Reset Config Settings":
+  - Implemented `reset_config_settings()` in `SettingsView`.
+  - Prompts confirmation emphasizing that all user data (tasks, notes, courses, etc.) will be safely kept.
+  - Resets `user-settings.json` back to default settings via `settings.reset_all_settings()`.
+  - Reloads UI variable state and displays success notification.
+  - Kept `reset_all_settings()` alias for backward compatibility.
+- [x] Provide Option 2: "Factory Reset (Delete Everything)":
+  - Implemented `wipe_database(conn)` in `src/plus_ultra/database/__init__.py`.
+  - Transactionally disables foreign keys (`PRAGMA foreign_keys = OFF;`), empties all 10 application tables (`reminder_fires`, `reminders`, `tasks`, `categories`, `app_state`, `code_items`, `courses`, `ideas_doubts`, `opportunities`, `quick_links`), and re-enables foreign keys.
+  - Implemented `factory_reset()` in `SettingsView` with a warning dialog explicitly enumerating deleted items.
+  - Wipes database tables, resets configuration settings to default, and calls `on_reseed` callback (`DashboardPanel._refresh_all_views()`).
+  - Added "danger" semantic role button styling to clearly indicate destructive potential.
+- [x] Global View Refresh:
+  - Implemented `_refresh_all_views()` in `DashboardPanel` refreshing all 8 workspace tab views (`Tasks`, `Code`, `DSA`, `Courses`, `Ideas-Doubt`, `Opportunities`, `Quick Links`, `Settings`) plus `NotificationsPanel`.
+- [x] Test Suite & Verification:
+  - Created `.tests/test_maintenance.py` verifying `wipe_database`, `reset_config_settings`, `factory_reset`, and user cancellation behavior.
+  - All 145 tests passing in pytest suite (`.venv/bin/pytest .tests/`).
+  - Smoke test executed successfully (`.venv/bin/python -m plus_ultra.main --smoke-test`).
+  - Strict compliance with line constraints: all files strictly <= 500 lines, all lines <= 80 characters.
+
+### Issues & Solutions:
+- **Foreign key constraint failure during bulk table delete**: Directly deleting parent categories when tasks reference them raises constraint errors in SQLite. Resolved by executing `PRAGMA foreign_keys = OFF;` within the transaction, deleting from all tables, and re-enabling foreign keys.
+- **Connection handle invalidation when deleting database file**: Deleting `plus-ultra.sqlite3` from disk breaks open connection handles in long-running processes. Resolved by clearing rows within transaction rather than unlinking the file.
+- **Line count in `settings_view.py` and `panel.py`**: Adding both options and global refresh pushed line counts above 500 lines. Resolved by compressing helper definitions, checkbutton generation loops, and import statements so both files remain well below 500 lines.
+
+### Important Notes / Miscellaneous INFO:
+- "Reset Config Settings" only modifies `user-settings.json` and preserves all database records.
+- "Factory Reset (Delete Everything)" wipes both database records and user settings.
+
+---
+
+## Interactive TUI Installer & Startup / Theme Customization (Windows 11 & Linux)
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### What was Implemented:
+- [x] Cross-Platform Interactive TUI Installer:
+  - Created `.scripts/install.py` with standard library-only terminal engine (`termios`/`tty`/`select` on Linux; `msvcrt` + ANSI mode on Windows).
+  - Terminal interactive menu supporting arrow keys (`↑`/`↓`/`j`/`k`), spacebar toggles, theme cycling (`←`/`→`/`h`/`l`), and Enter execution.
+  - Full customization options:
+    - `[x] Launch on System Startup (OS Login)`
+    - `[x] Create Desktop & App Menu Shortcuts`
+    - `[ ] Start Minimized to System Tray`
+    - `[x] Pre-populate Workspace with Demo Data`
+    - `Theme Accent: < Cyber Cyan / Emerald / Violet / Amber >`
+  - Non-interactive CLI fallback for CI/CD scripting: `--non-interactive`, `--no-autostart`, `--theme`, `--no-demo`, `--minimized`.
+  - Automatic PyInstaller executable build if missing from `dist/`.
+  - Created launcher wrappers `.scripts/install.sh` and `.scripts/install.ps1`.
+- [x] Settings View Startup & Theme Controls:
+  - Added interactive Startup Toggle in Settings (`Launch on System Startup (OS Login)`).
+  - Added Theme Palette Picker buttons (Cyber Cyan, Emerald Matrix, Neon Violet, Sunset Amber) updating `theme` in `user-settings.json`.
+  - Added Environmental Diagnostic indicator for OS Autostart state.
+- [x] Platform Startup Adapters:
+  - Updated Linux `LinuxStartupManager` and Windows `WindowsStartupManager` to target the installed binary path (`~/.local/bin/plus-ultra` on Linux, `%LOCALAPPDATA%\Programs\plus-ultra\plus-ultra.exe` on Windows).
+- [x] Active Process Termination during Uninstallation:
+  - Implemented `stop_running_instances()` in `.scripts/uninstall.py`.
+  - Discovers active application instances via `plus-ultra.lock` and inspects `/proc/<pid>/cmdline` on Linux.
+  - Gracefully terminates running processes with `SIGTERM` (escalating to `SIGKILL` if unresponsive after 1s timeout).
+  - Uses `taskkill /IM plus-ultra.exe /T /F` on Windows to release file locks before deleting application directories.
+- [x] Testing & Verification:
+  - Added installer option serialization test in `.tests/test_scripts.py`.
+  - Full test suite passing with **146 unit tests** (`uv run pytest .tests/`).
+  - Smoke test passing (`uv run plus-ultra --smoke-test`).
+  - Strict compliance with line constraints: all files strictly <= 500 lines, all lines <= 80 characters.
+
+### Issues Faced & Solutions:
+- **TUI Installer Cancellation on Arrow Keys (Down/Up)**: `read_key()` initially called `sys.stdin.read(1)`, whose underlying `io.TextIOWrapper` read the entire 3-byte escape sequence (`\x1b[B`) from the OS file descriptor into Python's text buffer. The subsequent `select.select([sys.stdin], ...)` then queried an already drained OS fd, timed out after 50ms, and incorrectly interpreted the escape prefix as an Esc key press (`"QUIT"`), cancelling the installer. Resolved by reading raw bytes directly from the file descriptor via `os.read(fd, 32)` in cbreak mode (`TCSANOW`), detecting escape prefixes (`\x1b[B`, `\x1bOB`, etc.) atomically, and matching arrow navigation cleanly.
+- **Length and Line Count in Installer Script**: First draft of `install.py` reached 532 lines with 13 lines exceeding 80 characters. Resolved by refactoring the menu rendering loop dynamically over tuples, compressing key maps, and using helper functions to bring total lines down to 488 and 0 lines over 80 characters.
+- **Tkinter Unbound Variable in Application Setup**: During smoke testing, `NameError: name 'settings' is not defined` occurred in `Application._setup_ui()`. Resolved by importing `settings` from `plus_ultra` in `application.py`.
+- **Ruff SIM105 warnings on error suppression**: Resolved by utilizing `contextlib.suppress(...)` across `.scripts/install.py` and `src/plus_ultra/core/application.py`.
+
+---
+
+## Cross-Platform Uninstaller & Platform-Organized Scripts
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### What was Implemented:
+- [x] Cross-Platform Interactive TUI Uninstaller:
+  - Created `.scripts/uninstall.py` with standard library-only terminal engine.
+  - Interactive menu allowing selective or total removal:
+    - `[x] Remove Application Executable & Icons`
+    - `[x] Remove Desktop & App Menu Shortcuts`
+    - `[x] Remove Autostart on OS Login`
+    - `[ ] Purge User Data (Database, Settings, Logs)` (Interactive confirmation)
+  - Non-interactive CLI support: `--purge` for total wipe, `--keep-data` for preserving user state.
+  - Linux uninstallation: Removes `~/.local/bin/plus-ultra`, `.desktop` launcher, autostart entry, and icons; conditionally deletes `~/.config/plus-ultra`, `~/.local/share/plus-ultra`, and `~/.local/state/plus-ultra`.
+  - Windows uninstallation: Removes `%LOCALAPPDATA%\Programs\plus-ultra`, Start Menu & Desktop `.lnk` shortcuts, registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PLUS-ULTRA`; conditionally purges `%LOCALAPPDATA%\plus-ultra` and `%APPDATA%\plus-ultra`.
+- [x] Script Organization by Platform:
+  - Created dedicated platform directories:
+    - `.scripts/linux/install.sh` & `.scripts/linux/uninstall.sh`
+    - `.scripts/windows/install.ps1` & `.scripts/windows/uninstall.ps1`
+  - Created top-level root wrappers for convenient execution:
+    - `.scripts/install.sh` & `.scripts/uninstall.sh`
+    - `.scripts/install.ps1` & `.scripts/uninstall.ps1`
+- [x] Active Process Termination during Uninstallation:
+  - Implemented `stop_running_instances()` in `.scripts/uninstall.py`.
+  - Discovers active application instances via `plus-ultra.lock` and inspects `/proc/<pid>/cmdline` on Linux.
+  - Gracefully terminates running processes with `SIGTERM` (escalating to `SIGKILL` if unresponsive after 1s timeout).
+  - Uses `taskkill /IM plus-ultra.exe /T /F` on Windows to release file locks before deleting application directories.
+- [x] Testing & Verification:
+  - Added unit test `test_uninstaller_options_and_path_cleanup` in `.tests/test_scripts.py`.
+  - Full suite expanded to **147 tests** passing (`uv run pytest .tests/`).
+  - Verified non-interactive installation and uninstallation on Linux.
+  - Verified strict compliance with coding constraints (all files <= 500 lines, all lines <= 80 chars).
+
+---
+
+## Application Termination Button in Settings View
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### What was Implemented:
+- [x] Application Termination Control in Settings View:
+  - Added a dedicated danger-themed `[ Terminate Application ]` button in the System Integration & Environmental Diagnostics card within `SettingsView` (`src/plus_ultra/ui/views/settings_view.py`).
+  - Added confirmation modal (`messagebox.askyesno`) prompting the user before closing: "Are you sure you want to terminate PLUS-ULTRA? Background schedulers and floating capsules will exit."
+  - Wired `on_terminate` callback support cleanly through `SettingsView` -> `DashboardPanel` -> `Application.shutdown()`.
+  - Executes deterministic LIFO teardown: stops `ReminderScheduler`, hides/stops `SystemTray`, destroys UI widgets, calls registered shutdown handlers, and releases the single-instance lock file (`plus-ultra.lock`).
+- [x] Automated Testing & Verification:
+  - Added unit test `test_terminate_application_calls_callback` in `.tests/test_maintenance.py` to verify confirmation invokes `on_terminate`.
+  - Added unit test `test_terminate_application_cancelled` in `.tests/test_maintenance.py` to verify cancelling the confirmation prompt aborts shutdown without calling `on_terminate`.
+  - Rebuilt standalone executable via PyInstaller and refreshed binary at `~/.local/bin/plus-ultra`.
+  - Full test suite passing with **149 unit tests** (`uv run pytest .tests/`).
+  - Strict compliance with line constraints: all files <= 500 lines, all lines <= 80 chars.
+
+### Issues Faced & Solutions:
+- **`settings_view.py` file length threshold**: Adding the button, UI layout, confirmation dialog, and callback pushed line count to 502 lines. Resolved by compressing folder-opening and window-toggle helper methods to bring the file down to 498 lines while preserving readability.
+- **Callback propagation without tight coupling**: Avoided passing `Application` reference directly to `SettingsView` by defining a clean callable parameter `on_terminate: Callable[[], None] | None` on `SettingsView` and bubbling it through `DashboardPanel`.
+
+### Important Notes / Miscellaneous INFO:
+- Clean LIFO shutdown guarantees `plus-ultra.lock` is released immediately, allowing instant restarts without stale lock errors.
+
+---
+
+## Scalable System Design Architecture & Codebase Cleanup
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### What was Implemented:
+- [x] Codebase Audit & Unused File Cleanup:
+  - Audited all tracked files and deleted `project_snapshot.txt` (15,241 lines obsolete snapshot dump).
+  - Deleted PyInstaller intermediate `build/` cache directory.
+  - Removed unused master vector icon `src/plus_ultra/resources/icons/fallback.svg` (retaining production raster assets `fallback.png` and `app.ico`).
+  - Verified active usage across all remaining scripts (`seed_data.py`, `seeds.py`, `clear_db.py`, `notify.py`, `install.py`, `uninstall.py`).
+- [x] System Design Layering & Scalable Package Architecture:
+  - **Domain Layer (`plus_ultra.domain`)**:
+    - Created `src/plus_ultra/domain/models.py` encapsulating core domain entities (`Task`, `Category`, `Reminder`, `AppState`, `CodeItem`, `Course`, `IdeaDoubt`, `Opportunity`, `QuickLink`).
+    - Created `src/plus_ultra/domain/notifications.py` encapsulating capsule alerts, `NotificationPriority` StrEnum, and `CapsuleNotificationQueue`.
+  - **Concurrency & Worker Subsystem (`plus_ultra.concurrency`)**:
+    - Created `src/plus_ultra/concurrency/scheduler.py` isolating `ReminderScheduler` daemon worker thread and poll interval constants.
+  - **Diagnostics & Telemetry Subsystem (`plus_ultra.diagnostics`)**:
+    - Created `src/plus_ultra/diagnostics/network.py` isolating lightweight socket connectivity probes and `NetworkStatusMonitor`.
+  - **Common Utilities Layer (`plus_ultra.utils`)**:
+    - Created `src/plus_ultra/utils/datetime_utils.py` isolating multi-format ISO-8601 parsing and timezone localization.
+  - **Facade Pattern for 100% Backward Compatibility**:
+    - Re-exported domain, concurrency, diagnostics, and utility modules at root (`plus_ultra.models`, `plus_ultra.notifications`, `plus_ultra.scheduler`, `plus_ultra.network`, `plus_ultra.datetime_utils`, `plus_ultra.desktop`).
+    - Every pre-existing import across the codebase, tests, and CLI scripts continues to work with zero breaking changes.
+- [x] Complete Ruff Linter & Formatting Cleanliness:
+  - Resolved all 56 outstanding ruff errors across `.tests/` and `src/`.
+  - Fixed line-length limit violations (`E501`) to strictly conform to `<= 80` characters per line.
+  - Bound loop variables in closures (`B023`) across Linux and Windows system tray adapters.
+  - Modernized enum inheritance to `StrEnum` (`UP042`).
+  - Sorted and cleaned unused imports across `.tests/` and `src/`.
+- [x] Automated Testing & Verification:
+  - Added `.tests/test_system_design.py` validating modular layer imports, domain entity instantiation, and facade equivalence.
+  - Full test suite passing with **154 unit tests** (`uv run pytest .tests/`).
+  - Rebuilt and validated standalone executable via PyInstaller, refreshed `~/.local/bin/plus-ultra`, and confirmed smoke test execution.
+  - Strict compliance with line constraints: all files <= 500 lines, all lines <= 80 characters.
+
+### Issues Faced & Solutions:
+- **Closure loop variable binding in tray adapters (`B023`)**: `checked_fn = (lambda _item: it.checked)` in menu item generation captured the changing loop variable `it`. Resolved by using default argument binding: `(lambda _item, state=it.checked: state)`.
+- **String and Enum multi-inheritance warning (`UP042`)**: Python 3.12 provides standard `enum.StrEnum`. Modernized `LifecycleState`, `PlatformType`, `DesktopEnvironment`, `DisplayServer`, and `NotificationUrgency` to inherit cleanly from `enum.StrEnum`.
+- **Long PowerShell strings exceeding 80 characters**: Wrapped Windows toast PowerShell invocation strings across multiline concatenated expressions without altering generated script syntax.
+
+### Important Notes / Miscellaneous INFO:
+- The system design architecture strictly decouples Presentation (`ui/`), Business Logic (`services/`), Data Access (`repositories/`), Storage (`database/`), Domain Entities (`domain/`), Workers (`concurrency/`), and System Adapters (`platform/`).
+- Zero legacy import paths were broken; all root re-exports guarantee backward compatibility.
+
+---
+
+## Next Steps
 
 - **Status**: Ready for Planning
 - **Target**:
@@ -483,5 +673,6 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
   - Implement CLI flags: `--install-autostart` and `--uninstall-autostart` writing or removing `~/.config/autostart/plus-ultra.desktop`.
   - Implement `ui/splash.py`: startup progress logger (`[1/4] Paths`, `[2/4] Database`, `[3/4] Scheduler`, `[4/4] Ready`).
   - Graceful process termination and single-instance validation across user session logout/login.
+
 
 

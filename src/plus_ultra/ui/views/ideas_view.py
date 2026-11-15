@@ -71,12 +71,35 @@ class IdeasView:
         )
         self.add_btn.pack(side="right")
 
-        # Two dedicated sub-tabs: [ Project Ideas ] and [ Concept Doubts ]
+        # Two dedicated sub-tabs & Search bar
         tab_bar = tk.Frame(self.container, bg="#161922", padx=28)
         tab_bar.pack(fill="x", pady=(0, 16))
 
+        search_box = tk.Frame(tab_bar, bg="#161922")
+        search_box.pack(side="left", fill="x", expand=True, padx=(0, 16))
+        tk.Label(
+            search_box,
+            text="Search:",
+            bg="#161922",
+            fg="#94a3b8",
+            font=(self.theme.font_family, 10, "bold"),
+        ).pack(side="left", padx=(0, 6))
+        self.search_entry = tk.Entry(
+            search_box,
+            bg="#12151c",
+            fg="#f8fafc",
+            relief="flat",
+            insertbackground="#00e5ff",
+            font=(self.theme.font_family, 11),
+        )
+        self.search_entry.pack(side="left", fill="x", expand=True, ipady=5)
+        self.search_entry.bind("<KeyRelease>", lambda _e: self.refresh())
+
+        subtab_box = tk.Frame(tab_bar, bg="#161922")
+        subtab_box.pack(side="right")
+
         self.btn_ideas_tab = tk.Button(
-            tab_bar,
+            subtab_box,
             text="Project Ideas",
             bg="#1e2433",
             fg="#00e5ff",
@@ -92,7 +115,7 @@ class IdeasView:
         self.btn_ideas_tab.pack(side="left", padx=(0, 8))
 
         self.btn_doubts_tab = tk.Button(
-            tab_bar,
+            subtab_box,
             text="Concept Doubts",
             bg="#12151c",
             fg="#94a3b8",
@@ -137,14 +160,20 @@ class IdeasView:
         if not self.idea_doubt_service:
             return
 
-        items = self.idea_doubt_service.list_items(kind=self.active_subtab)
+        query = self.search_entry.get().strip() or None
+        items = self.idea_doubt_service.list_items(
+            kind=self.active_subtab, search_query=query
+        )
 
         if not items:
-            empty_msg = (
-                "No project ideas recorded yet."
-                if self.active_subtab == "Idea"
-                else "No concept doubts recorded yet."
-            )
+            if query:
+                empty_msg = (
+                    f"No {self.active_subtab.lower()}s match your search."
+                )
+            elif self.active_subtab == "Idea":
+                empty_msg = "No project ideas recorded yet."
+            else:
+                empty_msg = "No concept doubts recorded yet."
             empty_frame = tk.Frame(parent, bg="#161922", pady=48)
             empty_frame.pack(fill="x")
             tk.Label(

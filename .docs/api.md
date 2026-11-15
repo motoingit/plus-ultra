@@ -363,7 +363,15 @@ Decoupled workspace tab views with 2x card sizing and clean badges:
 - `IdeasView` (`PS/I`): Dual-subtab view featuring dedicated `[ Project Ideas ]` and `[ Concept Doubts ]` tables, each with contextual creation actions (`+ Add Idea` / `+ Add Doubt`).
 - `CoursesView` (`Courses`): Platform filter buttons (`All`, `University`, `YouTube`, `Other`).
 - `OpportunitiesView`, `QuickLinksView`.
-- `SettingsView`: Preferences & diagnostics with Always-on-top toggle, Network status indicator toggle, and demo data reseed.
+- `SettingsView`: Preferences & diagnostics with Always-on-top toggle, Network status indicator toggle, demo data reseed, and two distinct maintenance actions:
+  - `reset_config_settings()`: Restores `user-settings.json` to factory defaults while preserving all SQLite data items intact.
+  - `factory_reset()`: Transactionally wipes all 10 SQLite database tables via `wipe_database()`, resets user settings to defaults, and refreshes all workspace views to a clean empty state.
+  - `terminate_application()`: Prompts user confirmation and deterministically shuts down background scheduler, tray, UI windows, and releases single-instance lock.
+  - `reset_all_settings()`: Backward-compatible alias for `reset_config_settings()`.
+
+### `plus_ultra.database` Maintenance API
+- `wipe_database(conn: sqlite3.Connection) -> None`: Transactionally empties all 10 application tables (`reminder_fires`, `reminders`, `tasks`, `categories`, `app_state`, `code_items`, `courses`, `ideas_doubts`, `opportunities`, `quick_links`) while preserving database connection handles and schema definitions.
+- `seed_demo_workspace_data(conn: sqlite3.Connection) -> None`: Populates demo data across all domain categories and workspace views.
 
 ### `plus_ultra.ui.geometry`
 Mathematical capsule coordinate calculations:
@@ -371,7 +379,57 @@ Mathematical capsule coordinate calculations:
 - `generate_perimeter_path(width, height, radius, total_points=56) -> list[tuple[float, float]]`
 
 ### `.scripts` Standalone Utilities
+- `install.py`: Cross-platform interactive TUI installer and automated CLI script for Linux and Windows 11. Provides arrow-key menu navigation, spacebar toggles, theme cycling, autostart configuration, desktop shortcut creation, and optional demo data seeding.
+- `install.sh` / `linux/install.sh`: Linux Bash launcher delegating to `install.py`.
+- `install.ps1` / `windows/install.ps1`: Windows PowerShell launcher delegating to `install.py`.
+- `uninstall.py`: Cross-platform interactive TUI uninstaller removing binaries, desktop shortcuts, autostart entries, and icons with optional total user data purge.
+- `uninstall.sh` / `linux/uninstall.sh`: Linux Bash uninstaller delegating to `uninstall.py`.
+- `uninstall.ps1` / `windows/uninstall.ps1`: Windows PowerShell uninstaller delegating to `uninstall.py`.
 - `clear_db.py`: `clear_database(conn, tables, hard_delete, clear_app_state, vacuum)` - Clears database tables cleanly with hard DELETE or soft delete (`is_deleted = 1`) and `--force` support.
 - `seed_data.py`: `seed_demo_workspace_data(conn, force)`, `unseed_demo_workspace_data(conn, hard_delete)` - Full workspace demo population and selective removal.
 - `notify.py`: `dispatch_notification(title, message, delay_seconds, urgency)` - Desktop notification dispatcher supporting instant popup or delayed countdown delivery.
+
+### `plus_ultra.ui.theme`
+- `THEME_PALETTES: dict[str, ThemePalette]`: Registered palettes (`cyan`, `emerald`, `purple`, `amber`).
+- `get_theme_by_name(name: str) -> ThemePalette`: Resolves theme palette by key, falling back to Cyber Cyan default.
+
+---
+
+## 7. Modular System Design Architecture
+
+### `plus_ultra.domain`
+Enterprise business rules, strongly typed entities, and value objects:
+- `plus_ultra.domain.models`: Strongly typed dataclasses mirroring SQLite tables: `Task`, `Category`, `Reminder`, `AppState`, `CodeItem`, `Course`, `IdeaDoubt`, `Opportunity`, `QuickLink`.
+- `plus_ultra.domain.notifications`:
+  - `CapsuleNotification`: Entity for compact HUD notification presence.
+  - `CapsuleNotificationQueue`: Pure Python FIFO/priority queue with dynamic width calculations.
+  - `NotificationPriority`: Classification enum (`LOW`, `NORMAL`, `HIGH`, `CRITICAL`).
+
+### `plus_ultra.concurrency`
+OS thread isolation and background task evaluation:
+- `plus_ultra.concurrency.scheduler`:
+  - `ReminderScheduler`: Dedicated daemon worker thread running periodic SQLite evaluation loops in WAL mode without blocking the UI event loop.
+  - `DEFAULT_POLL_INTERVAL_S: float = 2.0`
+
+### `plus_ultra.diagnostics`
+Telemetry, health probes, and socket reachability:
+- `plus_ultra.diagnostics.network`:
+  - `is_network_online(host, port, timeout) -> bool`: Lightweight socket connectivity probe to public DNS resolvers.
+  - `NetworkStatusMonitor`: Non-blocking background thread monitor utilizing Python thread-safe queues.
+
+### `plus_ultra.utils`
+Cross-cutting shared utilities:
+- `plus_ultra.utils.datetime_utils`:
+  - `parse_flexible_datetime(val) -> datetime`: Robust multi-format parsing for ISO-8601 UTC offsets, naive local timestamps, and space-separated date strings.
+
+### Architectural Facades
+Root package modules maintain 100% backward-compatible re-exports using the Facade Pattern:
+- `plus_ultra.models` -> re-exports `plus_ultra.domain.models`
+- `plus_ultra.notifications` -> re-exports `plus_ultra.domain.notifications`
+- `plus_ultra.scheduler` -> re-exports `plus_ultra.concurrency.scheduler`
+- `plus_ultra.network` -> re-exports `plus_ultra.diagnostics.network`
+- `plus_ultra.datetime_utils` -> re-exports `plus_ultra.utils.datetime_utils`
+- `plus_ultra.desktop` -> platform adapter facade (`SingleInstanceLock`, `send_desktop_notification`, `apply_window_shape_mask`)
+
+
 

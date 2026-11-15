@@ -71,6 +71,29 @@ class OpportunitiesView:
         filter_bar = tk.Frame(self.container, bg="#161922", padx=28)
         filter_bar.pack(fill="x", pady=(0, 16))
 
+        search_box = tk.Frame(filter_bar, bg="#161922")
+        search_box.pack(side="left", fill="x", expand=True, padx=(0, 16))
+        tk.Label(
+            search_box,
+            text="Search:",
+            bg="#161922",
+            fg="#94a3b8",
+            font=(self.theme.font_family, 10, "bold"),
+        ).pack(side="left", padx=(0, 6))
+        self.search_entry = tk.Entry(
+            search_box,
+            bg="#12151c",
+            fg="#f8fafc",
+            relief="flat",
+            insertbackground="#00e5ff",
+            font=(self.theme.font_family, 11),
+        )
+        self.search_entry.pack(side="left", fill="x", expand=True, ipady=5)
+        self.search_entry.bind("<KeyRelease>", lambda _e: self.refresh())
+
+        kind_box = tk.Frame(filter_bar, bg="#161922")
+        kind_box.pack(side="right")
+
         for kind in [
             "All",
             "Internship",
@@ -79,7 +102,7 @@ class OpportunitiesView:
             "Fellowship",
         ]:
             btn = tk.Button(
-                filter_bar,
+                kind_box,
                 text=kind,
                 bg="#1e2433" if kind == "All" else "#12151c",
                 fg="#00e5ff" if kind == "All" else "#94a3b8",
@@ -120,14 +143,22 @@ class OpportunitiesView:
         kind = (
             None if self.active_opp_filter == "All" else self.active_opp_filter
         )
-        opps = self.opportunity_service.list_opportunities(kind=kind)
+        query = self.search_entry.get().strip() or None
+        opps = self.opportunity_service.list_opportunities(
+            kind=kind, search_query=query
+        )
 
         if not opps:
             empty_frame = tk.Frame(parent, bg="#161922", pady=48)
             empty_frame.pack(fill="x")
+            msg = (
+                "No opportunities match your search or filter."
+                if query
+                else "No opportunities saved in this filter."
+            )
             tk.Label(
                 empty_frame,
-                text="No opportunities saved in this filter.",
+                text=msg,
                 bg="#161922",
                 fg="#64748b",
                 font=(self.theme.font_family, 12),

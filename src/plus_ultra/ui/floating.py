@@ -62,6 +62,7 @@ class FloatingWidget:
         self._closed = False
         self._beam_length = 56
         self._beam_timer_id: str | None = None
+        self._notif_timer_id: str | None = None
         self._net_monitor = NetworkStatusMonitor()
         self._net_poll_timer_id: str | None = None
 
@@ -72,6 +73,7 @@ class FloatingWidget:
             theme=self.theme,
             always_on_top=self.always_on_top,
             default_duration_ms=self.popup_duration_ms,
+            on_dismiss=self._on_popup_pill_dismissed,
         )
         self._setup_window()
         self._build_canvas()
@@ -152,26 +154,28 @@ class FloatingWidget:
         # 3. Content items: Alert indicator icon + PLUS-ULTRA text
         self._bell_icon = get_icon("fallback", 18)
         self.bell_id = self.canvas.create_image(
-            52,
-            h // 2,
+            self.geometry.bell_center_x,
+            self.geometry.center_y,
             image=self._bell_icon,
             state="hidden",
         )
 
         self.idle_text_id = self.canvas.create_text(
-            w // 2,
-            h // 2,
+            self.geometry.center_x,
+            self.geometry.center_y,
             text="PLUS-ULTRA",
             fill=self.theme.idle_text,
             font=(self.theme.font_family, self.theme.font_size, "bold"),
         )
 
         # 4. Small network status indicator dot on right side of capsule
+        net_x = self.geometry.net_dot_x
+        net_y = self.geometry.center_y
         self.net_dot_id = self.canvas.create_oval(
-            w - 28,
-            (h // 2) - 4,
-            w - 20,
-            (h // 2) + 4,
+            net_x - 4,
+            net_y - 4,
+            net_x + 4,
+            net_y + 4,
             fill="#10b981",
             outline="",
             state="hidden",
@@ -316,6 +320,30 @@ class FloatingWidget:
         self._update_bell_state()
         self._spawn_popup_pill(item)
 
+        if self._notif_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._notif_timer_id)
+        self._notif_timer_id = self.root.after(
+            self.popup_duration_ms, self._auto_dismiss_notification
+        )
+
+    def _auto_dismiss_notification(self) -> None:
+        """Auto-dismiss notification indicator and popup pill after 3s."""
+        self._notif_timer_id = None
+        if self._closed:
+            return
+        self._dismiss_popup_pill()
+        self.mark_all_read()
+
+    def _on_popup_pill_dismissed(self) -> None:
+        """Revert capsule indicator when popup pill is dismissed."""
+        if self._notif_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._notif_timer_id)
+            self._notif_timer_id = None
+        if not self._closed:
+            self.mark_all_read()
+
     def _update_capsule_geometry(self) -> None:
         """Dynamically adjust capsule width based on unread notifications."""
         if self._closed:
@@ -347,12 +375,14 @@ class FloatingWidget:
                 self.root.winfo_id(), self.width, self.height, self.radius
             )
             if hasattr(self, "net_dot_id"):
+                net_x = self.width - int(self.radius * 1.8)
+                net_y = self.height // 2
                 self.canvas.coords(
                     self.net_dot_id,
-                    self.width - 28,
-                    (self.height // 2) - 4,
-                    self.width - 20,
-                    (self.height // 2) + 4,
+                    net_x - 4,
+                    net_y - 4,
+                    net_x + 4,
+                    net_y + 4,
                 )
 
     def _update_bell_state(self) -> None:
@@ -410,12 +440,14 @@ class FloatingWidget:
             is_on = res if res is not None else self._net_monitor.last_status
             color = "#10b981" if is_on else "#ef4444"
             self.canvas.itemconfig(self.net_dot_id, fill=color, state="normal")
+            net_x = self.width - int(self.radius * 1.8)
+            net_y = self.height // 2
             self.canvas.coords(
                 self.net_dot_id,
-                self.width - 28,
-                (self.height // 2) - 4,
-                self.width - 20,
-                (self.height // 2) + 4,
+                net_x - 4,
+                net_y - 4,
+                net_x + 4,
+                net_y + 4,
             )
 
         self._net_poll_timer_id = self.root.after(
@@ -427,6 +459,11 @@ class FloatingWidget:
         logger.info("Closing floating widget window.")
         self._closed = True
         self._dismiss_popup_pill()
+
+        if self._notif_timer_id is not None:
+            with contextlib.suppress(Exception):
+                self.root.after_cancel(self._notif_timer_id)
+            self._notif_timer_id = None
 
         if self._beam_timer_id is not None:
             with contextlib.suppress(Exception):

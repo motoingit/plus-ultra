@@ -25,7 +25,8 @@ htmlcov/
 *.sqlite
 *.sqlite3
 backups/
-data/
+/data/
+!src/plus_ultra/resources/data/
 logs/
 
 # Build and packaging output

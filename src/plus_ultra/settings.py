@@ -1,13 +1,14 @@
-"""Settings management for PLUS-ULTRA.
+"""Settings management and schema migration engine for PLUS-ULTRA.
 
 Applies OS concepts:
-- Defense in depth and filesystem security: User settings stored in private
-  XDG config directory with mode 0o600 (owner read/write only).
-- Crash consistency and atomic file updates: Writing via temporary file in
-  the same filesystem directory followed by atomic replace (POSIX rename).
-- Fault tolerance and defensive recovery: Corrupted settings files are
-  quarantined with a timestamped suffix (.bad-<timestamp>) rather than
-  crashing or silently deleting user data.
+- Defense in depth and filesystem security: User settings stored with
+  mode 0o600.
+- Crash consistency and atomic file updates: Temporary file creation followed
+  by atomic replace (os.replace).
+- Backward-compatible schema evolution: Versioned schema migrations preserve
+  existing user preferences across application upgrades.
+- Fault tolerance: Corrupted settings files are quarantined (.bad-<timestamp>)
+  rather than crashing or silently destroying user data.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 _lock = threading.Lock()
 _cached_effective: dict[str, Any] | None = None
+CURRENT_SETTINGS_VERSION = 2
 
 
 def load_default_settings() -> dict[str, Any]:
@@ -41,6 +43,44 @@ def load_default_settings() -> dict[str, Any]:
     with ref.open("r", encoding="utf-8") as f:
         data: dict[str, Any] = json.load(f)
         return data
+
+
+def migrate_settings(
+    data: dict[str, Any], target_version: int = CURRENT_SETTINGS_VERSION
+) -> dict[str, Any]:
+    """Migrate settings dictionary across schema versions.
+
+    Args:
+        data: Raw settings loaded from user storage.
+        target_version: Desired schema version (CURRENT_SETTINGS_VERSION).
+
+    Returns:
+        Migrated dictionary matching target schema version.
+    """
+    version = data.get("settings_version", 1)
+    defaults = load_default_settings()
+    migrated = dict(data)
+
+    if version < 2:
+        logger.info(
+            "Migrating user settings from version %s to version 2", version
+        )
+        # Migration from v1 to v2: add new system integration keys if missing
+        v2_new_keys = {
+            "start_with_system": False,
+            "start_minimized": False,
+            "close_to_tray": True,
+            "desktop_notifications_enabled": True,
+            "tray_enabled": True,
+            "capsule_visible": True,
+            "dnd_mode": False,
+        }
+        for k, v in v2_new_keys.items():
+            if k not in migrated:
+                migrated[k] = defaults.get(k, v)
+        migrated["settings_version"] = 2
+
+    return migrated
 
 
 def _quarantine_corrupt_file(path: Path) -> Path | None:
@@ -71,6 +111,9 @@ def _load_user_overrides() -> dict[str, Any]:
         data = json.loads(content)
         if not isinstance(data, dict):
             raise ValueError("Settings content is not a JSON object")
+
+        # Migrate user settings if needed
+        data = migrate_settings(data)
         return data
     except Exception as exc:
         logger.error("Failed to read user settings from %s: %s", path, exc)
@@ -106,7 +149,7 @@ def _merge_settings(
 def _save_user_overrides(overrides: dict[str, Any]) -> None:
     """Write user overrides atomically with mode 0o600."""
     path = config.get_user_settings_path()
-    config.get_config_dir()  # Ensures parent exists with 0o700
+    config.get_config_dir()
     parent = path.parent
     temp_path = parent / f".{path.name}.tmp.{os.getpid()}"
 
@@ -152,6 +195,12 @@ def load_effective_settings() -> dict[str, Any]:
         return dict(_cached_effective)
 
 
+def get_setting(key: str, default: Any = None) -> Any:
+    """Return value of specific effective setting with optional default."""
+    eff = load_effective_settings()
+    return eff.get(key, default)
+
+
 def update_user_setting(key: str, value: Any) -> dict[str, Any]:
     """Update a setting, persist atomically to disk, and return effective."""
     global _cached_effective
@@ -169,9 +218,13 @@ def update_user_setting(key: str, value: Any) -> dict[str, Any]:
     with _lock:
         overrides = _load_user_overrides()
         overrides[key] = value
+        overrides["settings_version"] = CURRENT_SETTINGS_VERSION
         _save_user_overrides(overrides)
         _cached_effective = _merge_settings(defaults, overrides)
         return dict(_cached_effective)
+
+
+save_user_setting = update_user_setting
 
 
 def reset_setting(key: str) -> None:

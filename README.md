@@ -47,7 +47,7 @@ The core application currently relies entirely on the **Python Standard Library*
 - `tkinter`: Native desktop GUI rendering and event dispatch.
 
 ## Development Dependencies
-- **`pytest >= 9.1.1`**: Automated test framework (104 tests across 13 test suites).
+- **`pytest >= 9.1.1`**: Automated test framework (145 tests across 18 test suites).
 - **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import sorting, and strict 80-character line lengths.
 
 
@@ -60,6 +60,18 @@ The core application currently relies entirely on the **Python Standard Library*
 ## Quick Start
 
 ```bash
+# Interactive TUI Installer (Linux & Windows 11)
+uv run python .scripts/install.py
+# Or use the platform-specific scripts:
+./.scripts/install.sh            # Linux (or ./.scripts/linux/install.sh)
+powershell .scripts/install.ps1  # Windows 11 (or .\.scripts\windows\install.ps1)
+
+# Interactive TUI Uninstaller (Remove app & optional data purge)
+uv run python .scripts/uninstall.py
+# Or use the platform-specific uninstaller:
+./.scripts/uninstall.sh            # Linux (or ./.scripts/linux/uninstall.sh)
+powershell .scripts/uninstall.ps1  # Windows 11 (or .\.scripts\windows\uninstall.ps1)
+
 # Sync environment dependencies
 uv sync
 

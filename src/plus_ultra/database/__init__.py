@@ -34,6 +34,28 @@ def seed_demo_workspace_data(conn: sqlite3.Connection) -> None:
             mod.seed_demo_workspace_data(conn)
 
 
+def wipe_database(conn: sqlite3.Connection) -> None:
+    """Wipe all user data from all application tables transactionally."""
+    tables = [
+        "reminder_fires",
+        "reminders",
+        "tasks",
+        "categories",
+        "app_state",
+        "code_items",
+        "courses",
+        "ideas_doubts",
+        "opportunities",
+        "quick_links",
+    ]
+    with conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = OFF;")
+        for t in tables:
+            cursor.execute(f"DELETE FROM {t};")
+        cursor.execute("PRAGMA foreign_keys = ON;")
+
+
 __all__ = [
     "CURRENT_SCHEMA_VERSION",
     "MIGRATION_V1_SQL",
@@ -44,4 +66,5 @@ __all__ = [
     "seed_demo_workspace_data",
     "set_schema_version",
     "transaction",
+    "wipe_database",
 ]

@@ -55,18 +55,10 @@ from plus_ultra.ui.views import (
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "CategoryDialog",
-    "CodeDialog",
-    "CourseDialog",
-    "DSAView",
-    "DashboardPanel",
-    "IdeaDialog",
-    "OpportunityDialog",
-    "QuickLinkDialog",
-    "ScrollableFrame",
-    "Sidebar",
-    "TaskDialog",
-    "TreeCompatibilityFacade",
+    "CategoryDialog", "CodeDialog", "CourseDialog", "DSAView",
+    "DashboardPanel", "IdeaDialog", "OpportunityDialog",
+    "QuickLinkDialog", "ScrollableFrame", "Sidebar",
+    "TaskDialog", "TreeCompatibilityFacade",
 ]
 
 
@@ -100,6 +92,7 @@ class DashboardPanel(tk.Toplevel):
         on_notifications_cleared: Callable[[], None] | None = None,
         on_open: Callable[[], None] | None = None,
         on_close: Callable[[], None] | None = None,
+        on_terminate: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(parent)
         self.task_service = task_service
@@ -115,6 +108,7 @@ class DashboardPanel(tk.Toplevel):
         self.on_notifications_cleared = on_notifications_cleared
         self.on_open = on_open
         self.on_close = on_close
+        self.on_terminate = on_terminate
 
         self.active_tab: str = "Tasks"
         self.tab_containers: dict[str, tk.Widget] = {}
@@ -209,42 +203,39 @@ class DashboardPanel(tk.Toplevel):
         )
         self.tab_containers["Tasks"] = self.tasks_container
 
-        # 2. Code
+        # 2. Code & DSA
         self.code_container = tk.Frame(self.center_col, bg="#161922")
         self.code_view = CodeView(
             self.code_container, self, self.code_service, self.theme
         )
         self.tab_containers["Code"] = self.code_container
 
-        # 3. DSA Problem Tracker
         self.dsa_container = tk.Frame(self.center_col, bg="#161922")
         self.dsa_view = DSAView(
             self.dsa_container, self, self.code_service, self.theme
         )
         self.tab_containers["DSA"] = self.dsa_container
 
-        # 4. Courses
+        # 4. Courses & Ideas
         self.courses_container = tk.Frame(self.center_col, bg="#161922")
         self.courses_view = CoursesView(
             self.courses_container, self, self.course_service, self.theme
         )
         self.tab_containers["Courses"] = self.courses_container
 
-        # 5. Ideas-Doubt
         self.ideas_container = tk.Frame(self.center_col, bg="#161922")
         self.ideas_view = IdeasView(
             self.ideas_container, self, self.idea_doubt_service, self.theme
         )
         self.tab_containers["Ideas-Doubt"] = self.ideas_container
 
-        # 6. Opportunities
+        # 6. Opportunities & Links
         self.opps_container = tk.Frame(self.center_col, bg="#161922")
         self.opps_view = OpportunitiesView(
             self.opps_container, self, self.opportunity_service, self.theme
         )
         self.tab_containers["Opportunities"] = self.opps_container
 
-        # 7. Quick Links
         self.links_container = tk.Frame(self.center_col, bg="#161922")
         self.links_view = QuickLinksView(
             self.links_container, self, self.quick_link_service, self.theme
@@ -257,7 +248,8 @@ class DashboardPanel(tk.Toplevel):
             self.settings_container,
             self,
             self.theme,
-            on_reseed=self._refresh_tasks,
+            on_reseed=self._refresh_all_views,
+            on_terminate=self.on_terminate,
         )
         self.tab_containers["Settings"] = self.settings_container
 
@@ -377,6 +369,23 @@ class DashboardPanel(tk.Toplevel):
     def _clear_all_notifications(self) -> None:
         self.notif_panel.clear_all()
 
+    def _refresh_all_views(self) -> None:
+        """Refresh all workspace tab views after reseed or factory reset."""
+        self._refresh_tasks()
+        if self.code_service:
+            self._refresh_code()
+            self._refresh_dsa()
+        if self.course_service:
+            self._refresh_courses()
+        if self.idea_doubt_service:
+            self._refresh_ideas()
+        if self.opportunity_service:
+            self._refresh_opportunities()
+        if self.quick_link_service:
+            self._refresh_quick_links()
+        self._refresh_notifications()
+        self._refresh_settings()
+
     # -------------------------------------------------------------------------
     # Navigation & Tab Switching
     # -------------------------------------------------------------------------
@@ -464,12 +473,10 @@ class DashboardPanel(tk.Toplevel):
         """Persist current panel dimensions to user settings."""
         with contextlib.suppress(Exception):
             eff = settings.load_effective_settings()
-            if (
-                eff.get("panel_width") != self.panel_width
-                or eff.get("panel_height") != self.panel_height
-            ):
-                settings.update_user_setting("panel_width", self.panel_width)
-                settings.update_user_setting("panel_height", self.panel_height)
+            dim = (self.panel_width, self.panel_height)
+            if (eff.get("panel_width"), eff.get("panel_height")) != dim:
+                settings.update_user_setting("panel_width", dim[0])
+                settings.update_user_setting("panel_height", dim[1])
 
     def hide(self) -> None:
         """Hide workspace dashboard and notify pill to reappear."""
@@ -480,10 +487,7 @@ class DashboardPanel(tk.Toplevel):
 
     def toggle(self) -> None:
         """Toggle workspace visibility."""
-        if self.state() == "normal":
-            self.hide()
-        else:
-            self.show()
+        self.hide() if self.state() == "normal" else self.show()
 
     def destroy(self) -> None:
         """Cleanly destroy window and restore pill."""
