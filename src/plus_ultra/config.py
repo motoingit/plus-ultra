@@ -2,7 +2,7 @@
 
 Applies OS concepts:
 - Platform Abstraction Layer delegation: Resolves paths according to host OS
-  (Windows %LOCALAPPDATA% / %APPDATA% vs Linux XDG Base Directory specification).
+  (Windows %LOCALAPPDATA% / %APPDATA% vs Linux XDG specification).
 - Backward compatibility: Preserves public config functions while delegating
   underlying resolution to PlatformServices.
 """

@@ -2,7 +2,8 @@
 
 Applies OS concepts:
 - Mutual Exclusion & Single Instance: PlatformServices advisory file locking.
-- Process Lifecycle: Signal handling (SIGINT, SIGTERM) and deterministic shutdown.
+- Process Lifecycle: Signal handling (SIGINT, SIGTERM) and deterministic
+  shutdown.
 - Standardized logging to persistent storage in platform state directory.
 """
 

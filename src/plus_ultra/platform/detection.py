@@ -13,7 +13,7 @@ import os
 import sys
 
 
-class PlatformType(str, enum.Enum):
+class PlatformType(enum.StrEnum):
     """Supported and recognized host operating system platforms."""
 
     WINDOWS = "windows"
@@ -22,7 +22,7 @@ class PlatformType(str, enum.Enum):
     UNKNOWN = "unknown"
 
 
-class DesktopEnvironment(str, enum.Enum):
+class DesktopEnvironment(enum.StrEnum):
     """Detected desktop environment shell."""
 
     GNOME = "gnome"
@@ -33,7 +33,7 @@ class DesktopEnvironment(str, enum.Enum):
     UNKNOWN = "unknown"
 
 
-class DisplayServer(str, enum.Enum):
+class DisplayServer(enum.StrEnum):
     """Detected windowing system / display server."""
 
     WAYLAND = "wayland"

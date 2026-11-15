@@ -42,15 +42,33 @@ plus-ultra/
 │       │   ├── data/             # Packaged metadata and default configurations
 │       │   │   ├── default-settings.json # Shipped defaults & configurable dimensions
 │       │   │   └── metadata.json # App metadata
-│       │   └── icons/            # Packaged raster/vector iconography
-│       │       ├── fallback.png  # High-resolution master icon asset
-│       │       └── fallback.svg  # Master vector artwork
-│       ├── datetime_utils.py     # Timezone-aware datetime parsing for reminders
-│       ├── desktop.py            # Single-instance lock (fcntl.flock), notifications
-│       ├── network.py            # Thread-safe connectivity probe & status monitor
-│       ├── notifications.py      # Capsule notification queue & width sizing
-│       ├── models.py             # Strongly typed data models
-│       ├── scheduler.py          # Background reminder evaluation thread
+│       │   └── icons/            # Packaged raster iconography
+│       │       ├── app.ico       # Windows multi-resolution icon asset
+│       │       └── fallback.png  # High-resolution master icon asset
+│       ├── concurrency/          # Background workers & concurrency (OS concepts)
+│       │   ├── __init__.py
+│       │   └── scheduler.py      # Background reminder evaluation daemon thread
+│       ├── core/                 # Core domain orchestrator, lifecycle, event bus
+│       │   ├── application.py    # Main DI container and lifecycle bootstrap
+│       │   ├── events.py         # Thread-safe pub/sub event bus
+│       │   ├── exceptions.py     # Domain and system exception hierarchy
+│       │   └── lifecycle.py      # State machine transitions and shutdown hooks
+│       ├── diagnostics/          # Health probes and environmental telemetry
+│       │   ├── __init__.py
+│       │   └── network.py        # Lightweight socket connectivity monitor
+│       ├── domain/               # Enterprise business rules & domain entities
+│       │   ├── __init__.py
+│       │   ├── models.py         # Strongly typed entities (Task, Category, etc.)
+│       │   └── notifications.py  # Capsule notification value objects & queue
+│       ├── utils/                # Cross-cutting utility helpers
+│       │   ├── __init__.py
+│       │   └── datetime_utils.py # ISO-8601 formatting, parsing & timezone utils
+│       ├── datetime_utils.py     # Facade re-exporting utils.datetime_utils
+│       ├── desktop.py            # Platform adapter facade (lock, notifications)
+│       ├── network.py            # Facade re-exporting diagnostics.network
+│       ├── notifications.py      # Facade re-exporting domain.notifications
+│       ├── models.py             # Facade re-exporting domain.models
+│       ├── scheduler.py          # Facade re-exporting concurrency.scheduler
 │       ├── sync.py               # [Phase 7] Differential online synchronization worker
 │       ├── database/             # SQLite connection, schema, migrations
 │       │   ├── __init__.py       # Package marker & public re-exports
@@ -114,7 +132,7 @@ plus-ultra/
 │               ├── opportunities_view.py
 │               ├── quick_links_view.py
 │               └── settings_view.py # Preferences & network monitor toggle
-├── .tests/                       # Comprehensive test suite (103 tests, 100% pass)
+├── .tests/                       # Comprehensive test suite (154 tests, 100% pass)
 │   ├── test_config.py            # XDG paths, fallback logic, mode 0o700, logging tests
 │   ├── test_datetime_utils.py    # Timezone-aware, ISO, and space-separated date parsing
 │   ├── test_refinements.py       # DateTimePicker, PS/I subtabs, popup pill, task card
@@ -127,7 +145,9 @@ plus-ultra/
 │   ├── test_repository.py        # CRUD queries, soft deletes, index verification, app state
 │   ├── test_services.py          # Pure business logic, status cycling, and search query tests
 │   ├── test_panel.py             # 3-column dashboard, Treeview table, modals, actions
-│   └── test_scheduler.py         # Reminder evaluation, fake clocks, thread lifecycle
+│   ├── test_scheduler.py         # Reminder evaluation, fake clocks, thread lifecycle
+│   ├── test_maintenance.py       # Reset config, factory reset, application termination
+│   └── test_system_design.py     # Modular system design layers & facade equivalence
 └── uv.lock                       # Locked dependency tree
 ```
 

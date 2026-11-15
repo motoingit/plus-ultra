@@ -33,7 +33,9 @@ def test_default_xdg_paths(
 
     if sys.platform == "win32":
         expected_data = fake_home / "AppData" / "Local" / config.APP_NAME
-        expected_state = fake_home / "AppData" / "Local" / config.APP_NAME / "state"
+        expected_state = (
+            fake_home / "AppData" / "Local" / config.APP_NAME / "state"
+        )
     else:
         expected_data = fake_home / ".local" / "share" / config.APP_NAME
         expected_state = fake_home / ".local" / "state" / config.APP_NAME
@@ -96,7 +98,9 @@ def test_edge_case_empty_env_vars_fallback(
 
     if sys.platform == "win32":
         expected_data = fake_home / "AppData" / "Local" / config.APP_NAME
-        expected_state = fake_home / "AppData" / "Local" / config.APP_NAME / "state"
+        expected_state = (
+            fake_home / "AppData" / "Local" / config.APP_NAME / "state"
+        )
     else:
         expected_data = fake_home / ".local" / "share" / config.APP_NAME
         expected_state = fake_home / ".local" / "state" / config.APP_NAME

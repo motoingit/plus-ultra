@@ -1,7 +1,8 @@
 """Windows single-instance lock implementation using msvcrt advisory locking.
 
 Applies OS concepts:
-- Mutual exclusion via Win32 / MSVCRT non-blocking file locking (`msvcrt.locking`).
+- Mutual exclusion via Win32 / MSVCRT non-blocking file locking
+  (`msvcrt.locking`).
 - Process ID recording in lock file for diagnostic inspection.
 """
 

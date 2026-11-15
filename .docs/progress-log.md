@@ -618,6 +618,53 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
+## Scalable System Design Architecture & Codebase Cleanup
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### What was Implemented:
+- [x] Codebase Audit & Unused File Cleanup:
+  - Audited all tracked files and deleted `project_snapshot.txt` (15,241 lines obsolete snapshot dump).
+  - Deleted PyInstaller intermediate `build/` cache directory.
+  - Removed unused master vector icon `src/plus_ultra/resources/icons/fallback.svg` (retaining production raster assets `fallback.png` and `app.ico`).
+  - Verified active usage across all remaining scripts (`seed_data.py`, `seeds.py`, `clear_db.py`, `notify.py`, `install.py`, `uninstall.py`).
+- [x] System Design Layering & Scalable Package Architecture:
+  - **Domain Layer (`plus_ultra.domain`)**:
+    - Created `src/plus_ultra/domain/models.py` encapsulating core domain entities (`Task`, `Category`, `Reminder`, `AppState`, `CodeItem`, `Course`, `IdeaDoubt`, `Opportunity`, `QuickLink`).
+    - Created `src/plus_ultra/domain/notifications.py` encapsulating capsule alerts, `NotificationPriority` StrEnum, and `CapsuleNotificationQueue`.
+  - **Concurrency & Worker Subsystem (`plus_ultra.concurrency`)**:
+    - Created `src/plus_ultra/concurrency/scheduler.py` isolating `ReminderScheduler` daemon worker thread and poll interval constants.
+  - **Diagnostics & Telemetry Subsystem (`plus_ultra.diagnostics`)**:
+    - Created `src/plus_ultra/diagnostics/network.py` isolating lightweight socket connectivity probes and `NetworkStatusMonitor`.
+  - **Common Utilities Layer (`plus_ultra.utils`)**:
+    - Created `src/plus_ultra/utils/datetime_utils.py` isolating multi-format ISO-8601 parsing and timezone localization.
+  - **Facade Pattern for 100% Backward Compatibility**:
+    - Re-exported domain, concurrency, diagnostics, and utility modules at root (`plus_ultra.models`, `plus_ultra.notifications`, `plus_ultra.scheduler`, `plus_ultra.network`, `plus_ultra.datetime_utils`, `plus_ultra.desktop`).
+    - Every pre-existing import across the codebase, tests, and CLI scripts continues to work with zero breaking changes.
+- [x] Complete Ruff Linter & Formatting Cleanliness:
+  - Resolved all 56 outstanding ruff errors across `.tests/` and `src/`.
+  - Fixed line-length limit violations (`E501`) to strictly conform to `<= 80` characters per line.
+  - Bound loop variables in closures (`B023`) across Linux and Windows system tray adapters.
+  - Modernized enum inheritance to `StrEnum` (`UP042`).
+  - Sorted and cleaned unused imports across `.tests/` and `src/`.
+- [x] Automated Testing & Verification:
+  - Added `.tests/test_system_design.py` validating modular layer imports, domain entity instantiation, and facade equivalence.
+  - Full test suite passing with **154 unit tests** (`uv run pytest .tests/`).
+  - Rebuilt and validated standalone executable via PyInstaller, refreshed `~/.local/bin/plus-ultra`, and confirmed smoke test execution.
+  - Strict compliance with line constraints: all files <= 500 lines, all lines <= 80 characters.
+
+### Issues Faced & Solutions:
+- **Closure loop variable binding in tray adapters (`B023`)**: `checked_fn = (lambda _item: it.checked)` in menu item generation captured the changing loop variable `it`. Resolved by using default argument binding: `(lambda _item, state=it.checked: state)`.
+- **String and Enum multi-inheritance warning (`UP042`)**: Python 3.12 provides standard `enum.StrEnum`. Modernized `LifecycleState`, `PlatformType`, `DesktopEnvironment`, `DisplayServer`, and `NotificationUrgency` to inherit cleanly from `enum.StrEnum`.
+- **Long PowerShell strings exceeding 80 characters**: Wrapped Windows toast PowerShell invocation strings across multiline concatenated expressions without altering generated script syntax.
+
+### Important Notes / Miscellaneous INFO:
+- The system design architecture strictly decouples Presentation (`ui/`), Business Logic (`services/`), Data Access (`repositories/`), Storage (`database/`), Domain Entities (`domain/`), Workers (`concurrency/`), and System Adapters (`platform/`).
+- Zero legacy import paths were broken; all root re-exports guarantee backward compatibility.
+
+---
+
 ## Next Steps
 
 - **Status**: Ready for Planning

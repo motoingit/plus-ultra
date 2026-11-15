@@ -46,5 +46,5 @@ class PathProvider(Protocol):
         ...
 
     def ensure_private_directory(self, path: Path) -> Path:
-        """Ensure directory exists and enforce appropriate owner-only ACL/mode."""
+        """Ensure directory exists with appropriate owner-only ACL/mode."""
         ...

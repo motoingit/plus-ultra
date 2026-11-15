@@ -10,6 +10,7 @@ from plus_ultra.database.connection import transaction
 from plus_ultra.models import Task
 from plus_ultra.repositories.base import _now_utc
 
+
 def _row_to_task(row: sqlite3.Row) -> Task:
     """Convert an SQLite row to a Task model."""
     return Task(

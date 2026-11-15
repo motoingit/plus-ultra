@@ -31,13 +31,8 @@ from plus_ultra.platform.factory import (
     create_platform_services,
 )
 from plus_ultra.platform.interfaces import (
-    DesktopNotifier,
     PathProvider,
     ProcessManager,
-    SingleInstanceLock,
-    StartupManager,
-    SystemTray,
-    WindowEffects,
 )
 from plus_ultra.platform.linux import (
     LinuxDesktopNotifier,

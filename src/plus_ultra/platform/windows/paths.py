@@ -3,7 +3,7 @@
 Applies OS concepts:
 - Windows Standard Filesystem Paths:
   - Persistent user data: Path.home() / "AppData" / "Local" / "plus-ultra"
-  - Ephemeral state and logs: Path.home() / "AppData" / "Local" / "plus-ultra" / "state"
+  - Ephemeral state: Path.home() / "AppData" / "Local" / "plus-ultra" / "state"
   - Roaming configuration: Path.home() / "AppData" / "Roaming" / "plus-ultra"
 - Respects Path.home() virtualization (enabling isolated test environments).
 - Respects explicit environment overrides (XDG_DATA_HOME, etc.).
@@ -45,7 +45,7 @@ class WindowsPathProvider:
         return Path.home() / "AppData" / "Roaming"
 
     def ensure_private_directory(self, path: Path) -> Path:
-        """Create directory if not present, suppressing permission/sandbox errors."""
+        """Create directory, suppressing permission/sandbox errors."""
         with contextlib.suppress(OSError):
             path.mkdir(parents=True, exist_ok=True)
         return path

@@ -103,7 +103,7 @@ class LinuxSystemTray:
                     return lambda _icon, _item: fn()
 
                 checked_fn = (
-                    (lambda _item: it.checked)
+                    (lambda _item, state=it.checked: state)
                     if it.checked is not None
                     else None
                 )
@@ -259,7 +259,7 @@ class LinuxSystemTray:
                 if detail == 3:
                     self._dispatch_menu_popup(root_x, root_y)
                 elif detail == 1:
-                    if self._icon and hasattr(self._icon, "__call__"):
+                    if self._icon and callable(self._icon):
                         try:
                             self._icon()
                         except Exception:

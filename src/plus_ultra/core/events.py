@@ -13,7 +13,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class TrayActionEvent(AppEvent):
 
 
 class EventBus:
-    """Thread-safe event dispatcher supporting synchronous and queued delivery."""
+    """Thread-safe event dispatcher with sync and queued delivery."""
 
     def __init__(self) -> None:
         self._subscribers: dict[type, list[Callable[[Any], None]]] = (

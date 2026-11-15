@@ -19,7 +19,6 @@ from plus_ultra.ui.theme import (
     COLOR_BORDER_FOCUS,
     COLOR_DANGER,
     COLOR_DANGER_HOVER,
-    COLOR_SURFACE,
     COLOR_SURFACE_CARD,
     COLOR_SURFACE_HOVER,
     COLOR_TEXT_MUTED,
@@ -27,14 +26,12 @@ from plus_ultra.ui.theme import (
     COLOR_TEXT_SECONDARY,
     FONT_FAMILY,
     FONT_SIZE_BASE,
-    FONT_SIZE_SM,
-    SPACING_MD,
     SPACING_SM,
 )
 
 
 class StyledButton(tk.Button):
-    """Button widget with modern flat styling, hover transitions, and semantic roles."""
+    """Button widget with flat styling, hover states, and roles."""
 
     def __init__(
         self,
@@ -49,6 +46,7 @@ class StyledButton(tk.Button):
     ) -> None:
         self.role = role
         self._normal_bg, self._hover_bg, self._fg = self._resolve_colors(role)
+        weight = "bold" if role != "ghost" else "normal"
 
         super().__init__(
             master,
@@ -63,7 +61,7 @@ class StyledButton(tk.Button):
             highlightthickness=1,
             highlightbackground=COLOR_BORDER,
             highlightcolor=COLOR_BORDER_FOCUS,
-            font=(FONT_FAMILY, font_size, "bold" if role != "ghost" else "normal"),
+            font=(FONT_FAMILY, font_size, weight),
             cursor="hand2",
             padx=padx,
             pady=pady,

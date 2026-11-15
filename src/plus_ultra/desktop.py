@@ -1,7 +1,8 @@
 """Desktop platform adapter and process management for PLUS-ULTRA.
 
 Applies OS concepts:
-- Mutual Exclusion & Single Instance: Delegates to PlatformServices instance lock.
+- Mutual Exclusion & Single Instance: Delegates to PlatformServices
+  instance lock.
 - Desktop notifications: Provides native notify-send compatibility on Linux
   and delegates across platforms.
 - Window Shaping: Delegates to WindowEffects.

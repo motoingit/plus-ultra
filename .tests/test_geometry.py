@@ -35,7 +35,7 @@ def test_capsule_geometry_derived_radius() -> None:
 
 
 def test_capsule_geometry_derived_anchors() -> None:
-    """Verify icon and network indicator anchors are derived relative to caps."""
+    """Verify icon and network anchors are derived relative to caps."""
     geom = CapsuleGeometry(width=350, height=30)
     assert geom.bell_center_x == int(geom.radius * 3.4)
     assert geom.net_dot_x == geom.width - int(geom.radius * 1.8)

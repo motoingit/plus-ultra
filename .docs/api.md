@@ -393,4 +393,43 @@ Mathematical capsule coordinate calculations:
 - `THEME_PALETTES: dict[str, ThemePalette]`: Registered palettes (`cyan`, `emerald`, `purple`, `amber`).
 - `get_theme_by_name(name: str) -> ThemePalette`: Resolves theme palette by key, falling back to Cyber Cyan default.
 
+---
+
+## 7. Modular System Design Architecture
+
+### `plus_ultra.domain`
+Enterprise business rules, strongly typed entities, and value objects:
+- `plus_ultra.domain.models`: Strongly typed dataclasses mirroring SQLite tables: `Task`, `Category`, `Reminder`, `AppState`, `CodeItem`, `Course`, `IdeaDoubt`, `Opportunity`, `QuickLink`.
+- `plus_ultra.domain.notifications`:
+  - `CapsuleNotification`: Entity for compact HUD notification presence.
+  - `CapsuleNotificationQueue`: Pure Python FIFO/priority queue with dynamic width calculations.
+  - `NotificationPriority`: Classification enum (`LOW`, `NORMAL`, `HIGH`, `CRITICAL`).
+
+### `plus_ultra.concurrency`
+OS thread isolation and background task evaluation:
+- `plus_ultra.concurrency.scheduler`:
+  - `ReminderScheduler`: Dedicated daemon worker thread running periodic SQLite evaluation loops in WAL mode without blocking the UI event loop.
+  - `DEFAULT_POLL_INTERVAL_S: float = 2.0`
+
+### `plus_ultra.diagnostics`
+Telemetry, health probes, and socket reachability:
+- `plus_ultra.diagnostics.network`:
+  - `is_network_online(host, port, timeout) -> bool`: Lightweight socket connectivity probe to public DNS resolvers.
+  - `NetworkStatusMonitor`: Non-blocking background thread monitor utilizing Python thread-safe queues.
+
+### `plus_ultra.utils`
+Cross-cutting shared utilities:
+- `plus_ultra.utils.datetime_utils`:
+  - `parse_flexible_datetime(val) -> datetime`: Robust multi-format parsing for ISO-8601 UTC offsets, naive local timestamps, and space-separated date strings.
+
+### Architectural Facades
+Root package modules maintain 100% backward-compatible re-exports using the Facade Pattern:
+- `plus_ultra.models` -> re-exports `plus_ultra.domain.models`
+- `plus_ultra.notifications` -> re-exports `plus_ultra.domain.notifications`
+- `plus_ultra.scheduler` -> re-exports `plus_ultra.concurrency.scheduler`
+- `plus_ultra.network` -> re-exports `plus_ultra.diagnostics.network`
+- `plus_ultra.datetime_utils` -> re-exports `plus_ultra.utils.datetime_utils`
+- `plus_ultra.desktop` -> platform adapter facade (`SingleInstanceLock`, `send_desktop_notification`, `apply_window_shape_mask`)
+
+
 

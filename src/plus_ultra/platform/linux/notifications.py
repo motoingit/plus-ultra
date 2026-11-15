@@ -29,7 +29,7 @@ class LinuxDesktopNotifier:
         executable = shutil.which("notify-send")
         if not executable:
             logger.warning(
-                "notify-send executable not found; desktop notification skipped."
+                "notify-send executable not found; notification skipped."
             )
             return False
 
@@ -54,8 +54,12 @@ class LinuxDesktopNotifier:
                 capture_output=True,
                 timeout=3,
             )
-            logger.info("Linux desktop notification dispatched: %s", request.title)
+            logger.info(
+                "Linux desktop notification dispatched: %s", request.title
+            )
             return True
         except (subprocess.SubprocessError, OSError) as exc:
-            logger.warning("Failed to dispatch Linux desktop notification: %s", exc)
+            logger.warning(
+                "Failed to dispatch Linux desktop notification: %s", exc
+            )
             return False

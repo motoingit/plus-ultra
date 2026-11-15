@@ -37,6 +37,7 @@ uv run pytest .tests/test_ui.py -v
 uv run pytest .tests/test_config.py -v
 uv run pytest .tests/test_settings.py -v
 uv run pytest .tests/test_maintenance.py -v
+uv run pytest .tests/test_system_design.py -v
 
 # Standalone Workspace Seeding & Unseeding
 uv run python .scripts/seed_data.py --seed      # Seed demo records if empty

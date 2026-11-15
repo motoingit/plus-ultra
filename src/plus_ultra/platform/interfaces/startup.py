@@ -20,7 +20,7 @@ class StartupManager(Protocol):
         ...
 
     def is_autostart_enabled(self) -> bool:
-        """Return True if the application is currently registered to autostart."""
+        """Return True if application is currently registered to autostart."""
         ...
 
     def enable_autostart(self) -> bool:

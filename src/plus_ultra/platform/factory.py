@@ -74,7 +74,9 @@ def create_platform_services(
         )
 
         paths = kwargs.get("paths") or WindowsPathProvider()
-        lock = kwargs.get("instance_lock") or WindowsSingleInstanceLock(paths=paths)
+        lock = kwargs.get("instance_lock") or WindowsSingleInstanceLock(
+            paths=paths
+        )
         tray = kwargs.get("tray") or WindowsSystemTray()
         notifier = kwargs.get("notifications") or WindowsDesktopNotifier(
             tray_instance=tray
@@ -95,7 +97,9 @@ def create_platform_services(
         )
 
         paths = kwargs.get("paths") or LinuxPathProvider()
-        lock = kwargs.get("instance_lock") or LinuxSingleInstanceLock(paths=paths)
+        lock = kwargs.get("instance_lock") or LinuxSingleInstanceLock(
+            paths=paths
+        )
         tray = kwargs.get("tray") or LinuxSystemTray()
         notifier = kwargs.get("notifications") or LinuxDesktopNotifier()
         startup = kwargs.get("startup") or LinuxStartupManager()

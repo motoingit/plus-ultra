@@ -1,7 +1,8 @@
 """Settings management and schema migration engine for PLUS-ULTRA.
 
 Applies OS concepts:
-- Defense in depth and filesystem security: User settings stored with mode 0o600.
+- Defense in depth and filesystem security: User settings stored with
+  mode 0o600.
 - Crash consistency and atomic file updates: Temporary file creation followed
   by atomic replace (os.replace).
 - Backward-compatible schema evolution: Versioned schema migrations preserve
@@ -47,11 +48,11 @@ def load_default_settings() -> dict[str, Any]:
 def migrate_settings(
     data: dict[str, Any], target_version: int = CURRENT_SETTINGS_VERSION
 ) -> dict[str, Any]:
-    """Migrate settings dictionary across schema versions preserving user values.
+    """Migrate settings dictionary across schema versions.
 
     Args:
         data: Raw settings loaded from user storage.
-        target_version: Desired schema version (defaults to CURRENT_SETTINGS_VERSION).
+        target_version: Desired schema version (CURRENT_SETTINGS_VERSION).
 
     Returns:
         Migrated dictionary matching target schema version.

@@ -8,8 +8,8 @@ import sys
 
 from plus_ultra.ui.icons import clear_icon_cache
 
-# Ensure Tkinter can find Tcl/Tk libraries on Windows under uv-managed Python.
-# Crucial: Use as_posix() because Tcl treats backslashes (\tcl) as escape characters!
+# Ensure Tkinter can find Tcl/Tk libraries on Windows under uv Python.
+# Crucial: Use as_posix() since Tcl treats backslashes as escapes!
 if sys.platform == "win32":
     base_prefix = pathlib.Path(sys.base_prefix).resolve()
     tcl_dir = base_prefix / "tcl"

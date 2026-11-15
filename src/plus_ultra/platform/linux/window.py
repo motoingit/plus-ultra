@@ -56,7 +56,8 @@ class LinuxWindowEffects:
                         elif x < r:
                             inside = (x - r) ** 2 + (y - r) ** 2 <= r_sq
                         else:
-                            inside = (x - (width - r)) ** 2 + (y - r) ** 2 <= r_sq
+                            dx = x - (width - r)
+                            inside = dx**2 + (y - r) ** 2 <= r_sq
 
                         if inside:
                             byte_idx = y * row_bytes + (x // 8)

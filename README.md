@@ -4,6 +4,87 @@ A user-facing floating desktop assistant for Ubuntu (GNOME on Wayland) engineere
 
 ---
 
+# Project Folder Structure
+
+```text
+plus-ultra/
+├── AGENTS.md                  # Project instructions & single source of truth
+├── pyproject.toml             # Dependencies, ruff, pytest configuration
+├── README.md                  # Project overview, tech-stack, folder structure
+├── uv.lock                    # Pinned deterministic lockfile
+├── .agents/                   # Agent rules, workflows, and skills
+├── .docs/                     # Architecture, API, commands, and progress docs
+│   ├── api.md
+│   ├── architecture.MD
+│   ├── commands.md
+│   ├── data-sources.md
+│   ├── features.md
+│   ├── makeEXE.md
+│   └── progress-log.md
+├── .scripts/                  # Operations, seeders, TUI installer/uninstaller
+│   ├── clear_db.py            # Database clearing utility
+│   ├── install.py             # Cross-platform interactive TUI installer
+│   ├── install.sh / .ps1      # Platform launcher wrappers
+│   ├── linux/                 # Linux install/uninstall shell scripts
+│   ├── notify.py              # Desktop notification test dispatcher
+│   ├── seed_data.py           # Demo dataset seeder/unseeder
+│   ├── seeds.py               # Legacy seeder wrapper
+│   ├── uninstall.py           # Cross-platform interactive TUI uninstaller
+│   ├── uninstall.sh / .ps1    # Platform uninstaller wrappers
+│   └── windows/               # Windows PowerShell install/uninstall scripts
+├── .tests/                    # Test suite (154 unit tests, 100% pass)
+└── src/
+    └── plus_ultra/
+        ├── concurrency/       # Concurrency, workers & scheduling (OS concepts)
+        │   └── scheduler.py   # Background reminder daemon thread
+        ├── core/              # Core domain orchestrator, lifecycle, event bus
+        │   ├── application.py # Dependency container & application startup
+        │   ├── events.py      # Pub/sub event broker
+        │   ├── exceptions.py  # Domain & system exception hierarchy
+        │   └── lifecycle.py   # State machine transitions & shutdown hooks
+        ├── database/          # Persistence & storage subsystem (DBMS concepts)
+        │   ├── connection.py  # SQLite connection factory (WAL mode, ACID context)
+        │   ├── migrations.py  # Schema migration runner
+        │   └── schema.py      # DDL schemas with indexes and constraints
+        ├── diagnostics/       # Diagnostics, health probes & telemetry
+        │   └── network.py     # Network socket connectivity probes
+        ├── domain/            # Enterprise business rules & domain entities
+        │   ├── models.py      # Core entities (Task, Category, Reminder, etc.)
+        │   └── notifications.py # Capsule notifications & priority enum
+        ├── platform/          # OS adapters (Adapter Pattern & Dependency Inversion)
+        │   ├── capabilities.py
+        │   ├── detection.py   # OS, display server, desktop environment detection
+        │   ├── factory.py     # Platform services provider factory
+        │   ├── interfaces/    # Abstract platform contracts
+        │   ├── linux/         # POSIX / Linux / Wayland implementations
+        │   └── windows/       # Windows NT implementations
+        ├── repositories/      # Data access layer (Repository Pattern)
+        ├── resources/         # Static assets (data JSON, icons)
+        ├── services/          # Business logic layer (Service Pattern)
+        ├── ui/                # Presentation layer (Tkinter GUI)
+        │   ├── components/    # Reusable UI widgets
+        │   ├── dialogs/       # Entity creation & editing modal dialogs
+        │   ├── floating.py    # Top-center compact floating capsule widget
+        │   ├── geometry.py    # Multi-monitor window math
+        │   ├── icons.py       # Raster asset loaders
+        │   ├── panel.py       # 3-column workspace dashboard
+        │   ├── theme.py       # Dark cyber design tokens & palettes
+        │   └── views/         # Decoupled workspace tab views
+        ├── utils/             # Cross-cutting utility helpers
+        │   └── datetime_utils.py # ISO-8601 formatting & parsing
+        ├── config.py          # Platform path resolution facade
+        ├── settings.py        # User settings JSON persistence with atomic replace
+        ├── main.py            # CLI entry point, argument parsing, bootstrap
+        ├── models.py          # Facade re-exporting domain.models
+        ├── notifications.py   # Facade re-exporting domain.notifications
+        ├── scheduler.py       # Facade re-exporting concurrency.scheduler
+        ├── network.py         # Facade re-exporting diagnostics.network
+        ├── datetime_utils.py  # Facade re-exporting utils.datetime_utils
+        └── desktop.py         # Facade re-exporting platform desktop adapter
+```
+
+---
+
 # Project Tech-Stack
 
 The technology choices are locked and adhere to Problem-Based Learning objectives:

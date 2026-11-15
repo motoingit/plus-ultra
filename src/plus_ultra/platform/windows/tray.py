@@ -101,7 +101,7 @@ class WindowsSystemTray:
                     return lambda _icon, _item: fn()
 
                 checked_fn = (
-                    (lambda _item: it.checked)
+                    (lambda _item, state=it.checked: state)
                     if it.checked is not None
                     else None
                 )

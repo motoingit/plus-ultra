@@ -13,14 +13,13 @@ import logging
 import queue
 import threading
 from collections.abc import Callable
-from typing import Any
 
 from plus_ultra.core.exceptions import LifecycleError
 
 logger = logging.getLogger(__name__)
 
 
-class LifecycleState(str, enum.Enum):
+class LifecycleState(enum.StrEnum):
     """Explicit application lifecycle states."""
 
     UNINITIALIZED = "UNINITIALIZED"
@@ -64,12 +63,15 @@ class LifecycleManager:
                 )
                 return
 
-            if self._state == LifecycleState.SHUTTING_DOWN and new_state not in (
+            is_shutting = self._state == LifecycleState.SHUTTING_DOWN
+            valid_shutdown = (
                 LifecycleState.SHUTTING_DOWN,
                 LifecycleState.STOPPED,
-            ):
+            )
+            if is_shutting and new_state not in valid_shutdown:
                 raise LifecycleError(
-                    f"Cannot transition to {new_state.value} while shutting down"
+                    f"Cannot transition to {new_state.value} "
+                    "while shutting down"
                 )
 
             logger.info(
@@ -135,7 +137,9 @@ class LifecycleManager:
                 cb()
                 count += 1
             except Exception as exc:
-                logger.error("Error in dispatched main-thread callback: %s", exc)
+                logger.error(
+                    "Error in dispatched main-thread callback: %s", exc
+                )
             finally:
                 self._dispatch_queue.task_done()
         return count

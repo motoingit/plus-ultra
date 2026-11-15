@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 class LinuxPathProvider:
-    """Resolves Linux paths adhering to XDG specification and POSIX permissions."""
+    """Resolves Linux paths adhering to XDG spec and POSIX permissions."""
 
     def __init__(self, app_name: str = "plus-ultra") -> None:
         self._app_name = app_name

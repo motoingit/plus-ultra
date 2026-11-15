@@ -48,14 +48,20 @@ class WindowsDesktopNotifier:
                     logger.debug("Tray notification failed: %s", exc)
 
         # 2. PowerShell Windows Toast Notification Fallback
+        mgr = "[Windows.UI.Notifications.ToastNotificationManager"
         ps_script = (
-            "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; "
-            "$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); "
-            f"$textNodes = $template.GetElementsByTagName('text'); "
-            f"$textNodes.Item(0).AppendChild($template.CreateTextNode('{request.title}')) > $null; "
-            f"$textNodes.Item(1).AppendChild($template.CreateTextNode('{request.message}')) > $null; "
-            "$toast = [Windows.UI.Notifications.ToastNotification]::new($template); "
-            f"[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{request.app_name}').Show($toast);"
+            f"{mgr}, Windows.UI.Notifications, "
+            "ContentType = WindowsRuntime] > $null; "
+            f"$template = {mgr}]::GetTemplateContent("
+            "[Windows.UI.Notifications.ToastTemplateType]::ToastText02); "
+            "$textNodes = $template.GetElementsByTagName('text'); "
+            f"$t0 = $template.CreateTextNode('{request.title}'); "
+            "$textNodes.Item(0).AppendChild($t0) > $null; "
+            f"$t1 = $template.CreateTextNode('{request.message}'); "
+            "$textNodes.Item(1).AppendChild($t1) > $null; "
+            "$toast = [Windows.UI.Notifications.ToastNotification]"
+            "::new($template); "
+            f"{mgr}]::CreateToastNotifier('{request.app_name}').Show($toast);"
         )
 
         try:
@@ -71,7 +77,9 @@ class WindowsDesktopNotifier:
                 capture_output=True,
                 timeout=3,
             )
-            logger.info("Windows PowerShell notification dispatched: %s", request.title)
+            logger.info(
+                "Windows PowerShell notification dispatched: %s", request.title
+            )
             return True
         except Exception as exc:
             logger.debug("PowerShell notification fallback failed: %s", exc)

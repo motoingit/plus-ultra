@@ -23,7 +23,7 @@ class WindowsProcessManager:
         if pid <= 0:
             return False
         try:
-            # os.kill(pid, 0) performs OpenProcess on Windows without terminating
+            # os.kill(pid, 0) performs OpenProcess without terminating
             os.kill(pid, 0)
             return True
         except ProcessLookupError:

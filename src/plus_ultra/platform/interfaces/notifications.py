@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
 
-class NotificationUrgency(str, enum.Enum):
+class NotificationUrgency(enum.StrEnum):
     """Urgency level for desktop notifications."""
 
     LOW = "low"

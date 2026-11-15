@@ -109,8 +109,9 @@ def test_linux_tray_right_click_menu_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify Linux tray intercepts Xorg right-click to dispatch popup."""
-    from types import SimpleNamespace
     import threading
+    from types import SimpleNamespace
+
     from plus_ultra.platform.linux.tray import LinuxSystemTray
 
     stop_event = threading.Event()
