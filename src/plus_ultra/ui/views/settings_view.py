@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import subprocess
@@ -47,16 +48,13 @@ logger = logging.getLogger(__name__)
 
 def _open_folder_in_explorer(folder_path: Path) -> None:
     """Open folder in native desktop file manager (Explorer / Nautilus)."""
-    try:
+    with contextlib.suppress(Exception):
         folder_path.mkdir(parents=True, exist_ok=True)
         if sys.platform == "win32":
             os.startfile(folder_path)  # type: ignore[attr-defined]
-        elif sys.platform == "darwin":
-            subprocess.run(["open", str(folder_path)], check=False)
         else:
-            subprocess.run(["xdg-open", str(folder_path)], check=False)
-    except Exception as exc:
-        logger.warning("Could not open folder %s: %s", folder_path, exc)
+            cmd = "open" if sys.platform == "darwin" else "xdg-open"
+            subprocess.run([cmd, str(folder_path)], check=False)
 
 
 def _card_header(parent: tk.Widget, title: str) -> Card:
@@ -93,11 +91,13 @@ class SettingsView:
         parent_window: tk.Tk | tk.Toplevel,
         theme: CapsuleTheme = THEME,
         on_reseed: Callable[[], None] | None = None,
+        on_terminate: Callable[[], None] | None = None,
     ) -> None:
         self.container = container
         self.parent_window = parent_window
         self.theme = theme
         self.on_reseed = on_reseed
+        self.on_terminate = on_terminate
         self.platform = get_platform_services()
         self._init_variables()
         self._build_ui()
@@ -128,17 +128,13 @@ class SettingsView:
         col = tk.Frame(head, bg=COLOR_SURFACE)
         col.pack(side="left")
         tk.Label(
-            col,
-            text="Preferences & Environmental Diagnostics",
-            bg=COLOR_SURFACE,
-            fg=COLOR_TEXT_PRIMARY,
+            col, text="Preferences & Environmental Diagnostics",
+            bg=COLOR_SURFACE, fg=COLOR_TEXT_PRIMARY,
             font=(FONT_FAMILY, 15, "bold"),
         ).pack(anchor="w")
         tk.Label(
-            col,
-            text="Application behavior, display geometry, alerts, and storage",
-            bg=COLOR_SURFACE,
-            fg=COLOR_TEXT_MUTED,
+            col, text="Application behavior, display geometry, and storage",
+            bg=COLOR_SURFACE, fg=COLOR_TEXT_MUTED,
             font=(FONT_FAMILY, FONT_SIZE_SM),
         ).pack(anchor="w")
 
@@ -299,13 +295,15 @@ class SettingsView:
         ]
         for line in diag_lines:
             tk.Label(
-                c,
-                text=f"•  {line}",
-                bg=COLOR_SURFACE_CARD,
-                fg=COLOR_TEXT_MUTED,
-                font=("courier", 9),
-                anchor="w",
+                c, text=f"•  {line}", bg=COLOR_SURFACE_CARD,
+                fg=COLOR_TEXT_MUTED, font=("courier", 9), anchor="w",
             ).pack(anchor="w", pady=1)
+
+        StyledButton(
+            c, text="Terminate Application",
+            command=self.terminate_application, role="danger",
+            font_size=FONT_SIZE_BASE, padx=14, pady=5,
+        ).pack(anchor="w", pady=(SPACING_MD, 0))
 
     def _build_data_card(self, parent: tk.Widget) -> None:
         card = _card_header(
@@ -377,14 +375,12 @@ class SettingsView:
         )
 
     def _toggle_topmost(self) -> None:
-        val = self.topmost_var.get()
-        settings.update_user_setting("always_on_top", val)
-        logger.info("Setting 'always_on_top' changed to %s", val)
+        settings.update_user_setting("always_on_top", self.topmost_var.get())
 
     def _toggle_net_monitor(self) -> None:
-        val = self.net_monitor_var.get()
-        settings.update_user_setting("network_monitor_enabled", val)
-        logger.info("Setting 'network_monitor_enabled' changed to %s", val)
+        settings.update_user_setting(
+            "network_monitor_enabled", self.net_monitor_var.get()
+        )
 
     def _apply_popup_duration(self) -> None:
         try:
@@ -425,29 +421,23 @@ class SettingsView:
             parent=self.parent_window,
         ):
             return
-        conn = get_connection()
         try:
-            seed_demo_workspace_data(conn)
+            seed_demo_workspace_data(get_connection())
             messagebox.showinfo(
-                "Demo Data",
-                "Successfully reseeded demo workspace data across all tabs!",
+                "Demo Data", "Reseeded demo data across all tabs!",
                 parent=self.parent_window,
             )
             if self.on_reseed:
                 self.on_reseed()
         except Exception as exc:
             messagebox.showerror(
-                "Reseed Error",
-                f"Failed to reseed workspace data: {exc}",
+                "Reseed Error", f"Failed to reseed workspace data: {exc}",
                 parent=self.parent_window,
             )
 
     def reset_config_settings(self) -> None:
         """Reset configuration preferences to defaults without data loss."""
-        msg = (
-            "Reset preferences to defaults?\n\n"
-            "Your tasks, notes, courses, and data will be kept."
-        )
+        msg = "Reset preferences to defaults?\nUser data will be kept."
         if not messagebox.askyesno(
             "Reset Config Settings", msg, parent=self.parent_window
         ):
@@ -462,23 +452,18 @@ class SettingsView:
     def factory_reset(self) -> None:
         """Permanently delete all workspace data and restore clean state."""
         msg = (
-            "WARNING: This will PERMANENTLY DELETE all your data:\n\n"
-            "• All tasks, categories, and reminders\n"
-            "• All courses, code snippets, and DSA records\n"
-            "• All ideas, doubts, opportunities, and quick links\n"
+            "WARNING: This will PERMANENTLY DELETE all your data:\n"
+            "• All tasks, categories, reminders, courses, and code\n"
             "• All user preferences and configurations\n\n"
-            "This action CANNOT be undone. Proceed with factory reset?"
+            "This action CANNOT be undone. Proceed?"
         )
         if not messagebox.askyesno(
-            "Factory Reset (Delete Everything)",
-            msg,
-            icon="warning",
-            parent=self.parent_window,
+            "Factory Reset (Delete Everything)", msg,
+            icon="warning", parent=self.parent_window,
         ):
             return
         try:
-            conn = get_connection()
-            wipe_database(conn)
+            wipe_database(get_connection())
             settings.reset_all_settings()
             self.refresh()
             if self.on_reseed:
@@ -490,10 +475,23 @@ class SettingsView:
         except Exception as exc:
             logger.error("Factory reset failed: %s", exc, exc_info=True)
             messagebox.showerror(
-                "Factory Reset Failed",
-                f"Could not complete factory reset: {exc}",
+                "Factory Reset Failed", f"Could not reset: {exc}",
                 parent=self.parent_window,
             )
+
+    def terminate_application(self) -> None:
+        """Prompt confirmation and terminate running application cleanly."""
+        if not messagebox.askyesno(
+            "Terminate Application",
+            "Are you sure you want to exit PLUS-ULTRA?",
+            parent=self.parent_window,
+        ):
+            return
+        logger.info("Application termination requested via SettingsView.")
+        if self.on_terminate:
+            self.on_terminate()
+        else:
+            self.parent_window.quit()
 
     def reset_all_settings(self) -> None:
         """Backward compatibility alias for reset_config_settings."""

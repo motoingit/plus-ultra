@@ -366,6 +366,7 @@ Decoupled workspace tab views with 2x card sizing and clean badges:
 - `SettingsView`: Preferences & diagnostics with Always-on-top toggle, Network status indicator toggle, demo data reseed, and two distinct maintenance actions:
   - `reset_config_settings()`: Restores `user-settings.json` to factory defaults while preserving all SQLite data items intact.
   - `factory_reset()`: Transactionally wipes all 10 SQLite database tables via `wipe_database()`, resets user settings to defaults, and refreshes all workspace views to a clean empty state.
+  - `terminate_application()`: Prompts user confirmation and deterministically shuts down background scheduler, tray, UI windows, and releases single-instance lock.
   - `reset_all_settings()`: Backward-compatible alias for `reset_config_settings()`.
 
 ### `plus_ultra.database` Maintenance API

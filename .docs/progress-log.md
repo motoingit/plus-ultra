@@ -591,6 +591,33 @@ Eliminate oversized "god" modules (`ui/panel.py` at 3,784 lines, `repository.py`
 
 ---
 
+## Application Termination Button in Settings View
+
+- **Status**: Completed
+- **Date**: 2026-11-15
+
+### What was Implemented:
+- [x] Application Termination Control in Settings View:
+  - Added a dedicated danger-themed `[ Terminate Application ]` button in the System Integration & Environmental Diagnostics card within `SettingsView` (`src/plus_ultra/ui/views/settings_view.py`).
+  - Added confirmation modal (`messagebox.askyesno`) prompting the user before closing: "Are you sure you want to terminate PLUS-ULTRA? Background schedulers and floating capsules will exit."
+  - Wired `on_terminate` callback support cleanly through `SettingsView` -> `DashboardPanel` -> `Application.shutdown()`.
+  - Executes deterministic LIFO teardown: stops `ReminderScheduler`, hides/stops `SystemTray`, destroys UI widgets, calls registered shutdown handlers, and releases the single-instance lock file (`plus-ultra.lock`).
+- [x] Automated Testing & Verification:
+  - Added unit test `test_terminate_application_calls_callback` in `.tests/test_maintenance.py` to verify confirmation invokes `on_terminate`.
+  - Added unit test `test_terminate_application_cancelled` in `.tests/test_maintenance.py` to verify cancelling the confirmation prompt aborts shutdown without calling `on_terminate`.
+  - Rebuilt standalone executable via PyInstaller and refreshed binary at `~/.local/bin/plus-ultra`.
+  - Full test suite passing with **149 unit tests** (`uv run pytest .tests/`).
+  - Strict compliance with line constraints: all files <= 500 lines, all lines <= 80 chars.
+
+### Issues Faced & Solutions:
+- **`settings_view.py` file length threshold**: Adding the button, UI layout, confirmation dialog, and callback pushed line count to 502 lines. Resolved by compressing folder-opening and window-toggle helper methods to bring the file down to 498 lines while preserving readability.
+- **Callback propagation without tight coupling**: Avoided passing `Application` reference directly to `SettingsView` by defining a clean callable parameter `on_terminate: Callable[[], None] | None` on `SettingsView` and bubbling it through `DashboardPanel`.
+
+### Important Notes / Miscellaneous INFO:
+- Clean LIFO shutdown guarantees `plus-ultra.lock` is released immediately, allowing instant restarts without stale lock errors.
+
+---
+
 ## Next Steps
 
 - **Status**: Ready for Planning

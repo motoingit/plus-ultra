@@ -243,6 +243,7 @@ class Application:
             on_notifications_cleared=self.widget._update_bell_state,
             on_open=self.widget.root.withdraw,
             on_close=self.widget.root.deiconify,
+            on_terminate=self.shutdown,
         )
         self.widget.on_click_callback = self.dashboard.toggle
 

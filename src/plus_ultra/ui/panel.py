@@ -92,6 +92,7 @@ class DashboardPanel(tk.Toplevel):
         on_notifications_cleared: Callable[[], None] | None = None,
         on_open: Callable[[], None] | None = None,
         on_close: Callable[[], None] | None = None,
+        on_terminate: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(parent)
         self.task_service = task_service
@@ -107,6 +108,7 @@ class DashboardPanel(tk.Toplevel):
         self.on_notifications_cleared = on_notifications_cleared
         self.on_open = on_open
         self.on_close = on_close
+        self.on_terminate = on_terminate
 
         self.active_tab: str = "Tasks"
         self.tab_containers: dict[str, tk.Widget] = {}
@@ -247,6 +249,7 @@ class DashboardPanel(tk.Toplevel):
             self,
             self.theme,
             on_reseed=self._refresh_all_views,
+            on_terminate=self.on_terminate,
         )
         self.tab_containers["Settings"] = self.settings_container
 

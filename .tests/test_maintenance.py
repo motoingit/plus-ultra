@@ -182,3 +182,38 @@ def test_factory_reset_cancelled_by_user(
         with contextlib.suppress(Exception):
             root.destroy()
 
+
+def test_terminate_application_calls_callback() -> None:
+    """Terminate application invokes callback when confirmed by user."""
+    mock_terminate = MagicMock()
+    root = tk.Tk()
+    try:
+        frame = tk.Frame(root)
+        view = SettingsView(frame, root, on_terminate=mock_terminate)
+
+        with patch("tkinter.messagebox.askyesno", return_value=True):
+            view.terminate_application()
+
+        mock_terminate.assert_called_once()
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
+def test_terminate_application_cancelled() -> None:
+    """Terminate application does nothing when cancelled by user."""
+    mock_terminate = MagicMock()
+    root = tk.Tk()
+    try:
+        frame = tk.Frame(root)
+        view = SettingsView(frame, root, on_terminate=mock_terminate)
+
+        with patch("tkinter.messagebox.askyesno", return_value=False):
+            view.terminate_application()
+
+        mock_terminate.assert_not_called()
+    finally:
+        with contextlib.suppress(Exception):
+            root.destroy()
+
+
