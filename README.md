@@ -1,142 +1,351 @@
 # PLUS-ULTRA
 
-A user-facing floating desktop assistant for Ubuntu (GNOME on Wayland) engineered as a Problem-Based Learning (PBL) project. PLUS-ULTRA starts with the user's session, displays a compact top-center hovering presence, manages tasks and reminders across customizable categories, and serves as an interactive demonstration of core Operating System (OS) concepts (process lifecycle, mutual exclusion via advisory locks, permissions, signals) and Database Management System (DBMS) concepts (clean architecture, repository pattern, unit of work, ACID transactions, Write-Ahead Logging, non-destructive schema initialization, cascading soft deletes, and indexed queries).
+**A Cross-Platform Floating Desktop Assistant**
 
-# Project Folder Structure
+PLUS-ULTRA is a desktop assistant built as a Problem-Based Learning (PBL) project. It provides a compact floating interface for managing tasks, reminders, and customizable categories.
+
+The application is designed for **Windows 11 and Ubuntu Linux**, with a shared application core and separate platform-specific implementations.
+
+The architecture aims to keep application logic independent of operating-system details, allowing platform features such as system tray integration, notifications, process management, and startup behavior to be handled through dedicated interfaces.
+
+---
+
+# Tech Stack
+
+The following table describes the technologies currently used by the project.
+
+| Component | Technology | Purpose |
+|---|---|---|
+| Package & Environment Manager | `uv` | Dependency management, virtual environments, and execution |
+| Programming Language | CPython 3.12+ | Main application runtime |
+| GUI Toolkit | `tkinter` and `tkinter.ttk` | Floating desktop interface and application windows |
+| Database | SQLite (`sqlite3`) | Persistent storage using parameterized SQL |
+| Database Access | Raw SQL | Database operations without an ORM |
+| User Configuration | Custom JSON engine | Persistent user preferences and configuration |
+| System Tray | `pystray` | System tray icon, menus, and interactions |
+| Image Processing | Pillow | Loading and preparing tray icon images |
+| Platform Integration | Python platform adapters | OS-specific system functionality |
+| Linux Process Locking | `fcntl.flock` | Single-instance enforcement on Linux |
+| Logging | Python `logging` | Application and diagnostic logs |
+| Testing | `pytest` | Automated testing |
+| Code Quality | Ruff | Python linting and formatting |
+| Packaging | PyInstaller | Freezing the Python application into distributable executables |
+
+## Application Architecture
+
+PLUS-ULTRA follows a shared-core, platform-specific-adapter architecture.
+
+The application uses common interfaces to communicate with operating-system features rather than directly depending on platform-specific implementations.
 
 ```text
-plus-ultra/
-├── .agents/                      # Agent rules, guidelines, and instructions
-├── .docs/                        # Architecture, API specs, commands, and logs
-│   ├── api.md                    # Public API and interface specifications
-│   ├── architecture.MD           # Architecture, Tech-Stack, and Dependencies
-│   ├── commands.md               # CLI commands, testing flags, and checklists
-│   ├── features.md               # 6-tab workspace specifications & db schema
-│   └── progress-log.md           # Chronological phase implementation log
-├── .scripts/                     # Standalone maintenance and tooling utilities
-│   ├── clear_db.py               # Table purging, soft/hard delete, vacuum utility
-│   ├── install.py                # Cross-platform interactive TUI installer
-│   ├── notify.py                 # Desktop notification testing CLI
-│   ├── seed_data.py              # Demo dataset seeding and unseeding engine
-│   └── uninstall.py              # Interactive TUI uninstaller
-├── .tests/                       # Test suite (167 tests across 21 test suites)
-│   ├── test_architecture_boundaries.py
-│   ├── test_sqlalchemy_persistence.py
-│   └── test_unit_of_work.py
-├── pyproject.toml                # Project metadata, dependencies, and tool configs
-├── README.md                     # High-level overview, architecture, and quick start
-├── src/
-│   └── plus_ultra/               # Core application package
-│       ├── application/          # Application layer & use cases
-│       │   ├── interfaces/       # Abstract interfaces (Unit of Work)
-│       │   └── services/         # Application maintenance & data services
-│       ├── concurrency/          # Concurrency & background workers (OS concepts)
-│       ├── core/                 # Core DI container, lifecycle, event bus
-│       ├── diagnostics/          # Health probes and network monitor
-│       ├── domain/               # Enterprise domain entities & repository contracts
-│       │   ├── entities/         # Pure Python dataclasses (Task, Category, etc.)
-│       │   ├── repositories/     # Abstract Protocol repository contracts
-│       │   └── notifications.py  # Capsule notification value objects & queue
-│       ├── infrastructure/       # Persistence & external adapters
-│       │   └── persistence/      # Database adapters (SQLAlchemy 2.x, MongoDB doc)
-│       │       ├── database_config.py      # Centralized database configuration
-│       │       ├── database_factory.py     # Pluggable persistence factory
-│       │       ├── database_initializer.py # Non-destructive Base.metadata.create_all
-│       │       ├── mongodb/                # Future MongoDB adapter documentation
-│       │       └── sqlalchemy/             # SQLAlchemy 2.x ORM implementation
-│       │           ├── base.py             # DeclarativeBase root
-│       │           ├── mappers/            # ORM model <-> domain entity mappers
-│       │           ├── models/             # 10 SQLAlchemy ORM table models
-│       │           ├── repositories/       # Concrete repository implementations
-│       │           ├── session.py          # Engine, events & session factories
-│       │           └── unit_of_work.py     # SqlAlchemyUnitOfWork implementation
-│       ├── services/             # Domain business logic services (decoupled)
-│       ├── repositories/         # Compatibility facade for concrete repositories
-│       ├── database/             # Compatibility facade for session and engine
-│       ├── ui/                   # Modular presentation layer (Tkinter / XWayland)
-│       └── main.py               # Application bootstrap and argument parsing
-└── uv.lock                       # Deterministic dependency lockfile
+PLUS-ULTRA
+│
+├── Application Core
+│   ├── Business Logic
+│   ├── Task Management
+│   ├── Reminder Management
+│   ├── Database Operations
+│   └── User Interface (Tkinter)
+│
+└── Platform Services
+    │
+    ├── Common Interfaces
+    │   ├── System Tray
+    │   ├── Notifications
+    │   ├── Process Management
+    │   ├── Startup Management
+    │   ├── Window Management
+    │   └── Application Paths
+    │
+    ├── Linux Implementation
+    │   ├── Linux System Tray
+    │   ├── Linux Notifications
+    │   ├── Linux Process Lock
+    │   └── Linux Startup Integration
+    │
+    └── Windows Implementation
+        ├── Windows System Tray
+        ├── Windows Notifications
+        ├── Windows Process Lock
+        └── Windows Startup Integration
 ```
 
-# Project Tech-Stack
+The platform factory selects the appropriate implementation at runtime.
 
-The technology choices are locked and adhere to Problem-Based Learning objectives:
-
-| Component | Technology | Rationale & Concept |
-|---|---|---|
-| **Host Platform** | Ubuntu Linux (GNOME on Wayland) | Target OS. Tkinter runs via XWayland. |
-| **Language Runtime** | CPython 3.12+ | Managed via `uv`. Modern typing, pattern matching. |
-| **Package & Env Manager** | `uv` | High-performance virtualenv and dependency locking. |
-| **GUI Toolkit** | `tkinter` & `tkinter.ttk` | Standard library GUI toolkit. Kept strictly on UI thread. |
-| **Persistence Engine** | `SQLAlchemy >= 2.0.0` | Database-agnostic persistence layer (ORM / Core), Repository Pattern, and Unit of Work. |
-| **Default Storage Engine** | SQLite 3 (via SQLAlchemy) | Default file and in-memory engine. WAL mode, foreign keys (`PRAGMA foreign_keys = ON`), 5s busy timeout via connection events. |
-| **Schema Initialization** | Non-destructive `create_all` | No Alembic migration tables (`alembic_version` forbidden). Schema initializes non-destructively. |
-| **Machine State** | `app_state` table | Dedicated key-value store for machine state (`widget_x`, `widget_y`). Kept separate from user preferences. |
-| **User Settings Engine** | Custom JSON Engine | Atomic file replacement (`os.replace`, `0o600`), strict type safety, automatic quarantine of corrupt files. |
-| **Process Management** | `fcntl.flock` (Standard Library) | Single-instance mutual exclusion via POSIX advisory file locking. |
-| **Desktop Notifications** | `notify-send` via `subprocess` | Desktop notification dispatch without heavyweight dependencies. |
-| **Code Quality & Testing** | `ruff` & `pytest` | Fast linting/formatting (strict 80-char line limit) and automated test suite. |
+**Platform support:**
+- Windows: Platform implementation available.
+- Linux: Platform implementation available.
+- macOS: Platform detection exists, but native application support is not currently implemented.
 
 ---
 
 # Project Dependencies
 
-All dependencies are defined in `pyproject.toml` and pinned in `uv.lock`.
+Dependencies are declared in `pyproject.toml` and resolved through `uv.lock`.
 
 ## Runtime Dependencies
-- **`sqlalchemy >= 2.0.0`**: Modern SQLAlchemy 2.x persistence engine providing ORM mapping, statement compilation, and connection pool management.
-- **Python Standard Library**:
-  - `argparse`: Command-line interface argument parsing.
-  - `contextlib`: Resource management and exception suppression.
-  - `dataclasses`: Pure domain entities (`Category`, `Task`, `Reminder`, `AppState`, workspace models).
-  - `datetime`: ISO-8601 UTC timestamp generation (`datetime.UTC`).
-  - `fcntl`: POSIX file locking (`flock`) for single-instance enforcement.
-  - `importlib.metadata` & `importlib.resources`: Version discovery and packaged resource access.
-  - `json`: User preference serialization and metadata decoding.
-  - `logging`: Dual logging (console stdout and persistent `launcher.log`).
-  - `os` & `stat`: Filesystem permissions (`0o700`, `0o600`) and atomic replace (`os.replace`).
-  - `pathlib`: Object-oriented path resolution per XDG standards.
-  - `queue`: Thread-safe cross-thread messaging.
-  - `signal`: POSIX signal trapping (`SIGINT`, `SIGTERM`) for clean shutdown.
-  - `sqlite3`: Standard library SQLite DBAPI driver used by SQLAlchemy SQLite dialect.
-  - `subprocess`: Safe argument-list invocation of `notify-send`.
-  - `threading`: Background task execution (scheduler, network monitor).
-  - `tkinter`: Native desktop GUI rendering and event dispatch.
+
+### Third-party packages
+
+The application uses the following third-party runtime dependencies:
+
+| Package | Purpose |
+|---|---|
+| `pystray` | System tray icon and interaction management |
+| `Pillow` | Image loading, processing, and resizing for tray icons |
+
+These packages are used together: Pillow prepares the icon image, while pystray manages its presentation and interactions with the desktop environment.
+
+### Python Standard Library
+
+The application also relies on Python's standard library for its core functionality.
+
+| Module | Purpose |
+|---|---|
+| `argparse` | Command-line argument parsing |
+| `contextlib` | Resource and context management |
+| `dataclasses` | Structured application entities |
+| `datetime` | Date and time handling |
+| `fcntl` | Linux file locking |
+| `importlib.metadata` | Installed package metadata |
+| `importlib.resources` | Accessing packaged resources |
+| `json` | Configuration serialization |
+| `logging` | Application logging |
+| `os` and `stat` | Filesystem operations and permissions |
+| `pathlib` | Filesystem path management |
+| `queue` | Thread-safe communication |
+| `signal` | Process signal handling |
+| `sqlite3` | Database operations |
+| `subprocess` | External process invocation |
+| `threading` | Background execution |
+| `tkinter` | Desktop GUI rendering |
+
+**Important:** Platform-specific modules are not necessarily used on every operating system. For example, `fcntl` is used for Linux process locking and is not a cross-platform Windows API.
 
 ## Development Dependencies
-- **`pytest >= 9.1.1`**: Automated test framework (167 tests across 21 test suites).
-- **`ruff >= 0.17.0`**: Fast Python linter and formatter enforcing PEP 8, import sorting, and strict 80-character line lengths.
+
+| Package | Purpose |
+|---|---|
+| `pytest` | Automated testing |
+| `ruff` | Linting and code formatting |
 
 ---
 
-## Quick Start
+# Database and Configuration
+
+## SQLite
+
+PLUS-ULTRA uses SQLite through Python's built-in `sqlite3` module.
+
+- Direct SQL queries; no ORM.
+- Parameterized SQL statements.
+- Foreign-key enforcement.
+- WAL journal mode.
+- Transaction-based database operations.
+- Persistent application data.
+
+## Application State
+
+Machine-specific application state is stored separately from user preferences.
+
+Examples include:
+- Floating widget position.
+- Window coordinates.
+- Other machine-specific state.
+
+## User Settings
+
+A custom JSON configuration engine handles user preferences.
+
+Its responsibilities include:
+- Atomic configuration file replacement using `os.replace`.
+- Restrictive file permissions where supported.
+- Configuration validation.
+- Handling and quarantining corrupted configuration files.
+
+---
+
+# System Integration
+
+## System Tray
+
+The application uses `pystray` and Pillow for system tray functionality.
+
+- Tray icon creation and display.
+- Context menu integration.
+- Tray interactions.
+- Platform-specific tray implementations.
+
+**Linux note:** System tray availability depends on the desktop environment and its indicator support. GNOME on Wayland may require a compatible AppIndicator extension and supporting system libraries. Installing Python dependencies alone does not guarantee that an indicator will appear.
+
+## Desktop Notifications
+
+Notifications are implemented through platform-specific services.
+
+- Linux: Desktop notification integration using `notify-send`.
+- Windows: Windows-specific notification implementation.
+
+## Process Management
+
+The application uses platform-specific process management implementations to support single-instance execution and clean shutdown behavior.
+
+Linux uses `fcntl.flock` for advisory file locking.
+
+---
+
+# Packaging and Installation
+
+The project includes a PyInstaller specification for freezing the Python application.
+
+**Packaging and installation are separate concerns:**
+
+- PyInstaller creates a frozen application executable.
+- Platform-specific installation scripts handle application installation and removal.
+- Windows and Linux require their respective installation mechanisms.
+
+The PyInstaller specification alone does not create a conventional Windows setup wizard or a Linux `.deb` package.
+
+---
+
+# Quick Start
+
+## Prerequisites
+
+- Python 3.12+
+- `uv`
+- Git
+- Required operating-system GUI and tray integration support
+
+## Install Dependencies
 
 ```bash
-# Sync environment dependencies
 uv sync
+```
 
-# Run the test suite
-uv run pytest -v
+## Run the Application
 
-# Run linting and format verification
-uv run ruff check .
-uv run ruff format --check .
-
-# Launch the floating desktop assistant
+```bash
 uv run plus-ultra
+```
 
-# Run transient smoke test (validates GUI, DB, and lock, then exits cleanly in 500ms)
+## Run Tests
+
+```bash
+uv run pytest -v
+```
+
+## Run a Smoke Test
+
+```bash
 uv run plus-ultra --smoke-test
+```
 
-# Seed demo dataset across all 6 workspace tabs
+The smoke test validates essential application components and exits automatically.
+
+## Installation
+
+### Linux
+
+```bash
+./.scripts/install.sh
+```
+
+Alternatively:
+
+```bash
+./.scripts/linux/install.sh
+```
+
+### Windows
+
+```powershell
+powershell .scripts/install.ps1
+```
+
+Alternatively:
+
+```powershell
+powershell .scripts/windows/install.ps1
+```
+
+## Uninstallation
+
+### Linux
+
+```bash
+./.scripts/uninstall.sh
+```
+
+### Windows
+
+```powershell
+powershell .scripts/uninstall.ps1
+```
+
+---
+
+# Development Utilities
+
+## Seed Demo Data
+
+```bash
 uv run python .scripts/seed_data.py --seed
+```
 
-# Unseed demo records cleanly
+## Remove Demo Data
+
+```bash
 uv run python .scripts/seed_data.py --unseed
+```
 
-# Clear database tables (with safety confirmation or --force)
+## Clear Database
+
+```bash
 uv run python .scripts/clear_db.py --all --force
+```
 
-# Test instant desktop notification
+## Test Desktop Notifications
+
+```bash
 uv run python .scripts/notify.py
 ```
+
+## Test Delayed Notifications
+
+```bash
+uv run python .scripts/notify.py 2
+```
+
+Or specify seconds:
+
+```bash
+uv run python .scripts/notify.py -s 10
+```
+
+---
+
+# Future Development
+
+The following items are planned rather than current runtime requirements.
+
+| Phase | Planned Feature | Status |
+|---|---|---|
+| Phase 7 | Supabase-based incremental cloud synchronization | Planned |
+| Future | Native macOS platform implementation | Not implemented |
+
+Future platform support should follow the existing adapter architecture instead of introducing operating-system-specific logic into the application core.
+
+---
+
+# Project Philosophy
+
+PLUS-ULTRA follows these architectural principles:
+
+1. **Separation of Concerns:** Keep business logic independent of platform-specific functionality.
+2. **Cross-Platform Design:** Share application logic while maintaining separate OS implementations.
+3. **Maintainability:** Prefer reusable interfaces and modular components.
+4. **Data Integrity:** Use transactional database operations and validated configuration.
+5. **Reliability:** Implement proper error handling, logging, and graceful shutdown.
+6. **Extensibility:** Make it possible to introduce additional platform implementations without rewriting the application core.
+
+**Project Goal:** Build a maintainable, reliable, and extensible desktop assistant while demonstrating practical concepts from Operating Systems, Database Management Systems, and Software Engineering.
